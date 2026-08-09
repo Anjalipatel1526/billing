@@ -8,9 +8,27 @@ export const MinimalTemplate = ({ company = {}, customer = {}, items = [], total
   const isVoucher = document.documentType === 'voucher';
   const isReceipt = document.documentType === 'receipt';
 
+  // Watermark image
+  const watermarkImage = company.watermarkLogo || company.logo;
+
   return (
-    <div className="bg-white text-slate-800 p-8 text-xs font-sans border border-slate-200 shadow-sm max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between" id="printable-document">
-      <div>
+    <div className="bg-white text-slate-800 p-8 text-xs font-sans border border-slate-200 shadow-sm max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between relative overflow-hidden select-none" id="printable-document">
+      {/* BACKGROUND WATERMARK */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        {watermarkImage ? (
+          <img
+            src={watermarkImage}
+            alt="Company Watermark"
+            className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
+          />
+        ) : (
+          <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
+            {company.companyName || 'UNAI BILLING'}
+          </span>
+        )}
+      </div>
+
+      <div className="relative z-10">
         {/* Top Bar / Header */}
         <div className="flex justify-between items-start border-b border-slate-200 pb-6 mb-6">
           <div className="flex items-center gap-4">
@@ -212,7 +230,7 @@ export const MinimalTemplate = ({ company = {}, customer = {}, items = [], total
       </div>
 
       {/* Authorized Signature Bottom */}
-      <div className="pt-6 border-t border-slate-200 flex justify-between items-end mt-auto">
+      <div className="relative z-10 pt-6 border-t border-slate-200 flex justify-between items-end mt-auto">
         <div className="text-[10px] text-slate-400">
           This is a computer generated document.
         </div>

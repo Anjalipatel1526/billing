@@ -8,12 +8,30 @@ export const ModernTemplate = ({ company = {}, customer = {}, items = [], totals
   const isVoucher = document.documentType === 'voucher';
   const isReceipt = document.documentType === 'receipt';
 
-  return (
-    <div className="bg-white text-slate-800 p-8 text-xs font-sans border border-slate-200 shadow-lg max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between relative overflow-hidden" id="printable-document">
-      {/* Top Accent Stripe */}
-      <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600"></div>
+  // Watermark image
+  const watermarkImage = company.watermarkLogo || company.logo;
 
-      <div>
+  return (
+    <div className="bg-white text-slate-800 p-8 text-xs font-sans border border-slate-200 shadow-lg max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between relative overflow-hidden select-none" id="printable-document">
+      {/* Top Accent Stripe */}
+      <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 z-10"></div>
+
+      {/* BACKGROUND WATERMARK */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        {watermarkImage ? (
+          <img
+            src={watermarkImage}
+            alt="Company Watermark"
+            className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
+          />
+        ) : (
+          <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
+            {company.companyName || 'UNAI BILLING'}
+          </span>
+        )}
+      </div>
+
+      <div className="relative z-10">
         {/* Header */}
         <div className="flex justify-between items-start pt-2 mb-8">
           <div className="flex items-center gap-4">
@@ -196,7 +214,7 @@ export const ModernTemplate = ({ company = {}, customer = {}, items = [], totals
       </div>
 
       {/* Footer */}
-      <div className="pt-6 border-t border-slate-100 flex justify-between items-end mt-auto">
+      <div className="relative z-10 pt-6 border-t border-slate-100 flex justify-between items-end mt-auto">
         <div className="text-[10px] text-slate-400">
           <p className="font-semibold text-slate-700">{company.companyName}</p>
           <p>{company.website}</p>

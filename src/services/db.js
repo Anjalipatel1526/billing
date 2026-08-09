@@ -64,6 +64,7 @@ function companyToRow(c) {
     company_name: c.companyName,
     business_type: c.businessType,
     logo: c.logo,
+    watermark_logo: c.watermarkLogo,
     theme_color: c.themeColor,
     gst_number: c.gstNumber,
     pan_number: c.panNumber,
@@ -101,6 +102,7 @@ function rowToCompany(r) {
     companyName: r.company_name,
     businessType: r.business_type,
     logo: r.logo,
+    watermarkLogo: r.watermark_logo || r.watermarkLogo || '',
     themeColor: r.theme_color,
     gstNumber: r.gst_number,
     panNumber: r.pan_number,
@@ -185,27 +187,52 @@ function rowToDoc(r) {
 // ==========================================
 
 export async function getAllCompanies() {
+  let list = [];
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.from('companies').select('*').order('created_at', { ascending: false });
       if (!error && data) {
-        return data.map(rowToCompany);
+        list = data.map(rowToCompany);
+      } else if (error) {
+        console.warn('Supabase getAllCompanies error:', error);
       }
-      console.warn('Supabase getAllCompanies error:', error);
     } catch (e) {
       console.error('Supabase fetch error:', e);
     }
   }
 
-  const db = await getDB();
-  if (db) {
-    try {
-      return await db.getAll('companies');
-    } catch (e) {
-      console.error(e);
+  if (!list || list.length === 0) {
+    const db = await getDB();
+    if (db) {
+      try {
+        list = await db.getAll('companies');
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
-  return getLocalJSON(LOCAL_STORAGE_KEYS.COMPANIES, []);
+
+  if (!list || list.length === 0) {
+    list = getLocalJSON(LOCAL_STORAGE_KEYS.COMPANIES, []);
+  }
+
+  // Deduplicate by ID and by normalized Company Name to eliminate duplicate business entries
+  const seenIds = new Set();
+  const seenNames = new Set();
+  const uniqueCompanies = [];
+
+  for (const c of list) {
+    if (!c || !c.companyName) continue;
+    const normName = c.companyName.trim().toLowerCase();
+    
+    if (!seenIds.has(c.id) && !seenNames.has(normName)) {
+      seenIds.add(c.id);
+      seenNames.add(normName);
+      uniqueCompanies.push(c);
+    }
+  }
+
+  return uniqueCompanies;
 }
 
 export async function saveCompany(company) {
@@ -430,7 +457,7 @@ export async function deleteDocument(id) {
   const db = await getDB();
   if (db) {
     try {
-      await db.delete('documents', id);
+      await db.delete('companies', id);
     } catch (e) {
       console.error('IDB deleteDocument error', e);
     }

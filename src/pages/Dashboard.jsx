@@ -440,7 +440,7 @@ export const Dashboard = () => {
 
         {/* Hidden Render Container for PDF Download */}
         {pdfRenderDoc && (
-          <div className="fixed -left-[9999px] top-0">
+          <div style={{ position: 'absolute', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
             <div ref={pdfRef}>
               <TemplateWrapper
                 templateName={pdfRenderDoc.template || activeCompany?.selectedTemplate}

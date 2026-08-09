@@ -8,7 +8,7 @@ import { Button } from '../components/ui/Button';
 import { LogoUploader } from '../components/company/LogoUploader';
 import { TEMPLATES_CONFIG } from '../templates/TemplateWrapper';
 import { validateEmail, validateGST, validatePAN } from '../utils/formatting';
-import { Save, ArrowLeft, Building2, Landmark, Sliders, Palette } from 'lucide-react';
+import { Save, ArrowLeft, Building2, Landmark, Sliders, Palette, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
 export const CompanyEdit = () => {
@@ -88,7 +88,7 @@ export const CompanyEdit = () => {
               <h1 className="font-bold text-slate-900 text-sm md:text-base">
                 {id === 'new' ? 'Create Business Profile' : `Edit ${formData.companyName}`}
               </h1>
-              <p className="text-[11px] text-slate-500">Configure company details, logo, brand theme color, and document defaults.</p>
+              <p className="text-[11px] text-slate-500">Configure company details, logo, watermark, brand theme color, and document defaults.</p>
             </div>
           </div>
 
@@ -128,10 +128,23 @@ export const CompanyEdit = () => {
             </Select>
           </div>
 
-          <LogoUploader
-            value={formData.logo}
-            onChange={(val) => updateField('logo', val)}
-          />
+          {/* Logo & Watermark Uploaders */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <LogoUploader
+              label="Company Header Logo"
+              value={formData.logo}
+              onChange={(val) => updateField('logo', val)}
+            />
+
+            <LogoUploader
+              label="Document Watermark Image (Optional)"
+              value={formData.watermarkLogo}
+              onChange={(val) => updateField('watermarkLogo', val)}
+            />
+          </div>
+          <p className="text-[11px] text-slate-500 italic">
+            * If no custom watermark image is uploaded, your main Company Header Logo will automatically be used as the background watermark on all invoices, vouchers, and receipts.
+          </p>
 
           {/* Theme Color Picker */}
           <div className="pt-2 border-t border-slate-100 space-y-2">

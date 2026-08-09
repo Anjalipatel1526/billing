@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Badge } from '../components/ui/Badge';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { TemplateWrapper } from '../templates/TemplateWrapper';
 import { calculateTotals } from '../utils/calculations';
 import { 
@@ -100,6 +101,8 @@ export const Documents = () => {
     }, 300);
   };
 
+  const [deleteDocId, setDeleteDocId] = useState(null);
+
   const handleDuplicate = async (id) => {
     try {
       const dup = await duplicateDoc(id);
@@ -112,10 +115,15 @@ export const Documents = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this document permanently?')) {
-      await removeDoc(id);
+  const handleConfirmDelete = async () => {
+    if (!deleteDocId) return;
+    try {
+      await removeDoc(deleteDocId);
       showToast('Document deleted.', 'info');
+    } catch (err) {
+      showToast('Failed to delete document.', 'error');
+    } finally {
+      setDeleteDocId(null);
     }
   };
 
@@ -261,7 +269,7 @@ export const Documents = () => {
                               <Download className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDelete(doc.id)}
+                              onClick={() => setDeleteDocId(doc.id)}
                               className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50"
                               title="Delete"
                             >
@@ -280,7 +288,7 @@ export const Documents = () => {
 
         {/* Hidden Render Container for PDF Download */}
         {pdfRenderDoc && (
-          <div className="fixed -left-[9999px] top-0">
+          <div style={{ position: 'absolute', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
             <div ref={pdfRef}>
               <TemplateWrapper
                 templateName={pdfRenderDoc.template || activeCompany?.selectedTemplate}
@@ -293,6 +301,17 @@ export const Documents = () => {
             </div>
           </div>
         )}
+
+        {/* Custom Confirmation Popup Modal */}
+        <ConfirmModal
+          isOpen={!!deleteDocId}
+          onClose={() => setDeleteDocId(null)}
+          onConfirm={handleConfirmDelete}
+          title="Delete Document"
+          message="Are you sure you want to delete this document permanently? This action cannot be undone."
+          confirmText="Delete Document"
+          confirmVariant="danger"
+        />
       </div>
     </MainLayout>
   );

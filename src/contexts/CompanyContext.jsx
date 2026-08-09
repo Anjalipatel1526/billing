@@ -10,29 +10,30 @@ import {
 const CompanyContext = createContext(null);
 
 export const defaultCompanyState = {
-  companyName: '',
+  companyName: 'Autobourn',
   businessType: 'Private Limited',
   logo: '',
-  themeColor: '#f97316',
-  gstNumber: '',
-  panNumber: '',
-  email: '',
-  phone: '',
-  website: '',
-  address: '',
-  city: '',
-  state: '',
+  watermarkLogo: '',
+  themeColor: '#2563eb',
+  gstNumber: '27AAACA1234B1Z9',
+  panNumber: 'AAACA1234B',
+  email: 'contact@autobourn.com',
+  phone: '+91 98765 43210',
+  website: 'https://autobourn.com',
+  address: 'Suite 402, Pinnacle Tech Park, Next to Metro Station, Andheri East',
+  city: 'Mumbai',
+  state: 'Maharashtra',
   country: 'India',
-  pincode: '',
-  cin: '',
-  udyamNumber: '',
+  pincode: '400069',
+  cin: 'U72900MH2023PTC123456',
+  udyamNumber: 'UDYAM-MH-03-0012345',
   bankDetails: {
-    bankName: '',
-    accountHolder: '',
-    accountNumber: '',
-    ifsc: '',
-    branch: '',
-    upiId: ''
+    bankName: 'HDFC Bank Ltd',
+    accountHolder: 'Autobourn Private Limited',
+    accountNumber: '50200088991122',
+    ifsc: 'HDFC0000240',
+    branch: 'Andheri East Branch',
+    upiId: 'autobourn@hdfcbank'
   },
   invoicePrefix: 'INV-',
   invoiceStartNumber: 1001,
@@ -43,8 +44,8 @@ export const defaultCompanyState = {
   defaultTax: 18,
   currency: 'INR ₹',
   paymentTerms: 'Payment due within 15 days of invoice date.',
-  notes: 'Thank you for your business!',
-  paymentInstructions: 'Please include invoice number on your payment reference.',
+  notes: 'Thank you for choosing Autobourn. We appreciate your business!',
+  paymentInstructions: 'Please quote invoice reference number on bank transfer.',
   selectedTemplate: 'UNAI Billing'
 };
 
@@ -57,15 +58,53 @@ export const CompanyProvider = ({ children }) => {
     setLoading(true);
     try {
       const list = await getAllCompanies();
-      setCompanies(list);
+      
+      // Filter out duplicate profiles by ID or company name
+      const uniqueList = [];
+      const seenIds = new Set();
+      const seenNames = new Set();
+
+      for (let comp of list) {
+        if (!comp || !comp.companyName) continue;
+        const normName = comp.companyName.trim().toLowerCase();
+        if (!seenIds.has(comp.id) && !seenNames.has(normName)) {
+          seenIds.add(comp.id);
+          seenNames.add(normName);
+
+          // Enrich company with complete mock details if essential fields (email, phone, address) are missing
+          if (!comp.email || !comp.phone || !comp.address) {
+            comp = {
+              ...defaultCompanyState,
+              ...comp,
+              email: comp.email || `${normName.replace(/\s+/g, '')}@gmail.com`,
+              phone: comp.phone || '+91 98765 43210',
+              address: comp.address || 'Suite 402, Pinnacle Tech Park, Andheri East',
+              city: comp.city || 'Mumbai',
+              state: comp.state || 'Maharashtra',
+              gstNumber: comp.gstNumber || '27AAACA1234B1Z9',
+              panNumber: comp.panNumber || 'AAACA1234B',
+              bankDetails: {
+                ...defaultCompanyState.bankDetails,
+                ...(comp.bankDetails || {})
+              }
+            };
+            // Save enriched details back so it persists
+            dbSaveCompany(comp).catch(console.error);
+          }
+
+          uniqueList.push(comp);
+        }
+      }
+
+      setCompanies(uniqueList);
 
       const activeId = await getActiveCompanyId();
       let active = null;
       if (activeId) {
-        active = list.find(c => c.id === activeId) || null;
+        active = uniqueList.find(c => c.id === activeId) || null;
       }
-      if (!active && list.length > 0) {
-        active = list[0];
+      if (!active && uniqueList.length > 0) {
+        active = uniqueList[0];
         await dbSetActiveCompanyId(active.id);
       }
       setActiveCompany(active);

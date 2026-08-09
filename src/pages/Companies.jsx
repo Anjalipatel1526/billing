@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { useCompany } from '../contexts/CompanyContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Building2, Plus, Edit3, Trash2, CheckCircle, Mail, Phone, MapPin } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -12,20 +13,30 @@ export const Companies = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
+
   const handleSwitch = async (id) => {
     await switchCompany(id);
     showToast('Switched active company context.', 'success');
   };
 
-  const handleDelete = async (id, name) => {
+  const onRequestDelete = (id, name) => {
     if (companies.length <= 1) {
       showToast('Cannot delete the only remaining company profile.', 'error');
       return;
     }
+    setDeleteTarget({ id, name });
+  };
 
-    if (window.confirm(`Are you sure you want to delete "${name}"? Documents under this company will remain in storage.`)) {
-      await removeCompany(id);
-      showToast('Company profile deleted.', 'info');
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await removeCompany(deleteTarget.id);
+      showToast(`Company profile "${deleteTarget.name}" deleted.`, 'info');
+    } catch (e) {
+      showToast('Failed to delete company profile.', 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -124,7 +135,7 @@ export const Companies = () => {
 
                     {companies.length > 1 && (
                       <button
-                        onClick={() => handleDelete(comp.id, comp.companyName)}
+                        onClick={() => onRequestDelete(comp.id, comp.companyName)}
                         className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50"
                         title="Delete Profile"
                       >
@@ -138,6 +149,17 @@ export const Companies = () => {
           })}
         </div>
       </div>
+
+      {/* Styled Pop-up Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Business Profile"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? Associated documents created under this company will remain stored safely.`}
+        confirmText="Delete Profile"
+        confirmVariant="danger"
+      />
     </MainLayout>
   );
 };

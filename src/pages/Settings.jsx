@@ -221,6 +221,20 @@ export const Settings = () => {
                 onChange={handleImportFile}
               />
             </label>
+
+            <Button
+              variant="secondary"
+              icon={Database}
+              onClick={async () => {
+                const { populateMockData } = await import('../utils/sampleData');
+                await populateMockData();
+                await reloadCompanies();
+                await refetchDocuments();
+                showToast('Populated complete mock business details & sample documents!', 'success');
+              }}
+            >
+              Populate Full Mock Data
+            </Button>
           </div>
         </div>
 

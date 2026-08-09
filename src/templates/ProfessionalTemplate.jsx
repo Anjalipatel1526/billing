@@ -8,9 +8,27 @@ export const ProfessionalTemplate = ({ company = {}, customer = {}, items = [], 
   const isVoucher = document.documentType === 'voucher';
   const isReceipt = document.documentType === 'receipt';
 
+  // Watermark image
+  const watermarkImage = company.watermarkLogo || company.logo;
+
   return (
-    <div className="bg-white text-slate-900 p-8 text-xs font-sans border border-slate-200 shadow-md max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between" id="printable-document">
-      <div>
+    <div className="bg-white text-slate-900 p-8 text-xs font-sans border border-slate-200 shadow-md max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between relative overflow-hidden select-none" id="printable-document">
+      {/* BACKGROUND WATERMARK */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        {watermarkImage ? (
+          <img
+            src={watermarkImage}
+            alt="Company Watermark"
+            className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
+          />
+        ) : (
+          <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
+            {company.companyName || 'UNAI BILLING'}
+          </span>
+        )}
+      </div>
+
+      <div className="relative z-10">
         {/* Top Header Banner */}
         <div className="flex justify-between items-center bg-slate-900 text-white p-6 rounded-t-lg mb-6">
           <div className="flex items-center gap-4">
@@ -204,7 +222,7 @@ export const ProfessionalTemplate = ({ company = {}, customer = {}, items = [], 
       </div>
 
       {/* Footer & Signature */}
-      <div className="pt-6 border-t border-slate-200 flex justify-between items-end mt-auto">
+      <div className="relative z-10 pt-6 border-t border-slate-200 flex justify-between items-end mt-auto">
         <div className="text-[10px] text-slate-400 space-y-0.5">
           <p className="font-semibold text-slate-600">{company.companyName}</p>
           <p>{company.website || company.email}</p>

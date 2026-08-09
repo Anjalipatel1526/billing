@@ -8,8 +8,11 @@ export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], t
   const isVoucher = document.documentType === 'voucher';
   const isReceipt = document.documentType === 'receipt';
 
-  // Company theme color accent (defaults to sleek orange #f97316 from reference template or company color)
+  // Company theme color accent
   const themeColor = company.themeColor || '#f97316';
+
+  // Watermark logo (Custom watermark image or fallback company header logo)
+  const watermarkImage = company.watermarkLogo || company.logo;
 
   // Orientation class: Portrait for Invoice (210mm x 297mm), Landscape for Voucher & Receipt (297mm x 210mm)
   const containerDimensions = isInvoice
@@ -21,13 +24,13 @@ export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], t
       id="printable-document"
       className={`bg-white text-slate-900 font-sans border border-slate-200 shadow-lg mx-auto relative flex flex-col justify-between overflow-hidden select-none ${containerDimensions}`}
     >
-      {/* BACKGROUND WATERMARK OF EXACT COMPANY LOGO */}
+      {/* BACKGROUND WATERMARK (CUSTOM WATERMARK IMAGE OR COMPANY LOGO) */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-        {company.logo ? (
+        {watermarkImage ? (
           <img
-            src={company.logo}
+            src={watermarkImage}
             alt="Company Watermark"
-            className="w-96 h-96 object-contain opacity-[0.06] grayscale contrast-200"
+            className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
           />
         ) : (
           <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
@@ -46,7 +49,7 @@ export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], t
               <h1 className="text-4xl font-black tracking-tight text-slate-900 uppercase">
                 {isVoucher ? (document.voucherType || 'VOUCHER') : isReceipt ? 'RECEIPT' : 'INVOICE'}
               </h1>
-              {/* Decorative Theme Accent Circles (Matches reference design) */}
+              {/* Decorative Theme Accent Circles */}
               <div className="flex items-center -space-x-2">
                 <div
                   className="w-7 h-7 rounded-full opacity-90 shadow-2xs"
@@ -301,7 +304,7 @@ export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], t
           <p>{company.address}</p>
         </div>
 
-        {/* Thank You Pill Tag & Decorative Theme Circle Accent (Matches reference image) */}
+        {/* Thank You Pill Tag & Decorative Theme Circle Accent */}
         <div className="flex items-center gap-3">
           <div
             className="px-5 py-2 rounded-full font-bold text-white text-xs shadow-xs"

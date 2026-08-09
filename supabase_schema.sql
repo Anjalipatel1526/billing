@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.companies (
   company_name TEXT NOT NULL,
   business_type TEXT DEFAULT 'Private Limited',
   logo TEXT,
+  watermark_logo TEXT,
   theme_color TEXT DEFAULT '#f97316',
   gst_number TEXT,
   pan_number TEXT,

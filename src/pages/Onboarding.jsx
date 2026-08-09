@@ -179,10 +179,19 @@ export const Onboarding = () => {
                     </Select>
                   </div>
 
-                  <LogoUploader
-                    value={formData.logo}
-                    onChange={(val) => updateField('logo', val)}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <LogoUploader
+                      label="Company Header Logo"
+                      value={formData.logo}
+                      onChange={(val) => updateField('logo', val)}
+                    />
+
+                    <LogoUploader
+                      label="Document Watermark Image (Optional)"
+                      value={formData.watermarkLogo}
+                      onChange={(val) => updateField('watermarkLogo', val)}
+                    />
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
@@ -247,7 +256,6 @@ export const Onboarding = () => {
                     />
                     <Input
                       label="Country"
-                      placeholder="India"
                       value={formData.country}
                       onChange={(e) => updateField('country', e.target.value)}
                     />
@@ -258,21 +266,6 @@ export const Onboarding = () => {
                       onChange={(e) => updateField('pincode', e.target.value)}
                     />
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                    <Input
-                      label="CIN (Optional)"
-                      placeholder="U72200MH2020PTC123456"
-                      value={formData.cin}
-                      onChange={(e) => updateField('cin', e.target.value)}
-                    />
-                    <Input
-                      label="UDYAM Number (Optional)"
-                      placeholder="UDYAM-MH-00-0000000"
-                      value={formData.udyamNumber}
-                      onChange={(e) => updateField('udyamNumber', e.target.value)}
-                    />
-                  </div>
                 </div>
               )}
 
@@ -280,21 +273,20 @@ export const Onboarding = () => {
               {step === 2 && (
                 <div className="space-y-4">
                   <p className="text-xs text-slate-500">
-                    Provide bank details to automatically display payment instructions on your invoices and documents.
+                    Bank details will automatically appear on generated invoices for client direct wire payments.
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       label="Bank Name"
-                      placeholder="HDFC Bank / ICICI Bank"
-                      value={formData.bankDetails.bankName}
+                      placeholder="HDFC Bank"
+                      value={formData.bankDetails?.bankName || ''}
                       onChange={(e) => updateBankField('bankName', e.target.value)}
                     />
-
                     <Input
                       label="Account Holder Name"
                       placeholder="Acma Solutions Pvt Ltd"
-                      value={formData.bankDetails.accountHolder}
+                      value={formData.bankDetails?.accountHolder || ''}
                       onChange={(e) => updateBankField('accountHolder', e.target.value)}
                     />
                   </div>
@@ -303,21 +295,19 @@ export const Onboarding = () => {
                     <Input
                       label="Account Number"
                       placeholder="50200012345678"
-                      value={formData.bankDetails.accountNumber}
+                      value={formData.bankDetails?.accountNumber || ''}
                       onChange={(e) => updateBankField('accountNumber', e.target.value)}
                     />
-
                     <Input
                       label="IFSC Code"
-                      placeholder="HDFC0000123"
-                      value={formData.bankDetails.ifsc}
+                      placeholder="HDFC0001234"
+                      value={formData.bankDetails?.ifsc || ''}
                       onChange={(e) => updateBankField('ifsc', e.target.value.toUpperCase())}
                     />
-
                     <Input
-                      label="Branch Name"
-                      placeholder="BKC Branch, Mumbai"
-                      value={formData.bankDetails.branch}
+                      label="Branch"
+                      placeholder="Nariman Point, Mumbai"
+                      value={formData.bankDetails?.branch || ''}
                       onChange={(e) => updateBankField('branch', e.target.value)}
                     />
                   </div>
@@ -325,7 +315,7 @@ export const Onboarding = () => {
                   <Input
                     label="UPI ID (VPA)"
                     placeholder="company@hdfcbank"
-                    value={formData.bankDetails.upiId}
+                    value={formData.bankDetails?.upiId || ''}
                     onChange={(e) => updateBankField('upiId', e.target.value)}
                   />
                 </div>
@@ -337,21 +327,17 @@ export const Onboarding = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Input
                       label="Invoice Prefix"
-                      placeholder="INV-"
                       value={formData.invoicePrefix}
                       onChange={(e) => updateField('invoicePrefix', e.target.value)}
                     />
-
                     <Input
-                      label="Invoice Start Counter"
+                      label="Starting Invoice #"
                       type="number"
-                      placeholder="1001"
                       value={formData.invoiceStartNumber}
                       onChange={(e) => updateField('invoiceStartNumber', parseInt(e.target.value, 10) || 1001)}
                     />
-
                     <Select
-                      label="Currency"
+                      label="Default Currency"
                       value={formData.currency}
                       onChange={(e) => updateField('currency', e.target.value)}
                     >
@@ -362,26 +348,8 @@ export const Onboarding = () => {
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Default Tax Rate (%)"
-                      type="number"
-                      placeholder="18"
-                      value={formData.defaultTax}
-                      onChange={(e) => updateField('defaultTax', parseFloat(e.target.value) || 0)}
-                    />
-
-                    <Input
-                      label="Default Payment Terms"
-                      placeholder="Payment due within 15 days"
-                      value={formData.paymentTerms}
-                      onChange={(e) => updateField('paymentTerms', e.target.value)}
-                    />
-                  </div>
-
-                  {/* Template Cards */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-800 mb-3">Choose Preferred Invoice Template</label>
+                    <label className="block text-xs font-semibold text-slate-800 mb-3">Choose PDF Template Style</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {TEMPLATES_CONFIG.map((t) => {
                         const isSelected = formData.selectedTemplate === t.id;
@@ -395,7 +363,7 @@ export const Onboarding = () => {
                                 : 'border-slate-200 hover:border-slate-300 bg-white'
                             }`}
                           >
-                            <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center justify-between mb-1">
                               <span className="font-bold text-xs text-slate-900">{t.name}</span>
                               <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
                                 {t.badge}
@@ -411,13 +379,13 @@ export const Onboarding = () => {
               )}
             </div>
 
-            {/* Footer Buttons */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+            {/* Footer Controls */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
               <Button
                 variant="outline"
-                disabled={step === 1}
                 icon={ArrowLeft}
-                onClick={() => setStep(prev => prev - 1)}
+                onClick={() => setStep(step - 1)}
+                disabled={step === 1}
               >
                 Back
               </Button>
@@ -427,14 +395,14 @@ export const Onboarding = () => {
                   icon={ArrowRight}
                   onClick={() => {
                     if (step === 1 && !validateStep1()) return;
-                    setStep(prev => prev + 1);
+                    setStep(step + 1);
                   }}
                 >
-                  Next Step
+                  Continue
                 </Button>
               ) : (
                 <Button icon={Check} onClick={handleFinish}>
-                  Save & Complete Setup
+                  Complete Setup
                 </Button>
               )}
             </div>

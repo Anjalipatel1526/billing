@@ -8,9 +8,27 @@ export const ClassicTemplate = ({ company = {}, customer = {}, items = [], total
   const isVoucher = document.documentType === 'voucher';
   const isReceipt = document.documentType === 'receipt';
 
+  // Watermark image
+  const watermarkImage = company.watermarkLogo || company.logo;
+
   return (
-    <div className="bg-white text-black p-8 text-xs font-serif border-2 border-black max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between" id="printable-document">
-      <div>
+    <div className="bg-white text-black p-8 text-xs font-serif border-2 border-black max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between relative overflow-hidden select-none" id="printable-document">
+      {/* BACKGROUND WATERMARK */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        {watermarkImage ? (
+          <img
+            src={watermarkImage}
+            alt="Company Watermark"
+            className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
+          />
+        ) : (
+          <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
+            {company.companyName || 'UNAI BILLING'}
+          </span>
+        )}
+      </div>
+
+      <div className="relative z-10">
         {/* Header */}
         <div className="text-center pb-4 border-b-2 border-black mb-6">
           {company.logo && (
@@ -196,7 +214,7 @@ export const ClassicTemplate = ({ company = {}, customer = {}, items = [], total
       </div>
 
       {/* Footer */}
-      <div className="pt-4 border-t-2 border-black flex justify-between items-end mt-auto font-sans">
+      <div className="relative z-10 pt-4 border-t-2 border-black flex justify-between items-end mt-auto font-sans">
         <div className="text-[10px] text-slate-600">
           <p className="font-bold">{company.companyName}</p>
           <p>E. & O.E.</p>
