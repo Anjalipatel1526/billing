@@ -11,6 +11,7 @@ import { CreateDocument } from './pages/CreateDocument';
 import { CompanyEdit } from './pages/CompanyEdit';
 import { Settings } from './pages/Settings';
 import { Ledger } from './pages/Ledger';
+import { PublicPreview } from './pages/PublicPreview';
 
 import { 
   Shield, FileText, Receipt, CreditCard, BookOpen 
@@ -199,6 +200,11 @@ const AppRoutes = () => {
       <Route
         path="/settings"
         element={hasCompany ? <Settings /> : <Navigate to="/" replace />}
+      />
+
+      <Route
+        path="/preview/:id"
+        element={<PublicPreview />}
       />
 
       <Route path="*" element={<Navigate to="/" replace />} />

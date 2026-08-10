@@ -239,6 +239,29 @@ export async function getAllCompanies() {
   return uniqueCompanies;
 }
 
+export async function getCompanyById(id) {
+  if (isSupabaseConfigured()) {
+    try {
+      const { data } = await supabase.from('companies').select('*').eq('id', id).single();
+      if (data) return rowToCompany(data);
+    } catch (e) {
+      console.error('getCompanyById Supabase error:', e);
+    }
+  }
+
+  const db = await getDB();
+  if (db) {
+    try {
+      const company = await db.get('companies', id);
+      if (company) return company;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const list = getLocalJSON(LOCAL_STORAGE_KEYS.COMPANIES, []);
+  return list.find(c => c.id === id) || null;
+}
+
 export async function getLocalCompanyIds() {
   const ids = new Set();
   const db = await getDB();
