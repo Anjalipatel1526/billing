@@ -4,36 +4,38 @@ import {
   saveCompany as dbSaveCompany, 
   deleteCompany as dbDeleteCompany, 
   getActiveCompanyId, 
-  setActiveCompanyId as dbSetActiveCompanyId 
+  setActiveCompanyId as dbSetActiveCompanyId,
+  getLocalCompanyIds
 } from '../services/db';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const CompanyContext = createContext(null);
 
 export const defaultCompanyState = {
-  companyName: 'Autobourn',
+  companyName: '',
   businessType: 'Private Limited',
   logo: '',
   watermarkLogo: '',
-  themeColor: '#2563eb',
-  gstNumber: '27AAACA1234B1Z9',
-  panNumber: 'AAACA1234B',
-  email: 'contact@autobourn.com',
-  phone: '+91 98765 43210',
-  website: 'https://autobourn.com',
-  address: 'Suite 402, Pinnacle Tech Park, Next to Metro Station, Andheri East',
-  city: 'Mumbai',
-  state: 'Maharashtra',
+  themeColor: '#f97316',
+  gstNumber: '',
+  panNumber: '',
+  email: '',
+  phone: '',
+  website: '',
+  address: '',
+  city: '',
+  state: '',
   country: 'India',
-  pincode: '400069',
-  cin: 'U72900MH2023PTC123456',
-  udyamNumber: 'UDYAM-MH-03-0012345',
+  pincode: '',
+  cin: '',
+  udyamNumber: '',
   bankDetails: {
-    bankName: 'HDFC Bank Ltd',
-    accountHolder: 'Autobourn Private Limited',
-    accountNumber: '50200088991122',
-    ifsc: 'HDFC0000240',
-    branch: 'Andheri East Branch',
-    upiId: 'autobourn@hdfcbank'
+    bankName: '',
+    accountHolder: '',
+    accountNumber: '',
+    ifsc: '',
+    branch: '',
+    upiId: ''
   },
   invoicePrefix: 'INV-',
   invoiceStartNumber: 1001,
@@ -44,9 +46,11 @@ export const defaultCompanyState = {
   defaultTax: 18,
   currency: 'INR ₹',
   paymentTerms: 'Payment due within 15 days of invoice date.',
-  notes: 'Thank you for choosing Autobourn. We appreciate your business!',
-  paymentInstructions: 'Please quote invoice reference number on bank transfer.',
-  selectedTemplate: 'UNAI Billing'
+  notes: 'Thank you for your business!',
+  paymentInstructions: 'Please include invoice number on your payment reference.',
+  selectedTemplate: 'UNAI Billing',
+  companyCode: '',
+  companyPassword: ''
 };
 
 export const CompanyProvider = ({ children }) => {
@@ -58,14 +62,17 @@ export const CompanyProvider = ({ children }) => {
     setLoading(true);
     try {
       const list = await getAllCompanies();
+      const localIdsArray = await getLocalCompanyIds();
+      const localIdsSet = new Set(localIdsArray);
       
-      // Filter out duplicate profiles by ID or company name
+      // Filter out duplicate profiles by ID or company name, and only keep locally joined/created ones
       const uniqueList = [];
       const seenIds = new Set();
       const seenNames = new Set();
 
       for (let comp of list) {
         if (!comp || !comp.companyName) continue;
+        if (!localIdsSet.has(comp.id)) continue;
         const normName = comp.companyName.trim().toLowerCase();
         if (!seenIds.has(comp.id) && !seenNames.has(normName)) {
           seenIds.add(comp.id);
@@ -117,10 +124,43 @@ export const CompanyProvider = ({ children }) => {
 
   useEffect(() => {
     loadData();
+
+    if (isSupabaseConfigured()) {
+      const companiesChannel = supabase
+        .channel('companies-realtime-sync')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'companies' },
+          () => {
+            loadData();
+          }
+        )
+        .subscribe();
+
+      const settingsChannel = supabase
+        .channel('settings-realtime-sync')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'settings' },
+          () => {
+            loadData();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(companiesChannel);
+        supabase.removeChannel(settingsChannel);
+      };
+    }
   }, []);
 
   const switchCompany = async (companyId) => {
-    const found = companies.find(c => c.id === companyId);
+    let found = companies.find(c => c.id === companyId);
+    if (!found) {
+      const list = await getAllCompanies();
+      found = list.find(c => c.id === companyId);
+    }
     if (found) {
       setActiveCompany(found);
       await dbSetActiveCompanyId(found.id);

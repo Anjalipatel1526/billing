@@ -7,6 +7,7 @@ import {
 } from '../services/db';
 import { useCompany } from './CompanyContext';
 import { generateNextDocNumber } from '../utils/documentNumber';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DocumentContext = createContext(null);
 
@@ -36,6 +37,23 @@ export const DocumentProvider = ({ children }) => {
 
   useEffect(() => {
     fetchDocuments();
+
+    if (isSupabaseConfigured()) {
+      const docsChannel = supabase
+        .channel('documents-realtime-sync')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'documents' },
+          () => {
+            fetchDocuments();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(docsChannel);
+      };
+    }
   }, [fetchDocuments]);
 
   const saveDoc = async (docData) => {

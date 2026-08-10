@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS public.companies (
   notes TEXT,
   payment_instructions TEXT,
   selected_template TEXT DEFAULT 'UNAI Billing',
+  company_code TEXT UNIQUE,
+  company_password TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -85,3 +87,26 @@ ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read/write access to companies" ON public.companies FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read/write access to documents" ON public.documents FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read/write access to settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+
+-- 4. LEDGER ENTRIES TABLE (Optional / Manual Reconciliations)
+CREATE TABLE IF NOT EXISTS public.ledger_entries (
+  id TEXT PRIMARY KEY,
+  company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE,
+  document_id TEXT REFERENCES public.documents(id) ON DELETE SET NULL,
+  entry_date TEXT NOT NULL,
+  particulars TEXT,
+  debit NUMERIC DEFAULT 0,
+  credit NUMERIC DEFAULT 0,
+  balance NUMERIC DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ledger_entries_company_id ON public.ledger_entries(company_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_entries_entry_date ON public.ledger_entries(entry_date);
+
+-- 5. ENABLE REALTIME REPLICATION (For instant UI updates across devices)
+ALTER PUBLICATION supabase_realtime ADD TABLE public.companies;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.documents;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.ledger_entries;

@@ -6,7 +6,6 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { LogoUploader } from '../components/company/LogoUploader';
-import { TEMPLATES_CONFIG } from '../templates/TemplateWrapper';
 import { validateEmail, validateGST, validatePAN } from '../utils/formatting';
 import { Save, ArrowLeft, Building2, Landmark, Sliders, Palette, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
@@ -282,11 +281,38 @@ export const CompanyEdit = () => {
             />
           </div>
 
-          <Input
-            label="UPI ID"
-            value={formData.bankDetails?.upiId || ''}
-            onChange={(e) => updateBankField('upiId', e.target.value)}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="UPI ID"
+              value={formData.bankDetails?.upiId || ''}
+              onChange={(e) => updateBankField('upiId', e.target.value)}
+            />
+            <Select
+              label="Account Type"
+              value={formData.bankDetails?.accountType || 'Saving'}
+              onChange={(e) => {
+                const type = e.target.value;
+                const limit = type === 'Current' ? 200000 : 100000;
+                setFormData(prev => ({
+                  ...prev,
+                  bankDetails: {
+                    ...prev.bankDetails,
+                    accountType: type,
+                    dailyLimit: limit
+                  }
+                }));
+              }}
+            >
+              <option value="Saving">Saving Account</option>
+              <option value="Current">Current Account</option>
+            </Select>
+            <Input
+              label="Daily Transaction Limit (₹)"
+              type="number"
+              value={formData.bankDetails?.dailyLimit || 100000}
+              onChange={(e) => updateBankField('dailyLimit', parseFloat(e.target.value) || 0)}
+            />
+          </div>
         </div>
 
         {/* Defaults & Template Section */}
@@ -334,33 +360,7 @@ export const CompanyEdit = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-800 mb-3">Selected Template</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {TEMPLATES_CONFIG.map((t) => {
-                const isSelected = formData.selectedTemplate === t.id;
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => updateField('selectedTemplate', t.id)}
-                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-blue-600 bg-blue-50/40 shadow-xs'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-xs text-slate-900">{t.name}</span>
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                        {t.badge}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-snug">{t.description}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+
         </div>
 
         <div className="flex justify-end gap-3 pt-2">

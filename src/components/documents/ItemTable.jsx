@@ -14,7 +14,7 @@ export const ItemTable = ({ items, onChange, defaultTax = 18, currencySymbol = '
       rate: 0,
       taxRate: defaultTax
     };
-    onChange([...items, newItem]);
+    onChange([newItem, ...items]);
   };
 
   const updateItem = (index, field, value) => {

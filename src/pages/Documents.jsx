@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { useCompany } from '../contexts/CompanyContext';
 import { useDocument } from '../contexts/DocumentContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { formatCurrency, formatDate } from '../utils/formatting';
 import { downloadDocumentPDF } from '../services/pdfGenerator';
 import { Button } from '../components/ui/Button';
@@ -21,7 +21,9 @@ import {
   Trash2, 
   Edit3, 
   Filter,
-  ArrowUpDown
+  ArrowUpDown,
+  X,
+  Eye
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -30,6 +32,22 @@ export const Documents = () => {
   const { documents, removeDoc, duplicateDoc } = useDocument();
   const navigate = useNavigate();
   const { showToast } = useToast();
+
+  const { search } = useLocation();
+  const [previewDoc, setPreviewDoc] = useState(null);
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(search);
+    const previewId = queryParams.get('preview');
+    if (previewId && documents.length > 0) {
+      const doc = documents.find(d => d.id === previewId);
+      if (doc) {
+        setPreviewDoc(doc);
+      }
+    } else {
+      setPreviewDoc(null);
+    }
+  }, [search, documents]);
 
   const [typeFilter, setTypeFilter] = useState('all'); // all | invoice | voucher | receipt
   const [statusFilter, setStatusFilter] = useState('all'); // all | Paid | Pending | Overdue | Draft
@@ -312,6 +330,58 @@ export const Documents = () => {
           confirmText="Delete Document"
           confirmVariant="danger"
         />
+
+        {/* URL Parameter Preview Modal */}
+        {previewDoc && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-bold text-slate-800 text-sm">
+                    Document Preview - {previewDoc.documentNumber}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button icon={Download} onClick={() => handleDownload(previewDoc)}>
+                    Download PDF
+                  </Button>
+                  <button
+                    onClick={() => navigate('/documents')}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                    title="Close Preview"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 bg-slate-200/80 p-6 overflow-auto flex justify-center items-start">
+                <div className={`transform origin-top transition-all my-4 ${
+                  (previewDoc.documentType === 'invoice' || !previewDoc.documentType) ? 'scale-[0.85] sm:scale-100' : 'scale-[0.70] sm:scale-90'
+                }`}>
+                  <TemplateWrapper
+                    templateName={previewDoc.template || activeCompany?.selectedTemplate}
+                    company={activeCompany}
+                    customer={previewDoc.customer}
+                    items={previewDoc.items || []}
+                    totals={previewDoc.totals || calculateTotals(previewDoc.items || [], previewDoc.discount)}
+                    document={previewDoc}
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end">
+                <Button variant="outline" onClick={() => navigate('/documents')}>
+                  Close Preview
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );

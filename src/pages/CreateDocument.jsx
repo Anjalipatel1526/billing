@@ -69,7 +69,7 @@ export const CreateDocument = () => {
   const [paidTo, setPaidTo] = useState('');
   const [receivedFrom, setReceivedFrom] = useState('');
   const [amount, setAmount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('Bank Transfer');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [description, setDescription] = useState('');
 
@@ -218,8 +218,38 @@ export const CreateDocument = () => {
       return;
     }
 
-    showToast('Generating high quality PDF...', 'info');
     try {
+      // 1. Automatically save document first
+      const payload = {
+        id,
+        documentType: docType,
+        documentNumber,
+        documentDate,
+        dueDate,
+        status,
+        template: selectedTemplate,
+        customer,
+        items,
+        discount,
+        taxType,
+        totals,
+        voucherType,
+        paidTo,
+        receivedFrom,
+        amount,
+        paymentMethod,
+        referenceNumber,
+        description,
+        notes,
+        paymentTerms,
+        signature
+      };
+
+      const saved = await saveDoc(payload);
+      showToast(`Document ${saved.documentNumber} saved successfully!`, 'success');
+
+      // 2. Generate and download PDF
+      showToast('Generating high quality PDF...', 'info');
       if (previewRef.current) {
         const clientName = customer.customerName || paidTo || receivedFrom || 'Client';
         const filename = `${documentNumber}-${clientName.replace(/\s+/g, '_')}`;
@@ -227,9 +257,12 @@ export const CreateDocument = () => {
         await downloadDocumentPDF(previewRef.current, filename, orientation);
         showToast('PDF downloaded successfully!', 'success');
       }
+
+      // 3. Redirect to documents list
+      navigate('/documents');
     } catch (err) {
       console.error(err);
-      showToast('Failed to export PDF.', 'error');
+      showToast('Failed to save document or export PDF.', 'error');
     }
   };
 
@@ -371,26 +404,7 @@ export const CreateDocument = () => {
             </Select>
           </div>
 
-          {/* Template Selector */}
-          <div className="space-y-1">
-            <label className="block text-xs font-semibold text-slate-800">Template Style</label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              {TEMPLATES_CONFIG.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setSelectedTemplate(t.id)}
-                  className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all ${
-                    selectedTemplate === t.id
-                      ? 'border-blue-600 bg-blue-50/60 text-blue-700 font-semibold'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {t.name}
-                </button>
-              ))}
-            </div>
-          </div>
+
 
           {/* INVOICE CUSTOMER FORM */}
           {docType === 'invoice' && (
@@ -602,32 +616,20 @@ export const CreateDocument = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                  label="Payment Method"
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                >
-                  <option value="Bank Transfer">Bank Transfer (NEFT/RTGS/IMPS)</option>
-                  <option value="UPI Direct">UPI Direct</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Cheque">Cheque</option>
-                  <option value="Credit Card">Credit / Debit Card</option>
-                </Select>
-
                 <Input
                   label="Reference / Transaction #"
                   placeholder="e.g. UTR12345678"
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
                 />
-              </div>
 
-              <Input
-                label="Description / Purpose"
-                placeholder="Reason for payment or transaction notes"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+                <Input
+                  label="Description / Purpose"
+                  placeholder="Reason for payment or transaction notes"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
             </div>
           )}
 
@@ -635,7 +637,16 @@ export const CreateDocument = () => {
           <div className="pt-4 border-t border-slate-100 space-y-4">
             <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Notes & Authorized Signature</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Select
+                label="Payment Method"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              >
+                <option value="Cash">Cash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="UPI ID">UPI ID (Google Pay, PhonePe, Paytm, and Other Online Transactions)</option>
+              </Select>
               <Input
                 label="Document Notes"
                 placeholder="Additional notes for the client"
@@ -689,6 +700,7 @@ export const CreateDocument = () => {
               items={items}
               totals={totals}
               document={docObject}
+              documents={documents}
             />
           </div>
         </div>
@@ -736,6 +748,7 @@ export const CreateDocument = () => {
                     items={items}
                     totals={totals}
                     document={docObject}
+                    documents={documents}
                   />
                 </div>
               </div>

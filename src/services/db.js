@@ -91,6 +91,8 @@ function companyToRow(c) {
     notes: c.notes,
     payment_instructions: c.paymentInstructions,
     selected_template: c.selectedTemplate,
+    company_code: c.companyCode,
+    company_password: c.companyPassword,
     updated_at: c.updatedAt || new Date().toISOString(),
     created_at: c.createdAt || new Date().toISOString()
   };
@@ -129,6 +131,8 @@ function rowToCompany(r) {
     notes: r.notes,
     paymentInstructions: r.payment_instructions,
     selectedTemplate: r.selected_template,
+    companyCode: r.company_code,
+    companyPassword: r.company_password,
     createdAt: r.created_at,
     updatedAt: r.updated_at
   };
@@ -152,7 +156,7 @@ function docToRow(d) {
     template: d.template,
     notes: d.notes,
     terms: d.terms,
-    discount: d.discount || 0,
+    discount: typeof d.discount === 'object' && d.discount !== null ? parseFloat(d.discount.value) || 0 : parseFloat(d.discount) || 0,
     updated_at: d.updatedAt || new Date().toISOString(),
     created_at: d.createdAt || new Date().toISOString()
   };
@@ -176,7 +180,7 @@ function rowToDoc(r) {
     template: r.template,
     notes: r.notes,
     terms: r.terms,
-    discount: r.discount,
+    discount: typeof r.discount === 'number' ? { type: 'fixed', value: r.discount } : (r.discount || { type: 'percentage', value: 0 }),
     createdAt: r.created_at,
     updatedAt: r.updated_at
   };
@@ -233,6 +237,26 @@ export async function getAllCompanies() {
   }
 
   return uniqueCompanies;
+}
+
+export async function getLocalCompanyIds() {
+  const ids = new Set();
+  const db = await getDB();
+  if (db) {
+    try {
+      const locals = await db.getAll('companies');
+      if (locals) {
+        locals.forEach(c => { if (c && c.id) ids.add(c.id); });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const lsLocals = getLocalJSON(LOCAL_STORAGE_KEYS.COMPANIES, []);
+  if (lsLocals) {
+    lsLocals.forEach(c => { if (c && c.id) ids.add(c.id); });
+  }
+  return Array.from(ids);
 }
 
 export async function saveCompany(company) {
@@ -492,3 +516,43 @@ export async function clearAllData() {
   localStorage.removeItem(LOCAL_STORAGE_KEYS.DOCUMENTS);
   localStorage.removeItem(LOCAL_STORAGE_KEYS.ACTIVE_COMPANY);
 }
+
+/**
+ * Looks up a company by its unique join code and verifies the password.
+ * Returns the company object on success, or throws on failure.
+ */
+export async function joinCompanyByCode(code, password) {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase is not configured. Join Company requires a cloud connection.');
+  }
+
+  const { data, error } = await supabase
+    .from('companies')
+    .select('*')
+    .eq('company_code', code.trim().toUpperCase())
+    .single();
+
+  if (error || !data) {
+    throw new Error('Company not found. Please check the Company ID and try again.');
+  }
+
+  if (data.company_password !== password) {
+    throw new Error('Incorrect password. Please try again.');
+  }
+
+  const company = rowToCompany(data);
+
+  // Save locally so the user has it cached
+  const db = await getDB();
+  if (db) {
+    try { await db.put('companies', company); } catch (e) { console.error(e); }
+  }
+  const list = getLocalJSON(LOCAL_STORAGE_KEYS.COMPANIES, []);
+  if (!list.find(c => c.id === company.id)) {
+    list.push(company);
+    setLocalJSON(LOCAL_STORAGE_KEYS.COMPANIES, list);
+  }
+
+  return company;
+}
+

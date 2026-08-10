@@ -1,13 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useCompany } from '../../contexts/CompanyContext';
-import { Building2, ChevronDown, Plus, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Building2, ChevronDown, Check } from 'lucide-react';
 
 export const CompanySwitcher = () => {
   const { companies, activeCompany, switchCompany } = useCompany();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -25,7 +23,7 @@ export const CompanySwitcher = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-slate-800 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {activeCompany?.logo ? (
             <img src={activeCompany.logo} alt="Logo" className="w-5 h-5 rounded object-contain shrink-0 bg-white border border-slate-200/50 p-0.5" />
           ) : (
@@ -33,7 +31,12 @@ export const CompanySwitcher = () => {
               {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
             </div>
           )}
-          <span className="truncate text-slate-900 font-semibold">{activeCompany?.companyName || 'Select Company'}</span>
+          <div className="flex flex-col items-start min-w-0 text-left">
+            <span className="truncate text-slate-900 font-semibold leading-tight">{activeCompany?.companyName || 'Select Company'}</span>
+            {activeCompany?.companyCode && (
+              <span className="text-[9px] text-slate-500 font-mono mt-0.5">ID: {activeCompany.companyCode}</span>
+            )}
+          </div>
         </div>
         <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
       </button>
@@ -53,29 +56,22 @@ export const CompanySwitcher = () => {
                   comp.id === activeCompany?.id ? 'text-blue-600 font-semibold bg-blue-50/50' : 'text-slate-700'
                 }`}
               >
-                <div className="flex items-center gap-2 truncate">
+                <div className="flex items-center gap-2.5 truncate">
                   {comp.logo ? (
                     <img src={comp.logo} alt="Logo" className="w-4 h-4 rounded object-contain shrink-0 border border-slate-200/50" />
                   ) : (
                     <Building2 className="w-3.5 h-3.5 shrink-0 text-slate-400" />
                   )}
-                  <span className="truncate">{comp.companyName}</span>
+                  <div className="flex flex-col items-start truncate text-left">
+                    <span className="truncate font-medium">{comp.companyName}</span>
+                    {comp.companyCode && (
+                      <span className="text-[9px] text-slate-400 font-mono">ID: {comp.companyCode}</span>
+                    )}
+                  </div>
                 </div>
                 {comp.id === activeCompany?.id && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
               </button>
             ))}
-          </div>
-          <div className="border-t border-slate-100 mt-1 pt-1">
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                navigate('/companies/new');
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-600 hover:bg-blue-50 font-medium transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add New Company</span>
-            </button>
           </div>
         </div>
       )}

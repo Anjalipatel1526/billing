@@ -83,7 +83,7 @@ export async function downloadDocumentPDF(element, filename = 'document.pdf', or
     @media print {
       html, body {
         width: ${isLandscape ? '297mm' : '210mm'};
-        height: ${isLandscape ? '210mm' : '297mm'};
+        height: auto !important;
       }
       #printable-document {
         width: ${isLandscape ? '297mm' : '210mm'} !important;
