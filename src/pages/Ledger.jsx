@@ -18,7 +18,6 @@ import {
   TrendingUp, 
   TrendingDown, 
   Scale, 
-  ExternalLink,
   Eye,
   X
 } from 'lucide-react';
@@ -112,8 +111,6 @@ export const Ledger = () => {
 
       runningBalance += (debit - credit);
 
-      const previewUrl = `${window.location.origin}/documents?preview=${d.id}`;
-
       return {
         id: d.id,
         date: d.documentDate || d.createdAt?.slice(0, 10),
@@ -122,8 +119,7 @@ export const Ledger = () => {
         particulars: `${type.toUpperCase()} - ${party} ${d.description ? `(${d.description})` : ''}`,
         debit,
         credit,
-        balance: runningBalance,
-        previewUrl
+        balance: runningBalance
       };
     });
 
@@ -149,7 +145,7 @@ export const Ledger = () => {
     }
 
     try {
-      const headers = ['Date', 'Document Type', 'Document Number', 'Particulars', `Debit (${currencySymbol})`, `Credit (${currencySymbol})`, `Balance (${currencySymbol})`, 'Bill Preview Link'];
+      const headers = ['Date', 'Document Type', 'Document Number', 'Particulars', `Debit (${currencySymbol})`, `Credit (${currencySymbol})`, `Balance (${currencySymbol})`];
       
       const csvRows = [headers.join(',')];
       
@@ -161,8 +157,7 @@ export const Ledger = () => {
           `"${e.particulars.replace(/"/g, '""')}"`,
           e.debit.toFixed(2),
           e.credit.toFixed(2),
-          e.balance.toFixed(2),
-          e.previewUrl
+          e.balance.toFixed(2)
         ];
         csvRows.push(row.join(','));
       });
@@ -175,8 +170,7 @@ export const Ledger = () => {
         '',
         ledgerData.totalDebit.toFixed(2),
         ledgerData.totalCredit.toFixed(2),
-        ledgerData.finalBalance.toFixed(2),
-        ''
+        ledgerData.finalBalance.toFixed(2)
       ];
       csvRows.push(summaryRow.join(','));
 
@@ -519,7 +513,6 @@ export const Ledger = () => {
                   <th className="py-2 px-3 text-right">Debit (+)</th>
                   <th className="py-2 px-3 text-right">Credit (-)</th>
                   <th className="py-2 px-3 text-right">Balance</th>
-                  <th className="py-2 px-3 text-center">Bill Link</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 font-medium">
@@ -531,16 +524,6 @@ export const Ledger = () => {
                     <td className="py-2 px-3 text-right text-blue-600 font-semibold">{row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}</td>
                     <td className="py-2 px-3 text-right text-emerald-600 font-semibold">{row.credit > 0 ? formatCurrency(row.credit, currencySymbol) : '-'}</td>
                     <td className="py-2 px-3 text-right text-slate-900 font-black">{formatCurrency(row.balance, currencySymbol)}</td>
-                    <td className="py-2 px-3 text-center">
-                      <a 
-                        href={row.previewUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[9px] font-bold text-blue-600 underline"
-                      >
-                        Preview Bill
-                      </a>
-                    </td>
                   </tr>
                 ))}
               </tbody>

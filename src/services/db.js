@@ -526,10 +526,12 @@ export async function joinCompanyByCode(code, password) {
     throw new Error('Supabase is not configured. Join Company requires a cloud connection.');
   }
 
+  const sanitizedCode = code.replace(/^#\s*/, '').trim().toUpperCase();
+
   const { data, error } = await supabase
     .from('companies')
     .select('*')
-    .eq('company_code', code.trim().toUpperCase())
+    .eq('company_code', sanitizedCode)
     .single();
 
   if (error || !data) {
