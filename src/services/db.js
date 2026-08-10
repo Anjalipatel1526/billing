@@ -8,7 +8,14 @@ let dbPromise = null;
 
 function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(() => {
+        console.warn('IndexedDB connection timed out, falling back to storage.');
+        resolve(null);
+      }, 1200);
+    });
+
+    const openDbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('companies')) {
           const companyStore = db.createObjectStore('companies', { keyPath: 'id' });
@@ -28,6 +35,8 @@ function getDB() {
       console.warn('IndexedDB failed to open, fallback to localStorage', err);
       return null;
     });
+
+    dbPromise = Promise.race([openDbPromise, timeoutPromise]);
   }
   return dbPromise;
 }

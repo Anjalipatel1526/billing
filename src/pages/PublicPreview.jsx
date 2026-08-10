@@ -9,7 +9,6 @@ import {
   FileText, 
   Download, 
   AlertCircle, 
-  Loader2,
   Lock
 } from 'lucide-react';
 import { ToastProvider, useToast } from '../components/ui/Toast';
@@ -76,37 +75,7 @@ const PublicPreviewContent = () => {
     }, 300);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="relative flex items-center justify-center mb-4">
-          <div className="absolute w-20 h-20 bg-indigo-500/10 rounded-full animate-ping" />
-          <div className="relative w-16 h-16 rounded-full bg-slate-800 border border-slate-700 shadow-md flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-          </div>
-        </div>
-        <p className="text-slate-400 text-xs font-semibold tracking-wider uppercase animate-pulse">
-          Loading document...
-        </p>
-      </div>
-    );
-  }
-
-  if (!doc) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 bg-red-950/30 border border-red-500/20 text-red-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-red-950/20">
-          <AlertCircle className="w-8 h-8" />
-        </div>
-        <h2 className="text-white font-extrabold text-lg">Document Not Found</h2>
-        <p className="text-slate-400 text-xs mt-1 max-w-sm">
-          The document you are trying to access does not exist or may have been deleted. Please check the URL link.
-        </p>
-      </div>
-    );
-  }
-
-  const invoiceTotals = doc.totals || calculateTotals(doc.items || [], doc.discount);
+  const invoiceTotals = doc ? (doc.totals || calculateTotals(doc.items || [], doc.discount)) : null;
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
@@ -118,16 +87,21 @@ const PublicPreviewContent = () => {
           </div>
           <div>
             <h1 className="font-extrabold text-white text-sm tracking-tight leading-none uppercase">
-              {doc.documentNumber || 'Document'}
+              {loading ? 'Loading Document...' : doc ? doc.documentNumber : 'Document'}
             </h1>
             <p className="text-[10px] text-slate-400 font-semibold mt-1">
-              {company?.companyName || 'UNAI Workspace'} &bull; {doc.documentType?.toUpperCase()}
+              {loading ? 'Retrieving workspace details...' : doc ? (company?.companyName || 'UNAI Workspace') : 'UNAI Workspace'} &bull; {doc?.documentType?.toUpperCase() || ''}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button icon={Download} onClick={handleDownloadPDF} className="bg-indigo-600 hover:bg-indigo-700 text-white border-none shadow-lg shadow-indigo-600/20">
+          <Button 
+            icon={Download} 
+            onClick={handleDownloadPDF} 
+            disabled={loading || !doc}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white border-none shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+          >
             Download PDF
           </Button>
         </div>
@@ -135,19 +109,63 @@ const PublicPreviewContent = () => {
 
       {/* Main Container */}
       <main className="flex-1 overflow-auto p-4 sm:p-8 flex justify-center items-start">
-        <div className="transform origin-top transition-all duration-300 max-w-full my-4 scale-[0.80] sm:scale-95 md:scale-100">
-          <div ref={printRef}>
-            <TemplateWrapper
-              templateName={doc.template || company?.selectedTemplate || 'UNAI Billing'}
-              company={company || {}}
-              customer={doc.customer}
-              items={doc.items || []}
-              totals={invoiceTotals}
-              document={doc}
-              documents={allDocs}
-            />
+        {loading ? (
+          /* Pulsing invoice layout skeleton */
+          <div className="w-[210mm] min-h-[297mm] bg-white rounded-2xl shadow-xl p-8 space-y-8 animate-pulse mx-auto my-4">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-8">
+              <div className="space-y-4">
+                <div className="h-6 w-56 bg-slate-100 rounded-lg"></div>
+                <div className="h-4 w-40 bg-slate-100 rounded-lg"></div>
+                <div className="h-4 w-32 bg-slate-100 rounded-lg"></div>
+              </div>
+              <div className="h-16 w-16 bg-slate-100 rounded-xl"></div>
+            </div>
+            <div className="grid grid-cols-2 gap-8 pt-4">
+              <div className="space-y-3">
+                <div className="h-3 w-20 bg-slate-100 rounded"></div>
+                <div className="h-5 w-44 bg-slate-100 rounded-lg"></div>
+                <div className="h-4 w-36 bg-slate-100 rounded-lg"></div>
+              </div>
+              <div className="space-y-3 text-right">
+                <div className="h-3 w-20 bg-slate-100 rounded ml-auto"></div>
+                <div className="h-5 w-32 bg-slate-100 rounded-lg ml-auto"></div>
+                <div className="h-4 w-28 bg-slate-100 rounded-lg ml-auto"></div>
+              </div>
+            </div>
+            <div className="space-y-4 pt-8">
+              <div className="h-10 bg-slate-50 rounded-lg"></div>
+              <div className="h-12 bg-slate-100 rounded-lg"></div>
+              <div className="h-12 bg-slate-100 rounded-lg"></div>
+              <div className="h-12 bg-slate-100 rounded-lg"></div>
+            </div>
           </div>
-        </div>
+        ) : !doc ? (
+          /* Not Found */
+          <div className="my-auto flex flex-col items-center text-center p-6">
+            <div className="w-16 h-16 bg-red-950/30 border border-red-500/20 text-red-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-red-950/20">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-white font-extrabold text-lg">Document Not Found</h2>
+            <p className="text-slate-400 text-xs mt-1 max-w-sm">
+              The document you are trying to access does not exist or may have been deleted. Please check the link.
+            </p>
+          </div>
+        ) : (
+          /* Document Template */
+          <div className="transform origin-top transition-all duration-300 max-w-full my-4 scale-[0.80] sm:scale-95 md:scale-100">
+            <div ref={printRef}>
+              <TemplateWrapper
+                templateName={doc.template || company?.selectedTemplate || 'UNAI Billing'}
+                company={company || {}}
+                customer={doc.customer}
+                items={doc.items || []}
+                totals={invoiceTotals}
+                document={doc}
+                documents={allDocs}
+              />
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Footer Branding */}
