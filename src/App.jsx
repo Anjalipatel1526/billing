@@ -20,8 +20,9 @@ import {
 // Route Guard to redirect first-time users to Onboarding
 const AppRoutes = () => {
   const { activeCompany, loading } = useCompany();
+  const isPreviewRoute = window.location.pathname.startsWith('/preview/');
 
-  if (loading) {
+  if (loading && !isPreviewRoute) {
     return (
       <div className="h-screen max-h-screen flex flex-col md:flex-row bg-[#080d27] font-sans overflow-hidden">
         
