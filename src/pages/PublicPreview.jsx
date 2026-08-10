@@ -11,6 +11,7 @@ import {
   AlertCircle, 
   Lock
 } from 'lucide-react';
+import { ResponsiveDocumentWrapper } from '../components/ui/ResponsiveDocumentWrapper';
 import { ToastProvider, useToast } from '../components/ui/Toast';
 
 const PublicPreviewContent = () => {
@@ -152,17 +153,19 @@ const PublicPreviewContent = () => {
           </div>
         ) : (
           /* Document Template */
-          <div className="transform origin-top transition-all duration-300 max-w-full my-4 scale-[0.80] sm:scale-95 md:scale-100">
+          <div className="w-full max-w-full my-4">
             <div ref={printRef}>
-              <TemplateWrapper
-                templateName={doc.template || company?.selectedTemplate || 'UNAI Billing'}
-                company={company || {}}
-                customer={doc.customer}
-                items={doc.items || []}
-                totals={invoiceTotals}
-                document={doc}
-                documents={allDocs}
-              />
+              <ResponsiveDocumentWrapper isInvoice={doc.documentType === 'invoice' || !doc.documentType}>
+                <TemplateWrapper
+                  templateName={doc.template || company?.selectedTemplate || 'UNAI Billing'}
+                  company={company || {}}
+                  customer={doc.customer}
+                  items={doc.items || []}
+                  totals={invoiceTotals}
+                  document={doc}
+                  documents={allDocs}
+                />
+              </ResponsiveDocumentWrapper>
             </div>
           </div>
         )}

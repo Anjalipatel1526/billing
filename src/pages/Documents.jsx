@@ -12,6 +12,7 @@ import { Badge } from '../components/ui/Badge';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { TemplateWrapper } from '../templates/TemplateWrapper';
 import { calculateTotals } from '../utils/calculations';
+import { ResponsiveDocumentWrapper } from '../components/ui/ResponsiveDocumentWrapper';
 import { 
   FileText, 
   Search, 
@@ -359,9 +360,7 @@ export const Documents = () => {
 
               {/* Modal Body */}
               <div className="flex-1 bg-slate-200/80 p-6 overflow-auto flex justify-center items-start">
-                <div className={`transform origin-top transition-all my-4 ${
-                  (previewDoc.documentType === 'invoice' || !previewDoc.documentType) ? 'scale-[0.85] sm:scale-100' : 'scale-[0.70] sm:scale-90'
-                }`}>
+                <ResponsiveDocumentWrapper isInvoice={previewDoc.documentType === 'invoice' || !previewDoc.documentType}>
                   <TemplateWrapper
                     templateName={previewDoc.template || activeCompany?.selectedTemplate}
                     company={activeCompany}
@@ -370,7 +369,7 @@ export const Documents = () => {
                     totals={previewDoc.totals || calculateTotals(previewDoc.items || [], previewDoc.discount)}
                     document={previewDoc}
                   />
-                </div>
+                </ResponsiveDocumentWrapper>
               </div>
 
               {/* Modal Footer */}

@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { ItemTable } from '../components/documents/ItemTable';
 import { TemplateWrapper, TEMPLATES_CONFIG } from '../templates/TemplateWrapper';
 import { calculateTotals } from '../utils/calculations';
+import { ResponsiveDocumentWrapper } from '../components/ui/ResponsiveDocumentWrapper';
 import { numberToWords } from '../utils/numberToWords';
 import { generateNextDocNumber } from '../utils/documentNumber';
 import { downloadDocumentPDF } from '../services/pdfGenerator';
@@ -738,9 +739,7 @@ export const CreateDocument = () => {
 
               {/* Modal Body - Full A4 View Canvas */}
               <div className="flex-1 bg-slate-200/80 p-6 overflow-auto flex justify-center items-start">
-                <div className={`transform origin-top transition-all my-4 ${
-                  docType === 'invoice' ? 'scale-[0.85] sm:scale-100' : 'scale-[0.70] sm:scale-90'
-                }`}>
+                <ResponsiveDocumentWrapper isInvoice={docType === 'invoice'}>
                   <TemplateWrapper
                     templateName={selectedTemplate}
                     company={activeCompany}
@@ -750,7 +749,7 @@ export const CreateDocument = () => {
                     document={docObject}
                     documents={documents}
                   />
-                </div>
+                </ResponsiveDocumentWrapper>
               </div>
 
               {/* Modal Footer */}
