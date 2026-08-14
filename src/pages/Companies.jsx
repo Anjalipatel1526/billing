@@ -43,10 +43,10 @@ export const Companies = () => {
   return (
     <MainLayout title="Companies">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
           <div>
-            <h1 className="font-bold text-slate-900 text-lg">Business Profiles</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manage multiple companies and switch billing profiles instantly.</p>
+            <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Business Profiles</h1>
+            <p className="text-xs font-semibold text-slate-500 mt-0.5">Manage multiple companies and switch billing profiles instantly.</p>
           </div>
 
           <Button icon={Plus} onClick={() => navigate('/companies/new')}>
@@ -61,8 +61,8 @@ export const Companies = () => {
             return (
               <div
                 key={comp.id}
-                className={`bg-white rounded-2xl border p-5 transition-all flex flex-col justify-between space-y-4 shadow-xs relative ${
-                  isActive ? 'border-blue-600 ring-2 ring-blue-500/10' : 'border-slate-200 hover:border-slate-300'
+                className={`bg-white rounded-3xl border p-6 transition-all flex flex-col justify-between space-y-4 shadow-xs relative ${
+                  isActive ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-[#f1f3f9] hover:border-slate-300'
                 }`}
               >
                 <div>
@@ -83,13 +83,13 @@ export const Companies = () => {
                     </div>
 
                     {isActive ? (
-                      <Badge variant="primary" className="gap-1">
-                        <CheckCircle className="w-3 h-3" /> Active
+                      <Badge variant="primary" className="gap-1 bg-blue-50 text-blue-600 border-blue-100">
+                        <CheckCircle className="w-3 h-3 text-blue-600" /> Active
                       </Badge>
                     ) : (
                       <button
                         onClick={() => handleSwitch(comp.id)}
-                        className="text-xs font-semibold text-blue-600 hover:underline"
+                        className="text-xs font-bold text-blue-600 hover:underline"
                       >
                         Switch
                       </button>

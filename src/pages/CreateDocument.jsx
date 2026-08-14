@@ -297,19 +297,19 @@ export const CreateDocument = () => {
     <MainLayout title={id ? `Edit Document ${documentNumber}` : 'Create Document'}>
       <div className="space-y-4 max-w-5xl mx-auto">
         {/* Top Navigation & Actions Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/documents')}
-              className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100"
+              className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h1 className="font-bold text-slate-900 text-sm md:text-base">
+              <h1 className="font-extrabold text-slate-900 text-sm md:text-base tracking-tight">
                 {id ? `Edit ${docType.toUpperCase()}` : `New ${docType.toUpperCase()}`}
               </h1>
-              <p className="text-[11px] text-slate-500">Click Preview to view the complete A4 document page.</p>
+              <p className="text-[11px] font-semibold text-slate-500">Click Preview to view the complete A4 document page.</p>
             </div>
           </div>
 
@@ -327,22 +327,22 @@ export const CreateDocument = () => {
         </div>
 
         {/* FORM EDITOR (Full Width Container) */}
-        <div className="space-y-6 bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="space-y-6 bg-white p-6 md:p-8 rounded-3xl border border-[#f1f3f9] shadow-xs">
           {/* Document Type Selector Tabs + Preview Button */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold text-slate-800">Document Type</label>
+              <label className="block text-xs font-bold text-slate-800">Document Type</label>
               <button
                 type="button"
                 onClick={() => setShowPreviewModal(true)}
-                className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 border border-blue-200/80 px-3 py-1 rounded-lg transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-50/10 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5" />
                 <span>Preview Document</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1 rounded-xl">
+            <div className="grid grid-cols-3 gap-2 bg-[#f8fafc] border border-[#f1f3f9] p-1 rounded-2xl">
               {[
                 { id: 'invoice', label: 'Invoice', icon: FileText },
                 { id: 'voucher', label: 'Voucher', icon: CreditCard },
@@ -355,8 +355,8 @@ export const CreateDocument = () => {
                     key={t.id}
                     type="button"
                     onClick={() => setDocType(t.id)}
-                    className={`flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all ${
-                      isSel ? 'bg-white text-blue-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    className={`flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                      isSel ? 'bg-white text-blue-600 border border-blue-50/10 shadow-xs' : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />

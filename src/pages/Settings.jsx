@@ -14,13 +14,13 @@ export const Settings = () => {
   return (
     <MainLayout title="Settings">
       <div className="space-y-6 max-w-4xl mx-auto">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <h1 className="font-bold text-slate-900 text-lg">Application Settings</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Manage and edit your company workspace details.</p>
+        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
+          <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Application Settings</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-semibold">Manage and edit your company workspace details.</p>
         </div>
 
         {/* Company Quick Card */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <Building2 className="w-5 h-5" />

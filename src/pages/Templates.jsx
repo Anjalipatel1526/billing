@@ -26,9 +26,9 @@ export const Templates = () => {
   return (
     <MainLayout title="Templates">
       <div className="space-y-6">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <h1 className="font-bold text-slate-900 text-lg">Invoice & Document Templates</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
+          <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Invoice & Document Templates</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-semibold">
             Select a design style for {activeCompany?.companyName || 'your business'}. All document data dynamically adapts to your chosen template.
           </p>
         </div>
@@ -40,8 +40,8 @@ export const Templates = () => {
             return (
               <div
                 key={t.id}
-                className={`bg-white rounded-2xl border p-6 transition-all space-y-4 shadow-xs relative flex flex-col justify-between ${
-                  isSelected ? 'border-blue-600 ring-2 ring-blue-500/10' : 'border-slate-200 hover:border-slate-300'
+                className={`bg-white rounded-3xl border p-6 transition-all space-y-4 shadow-xs relative flex flex-col justify-between ${
+                  isSelected ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-[#f1f3f9] hover:border-slate-300'
                 }`}
               >
                 <div className="space-y-3">
@@ -52,7 +52,7 @@ export const Templates = () => {
                     </div>
 
                     {isSelected ? (
-                      <Badge variant="primary" className="gap-1">
+                      <Badge variant="primary" className="gap-1 bg-blue-50 text-blue-600 border-blue-100">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Selected
                       </Badge>
                     ) : (

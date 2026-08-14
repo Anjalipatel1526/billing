@@ -61,8 +61,17 @@ export const CompanyProvider = ({ children }) => {
   const loadData = async () => {
     setLoading(true);
     try {
+      let localIdsArray = await getLocalCompanyIds();
+      
+      // Auto-seed mock Autobourn company if workspace is completely fresh
+      if (localIdsArray.length === 0) {
+        const { populateMockData } = await import('../utils/sampleData');
+        await populateMockData();
+        await dbSetActiveCompanyId('cmp_autobourn_default');
+        localIdsArray = await getLocalCompanyIds();
+      }
+
       const list = await getAllCompanies();
-      const localIdsArray = await getLocalCompanyIds();
       const localIdsSet = new Set(localIdsArray);
       
       // Filter out duplicate profiles by ID or company name, and only keep locally joined/created ones

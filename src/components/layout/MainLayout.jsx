@@ -1,13 +1,25 @@
 import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { ChevronRight } from 'lucide-react';
 
 export const MainLayout = ({ children, title }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-[#f0f7fb] flex flex-col md:flex-row font-sans relative">
+      {/* Reopen Sidebar Button (Desktop only) */}
+      {!desktopSidebarOpen && (
+        <button
+          onClick={() => setDesktopSidebarOpen(true)}
+          className="hidden md:flex fixed left-0 top-6 z-40 bg-white border border-[#e2e8f0] hover:border-slate-300 shadow-md text-blue-600 hover:text-blue-700 rounded-r-xl p-2.5 transition-all cursor-pointer items-center justify-center active:scale-95 animate-in slide-in-from-left duration-200"
+          title="Show Sidebar"
+        >
+          <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+        </button>
+      )}
+
       {/* Desktop Sidebar */}
       {desktopSidebarOpen && (
         <Sidebar 
@@ -34,18 +46,14 @@ export const MainLayout = ({ children, title }) => {
 
       {/* Main Content Body */}
       <div className="flex-1 flex flex-col min-w-0">
-        <Header 
-          onMenuToggle={() => {
-            if (window.innerWidth < 768) {
-              setMobileMenuOpen(true);
-            } else {
-              setDesktopSidebarOpen(true);
-            }
-          }} 
-          isSidebarOpen={desktopSidebarOpen}
-          title={title} 
-        />
-        <main className="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto">
+        <div className="md:hidden">
+          <Header 
+            onMenuToggle={() => setMobileMenuOpen(true)} 
+            isSidebarOpen={false}
+            title={title} 
+          />
+        </div>
+        <main className="flex-1 p-6 md:p-8 w-full max-w-(--breakpoint-2xl) mx-auto">
           {children}
         </main>
       </div>

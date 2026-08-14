@@ -74,20 +74,20 @@ export const CompanyEdit = () => {
   return (
     <MainLayout title={id === 'new' ? 'New Company Profile' : 'Edit Company Profile'}>
       <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+        <div className="flex items-center justify-between bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate('/companies')}
-              className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100"
+              className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h1 className="font-bold text-slate-900 text-sm md:text-base">
+              <h1 className="font-extrabold text-slate-900 text-sm md:text-base tracking-tight">
                 {id === 'new' ? 'Create Business Profile' : `Edit ${formData.companyName}`}
               </h1>
-              <p className="text-[11px] text-slate-500">Configure company details, logo, watermark, brand theme color, and document defaults.</p>
+              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Configure company details, logo, watermark, brand theme color, and document defaults.</p>
             </div>
           </div>
 
@@ -97,7 +97,7 @@ export const CompanyEdit = () => {
         </div>
 
         {/* Business Details Section */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
             <Building2 className="w-4 h-4 text-blue-600" />
             <h2 className="font-bold text-slate-900 text-sm">Business Details</h2>
@@ -244,9 +244,9 @@ export const CompanyEdit = () => {
         </div>
 
         {/* Bank Details Section */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Landmark className="w-4 h-4 text-purple-600" />
+            <Landmark className="w-4 h-4 text-blue-600" />
             <h2 className="font-bold text-slate-900 text-sm">Bank & Payment Account</h2>
           </div>
 
@@ -316,9 +316,9 @@ export const CompanyEdit = () => {
         </div>
 
         {/* Defaults & Template Section */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs space-y-6">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Sliders className="w-4 h-4 text-teal-600" />
+            <Sliders className="w-4 h-4 text-blue-600" />
             <h2 className="font-bold text-slate-900 text-sm">Document Defaults & Preferences</h2>
           </div>
 

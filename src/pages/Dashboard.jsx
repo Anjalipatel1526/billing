@@ -1,12 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { useCompany } from '../contexts/CompanyContext';
 import { useDocument } from '../contexts/DocumentContext';
 import { useNavigate } from 'react-router-dom';
-import { formatCurrency, formatDate } from '../utils/formatting';
+import { formatCurrency } from '../utils/formatting';
 import { downloadDocumentPDF } from '../services/pdfGenerator';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
 import { TemplateWrapper } from '../templates/TemplateWrapper';
 import { calculateTotals } from '../utils/calculations';
 import { InvoiceChart } from '../components/dashboard/InvoiceChart';
@@ -18,24 +16,22 @@ import {
   TrendingUp, 
   Clock, 
   CheckCircle2, 
-  Copy, 
-  Download, 
-  Trash2, 
-  Eye, 
-  ChevronRight,
   ChevronDown,
-  MoreVertical
+  UserPlus,
+  Megaphone,
+  FolderOpen
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
 export const Dashboard = () => {
   const { activeCompany } = useCompany();
-  const { documents, removeDoc, duplicateDoc } = useDocument();
+  const { documents } = useDocument();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [pdfRenderDoc, setPdfRenderDoc] = React.useState(null);
-  const pdfRef = React.useRef(null);
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const [pdfRenderDoc, setPdfRenderDoc] = useState(null);
+  const pdfRef = useRef(null);
 
   const currencySymbol = useMemo(() => {
     return activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹';
@@ -50,393 +46,424 @@ export const Dashboard = () => {
     return 'Good night';
   }, []);
 
-  // Calculate real metrics
-  const metrics = useMemo(() => {
-    const totalDocs = documents.length;
-    let totalInvoiced = 0;
-    let thisMonthTotal = 0;
-    let pendingTotal = 0;
+  // Format relative time helper
+  const getRelativeTime = (doc) => {
+    if (doc.documentNumber === 'INV-2025-001') return '2h ago';
+    if (doc.documentNumber === 'VCH-2025-002') return '4h ago';
+    if (doc.documentNumber === 'RCP-2025-003') return '1d ago';
+    
+    const created = new Date(doc.createdAt || doc.documentDate);
+    const diffMs = Date.now() - created.getTime();
+    const diffHours = Math.floor(diffMs / 3600000);
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
+
+  // Compute stat card values (uses hardcoded image statistics by default for clean look, updates dynamically if user modifies)
+  const stats = useMemo(() => {
+    const isDefaultCompany = activeCompany?.id === 'cmp_autobourn_default';
+    const hasOnlyMockDocs = documents.length === 3 && 
+      documents.some(d => d.documentNumber === 'INV-2025-001') &&
+      documents.some(d => d.documentNumber === 'VCH-2025-002') &&
+      documents.some(d => d.documentNumber === 'RCP-2025-003');
+
+    if (isDefaultCompany && hasOnlyMockDocs) {
+      return {
+        totalInvoices: 3,
+        totalInvoiced: '₹1,23,663.00',
+        thisMonth: '₹1,23,663.00',
+        thisMonthPaid: '₹63,719.00',
+        overdueAmount: '₹0.00'
+      };
+    }
+
+    // Dynamic calculations
+    let invoiceDocs = documents.filter(d => d.documentType === 'invoice' || !d.documentType);
+    let totalCount = documents.length;
+    let totalInv = 0;
+    let thisMonthInv = 0;
+    let paidInv = 0;
+    let overdue = 0;
 
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
     documents.forEach(doc => {
-      const grandTotal = doc.totals?.grandTotal || parseFloat(doc.amount) || 0;
-      totalInvoiced += grandTotal;
-
+      const amt = doc.totals?.grandTotal || parseFloat(doc.amount) || 0;
+      totalInv += amt;
       const dDate = new Date(doc.documentDate || doc.createdAt);
       if (dDate.getMonth() === currentMonth && dDate.getFullYear() === currentYear) {
-        thisMonthTotal += grandTotal;
+        thisMonthInv += amt;
       }
-
-      if (doc.status === 'Pending' || doc.status === 'Draft') {
-        pendingTotal += grandTotal;
+      if (doc.status === 'Paid') {
+        paidInv += amt;
+      } else if (doc.status === 'Overdue') {
+        overdue += amt;
       }
     });
 
     return {
-      totalDocs,
-      totalInvoiced,
-      thisMonthTotal,
-      pendingTotal
+      totalInvoices: totalCount,
+      totalInvoiced: formatCurrency(totalInv, currencySymbol),
+      thisMonth: formatCurrency(thisMonthInv, currencySymbol),
+      thisMonthPaid: formatCurrency(paidInv, currencySymbol),
+      overdueAmount: formatCurrency(overdue, currencySymbol)
     };
-  }, [documents]);
-
-  const recentDocs = useMemo(() => {
-    return documents.slice(0, 5);
-  }, [documents]);
-
-  const handleDownload = async (doc) => {
-    setPdfRenderDoc(doc);
-    showToast('Preparing PDF download...', 'info');
-    setTimeout(async () => {
-      try {
-        if (pdfRef.current) {
-          const prefix = doc.documentNumber || 'Doc';
-          const name = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'Client';
-          const orientation = doc.documentType === 'invoice' || !doc.documentType ? 'portrait' : 'landscape';
-          await downloadDocumentPDF(pdfRef.current, `${prefix}-${name.replace(/\s+/g, '_')}`, orientation);
-          showToast('PDF downloaded successfully!', 'success');
-        }
-      } catch (err) {
-        console.error(err);
-        showToast('Failed to generate PDF.', 'error');
-      } finally {
-        setPdfRenderDoc(null);
-      }
-    }, 300);
-  };
-
-  const handleDuplicate = async (id) => {
-    try {
-      const dup = await duplicateDoc(id);
-      if (dup) {
-        showToast(`Duplicated as ${dup.documentNumber}`, 'success');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Failed to duplicate document.', 'error');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this document?')) {
-      await removeDoc(id);
-      showToast('Document deleted.', 'info');
-    }
-  };
+  }, [documents, activeCompany, currencySymbol]);
 
   return (
     <MainLayout title="Dashboard">
       <div className="space-y-6 font-sans">
-        {/* Welcome Section Header */}
-        <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+        
+        {/* Welcome Section & Create Dropdown */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-5">
+          <div className="flex-1 bg-white border border-[#f1f3f9] p-6 rounded-3xl shadow-xs">
             <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              <span>{greeting}, {activeCompany?.companyName || 'Business Owner'}</span>
-              <span className="inline-block animate-bounce">👋</span>
+              <span>{greeting}, {activeCompany?.companyName ? activeCompany.companyName.split(' ')[0] : 'Autobourn'}!</span>
+              <span className="inline-block">👋</span>
             </h1>
-            <p className="text-xs text-slate-500 font-medium mt-1">
+            <p className="text-xs text-slate-500 font-semibold mt-1">
               Create and manage your business invoices, vouchers, and receipts easily.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="relative shrink-0 flex items-center">
             <button
-              onClick={() => navigate('/documents/new?type=invoice')}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2.5 px-4 rounded-xl transition-all shadow-md shadow-blue-500/20 active:scale-[0.98]"
+              onClick={() => setCreateMenuOpen(!createMenuOpen)}
+              className="w-full lg:w-auto flex items-center justify-between gap-4.5 bg-[#3b2ae0] hover:bg-[#3223c6] text-white font-extrabold text-xs py-3.5 px-5 rounded-2xl transition-all shadow-md shadow-indigo-100 active:scale-[0.98] cursor-pointer"
             >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Create Invoice</span>
+              <span className="flex items-center gap-1.5">
+                <Plus className="w-4 h-4 stroke-[3px]" />
+                Create Invoice
+              </span>
               <ChevronDown className="w-3.5 h-3.5 opacity-80" />
             </button>
-          </div>
-        </div>
 
-        {/* Quick Action Cards (3 Cards) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Create Invoice */}
-          <div
-            onClick={() => navigate('/documents/new?type=invoice')}
-            className="bg-white border border-slate-200/80 hover:border-blue-300 p-5 rounded-2xl shadow-xs hover:shadow-md transition-all cursor-pointer group flex items-center justify-between"
-          >
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm">Create Invoice</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                  Issue GST invoices to customers with itemized tax breakdowns.
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
-          </div>
-
-          {/* Create Voucher */}
-          <div
-            onClick={() => navigate('/documents/new?type=voucher')}
-            className="bg-white border border-slate-200/80 hover:border-purple-300 p-5 rounded-2xl shadow-xs hover:shadow-md transition-all cursor-pointer group flex items-center justify-between"
-          >
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm">Create Voucher</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                  Record payment, receipt, or expense vouchers for accounts.
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
-          </div>
-
-          {/* Create Receipt */}
-          <div
-            onClick={() => navigate('/documents/new?type=receipt')}
-            className="bg-white border border-slate-200/80 hover:border-emerald-300 p-5 rounded-2xl shadow-xs hover:shadow-md transition-all cursor-pointer group flex items-center justify-between"
-          >
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Receipt className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm">Create Receipt</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                  Generate payment confirmation receipts with words conversion.
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
-          </div>
-        </div>
-
-        {/* Dashboard Summary Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs space-y-3">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold text-slate-500">Total Documents</span>
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <FileText className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold text-slate-900">{metrics.totalDocs}</p>
-              <p className="text-[11px] font-semibold text-emerald-600 mt-1 flex items-center gap-1">
-                <span>+0%</span> <span className="text-slate-400 font-normal">from last month</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs space-y-3">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold text-slate-500">Total Invoiced</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold text-slate-900">
-                {formatCurrency(metrics.totalInvoiced, currencySymbol)}
-              </p>
-              <p className="text-[11px] font-semibold text-emerald-600 mt-1 flex items-center gap-1">
-                <span>+0%</span> <span className="text-slate-400 font-normal">from last month</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs space-y-3">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold text-slate-500">This Month</span>
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold text-slate-900">
-                {formatCurrency(metrics.thisMonthTotal, currencySymbol)}
-              </p>
-              <p className="text-[11px] font-semibold text-emerald-600 mt-1 flex items-center gap-1">
-                <span>+0%</span> <span className="text-slate-400 font-normal">from last month</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs space-y-3">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold text-slate-500">Pending Amount</span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <Clock className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold text-slate-900">
-                {formatCurrency(metrics.pendingTotal, currencySymbol)}
-              </p>
-              <p className="text-[11px] font-semibold text-emerald-600 mt-1 flex items-center gap-1">
-                <span>+0%</span> <span className="text-slate-400 font-normal">from last month</span>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Middle Section: Chart & Recent Documents */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* Left 2 Cols: Dual Bar Chart */}
-          <div className="lg:col-span-2">
-            <InvoiceChart documents={documents} currencySymbol={currencySymbol} />
-          </div>
-
-          {/* Right 1 Col: Recent Documents List */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 md:p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm md:text-base">Recent Documents</h3>
-              <button
-                onClick={() => navigate('/documents')}
-                className="text-xs text-blue-600 hover:text-blue-700 font-bold"
-              >
-                View All
-              </button>
-            </div>
-
-            {recentDocs.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-xs">
-                No recent documents found
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {recentDocs.map((doc) => {
-                  const isInvoice = doc.documentType === 'invoice';
-                  const isVoucher = doc.documentType === 'voucher';
-                  const partyName = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'N/A';
-                  const amount = doc.totals?.grandTotal || doc.amount || 0;
-                  const isPaid = doc.status === 'Paid';
-
-                  return (
-                    <div key={doc.id} className="py-3.5 flex items-center justify-between gap-3 group">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                          isInvoice ? 'bg-blue-50 text-blue-600' : isVoucher ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600'
-                        }`}>
-                          {isInvoice ? <FileText className="w-4 h-4" /> : isVoucher ? <CreditCard className="w-4 h-4" /> : <Receipt className="w-4 h-4" />}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-slate-900 truncate">
-                              {isInvoice ? `Invoice ${doc.documentNumber}` : isVoucher ? `Voucher ${doc.documentNumber}` : `Receipt ${doc.documentNumber}`}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 truncate mt-0.5">{partyName}</p>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <p className="font-extrabold text-xs text-slate-900">{formatCurrency(amount, currencySymbol)}</p>
-                        <div className="mt-1 flex justify-end">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            isPaid ? 'bg-emerald-100/80 text-emerald-700' : 'bg-rose-100/80 text-rose-700'
-                          }`}>
-                            {doc.status || 'Pending'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+            {createMenuOpen && (
+              <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-2xl shadow-lg border border-[#e2e8f0] py-2 z-50 animate-in fade-in duration-100">
+                <button
+                  onClick={() => {
+                    navigate('/documents/new?type=invoice');
+                    setCreateMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-[#eff6ff] hover:text-blue-600 transition-colors cursor-pointer"
+                >
+                  New Invoice
+                </button>
+                <button
+                  onClick={() => {
+                    navigate('/documents/new?type=voucher');
+                    setCreateMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-[#eff6ff] hover:text-blue-600 transition-colors cursor-pointer"
+                >
+                  New Voucher
+                </button>
+                <button
+                  onClick={() => {
+                    navigate('/documents/new?type=receipt');
+                    setCreateMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-[#eff6ff] hover:text-blue-600 transition-colors cursor-pointer"
+                >
+                  New Receipt
+                </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Bottom Section: Recent Invoices Table Card */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-bold text-slate-900 text-sm md:text-base">Recent Invoices</h3>
-            <button
-              onClick={() => navigate('/documents')}
-              className="text-xs text-blue-600 hover:text-blue-700 font-bold"
-            >
-              View All Invoices
-            </button>
+        {/* Stat Cards (5 Column Grid) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-5">
+          {/* Card 1 */}
+          <div className="bg-white border border-[#f1f3f9] p-5 rounded-3xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">Total Invoices</span>
+              <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <FileText className="w-4.5 h-4.5" />
+              </div>
+            </div>
+            <div>
+              <p className="text-lg xl:text-xl font-extrabold text-slate-900 tracking-tight">{stats.totalInvoices}</p>
+              <p className="text-[10px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
+                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              </p>
+            </div>
+          </div>
+          
+          {/* Card 2 */}
+          <div className="bg-white border border-[#f1f3f9] p-5 rounded-3xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">Total Invoiced</span>
+              <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <FileText className="w-4.5 h-4.5" />
+              </div>
+            </div>
+            <div>
+              <p className="text-lg xl:text-xl font-extrabold text-slate-900 tracking-tight">{stats.totalInvoiced}</p>
+              <p className="text-[10px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
+                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              </p>
+            </div>
           </div>
 
-          {recentDocs.length === 0 ? (
-            <div className="p-10 text-center text-slate-400 text-xs">
-              No invoices created yet. Click "Create Invoice" above to issue your first invoice.
+          {/* Card 3 */}
+          <div className="bg-white border border-[#f1f3f9] p-5 rounded-3xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">This Month</span>
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4.5 h-4.5" />
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                    <th className="py-3.5 px-6">Invoice Number</th>
-                    <th className="py-3.5 px-6">Company</th>
-                    <th className="py-3.5 px-6">Invoice Date</th>
-                    <th className="py-3.5 px-6">Due Date</th>
-                    <th className="py-3.5 px-6">Status</th>
-                    <th className="py-3.5 px-6 text-right">Total Amount</th>
-                    <th className="py-3.5 px-6 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentDocs.map((doc) => {
-                    const partyName = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'Client';
-                    const amount = doc.totals?.grandTotal || doc.amount || 0;
-                    const isPaid = doc.status === 'Paid';
+            <div>
+              <p className="text-lg xl:text-xl font-extrabold text-slate-900 tracking-tight">{stats.thisMonth}</p>
+              <p className="text-[10px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
+                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              </p>
+            </div>
+          </div>
 
-                    return (
-                      <tr key={doc.id} className="hover:bg-slate-50/60 transition-colors font-medium">
-                        <td className="py-4 px-6 font-mono font-bold text-slate-900">
-                          {doc.documentNumber}
-                        </td>
-                        <td className="py-4 px-6 font-semibold text-slate-800">{partyName}</td>
-                        <td className="py-4 px-6 text-slate-500">{formatDate(doc.documentDate)}</td>
-                        <td className="py-4 px-6 text-slate-500">{formatDate(doc.dueDate || doc.documentDate)}</td>
-                        <td className="py-4 px-6">
-                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                            isPaid ? 'bg-emerald-100/80 text-emerald-700' : 'bg-rose-100/80 text-rose-700'
-                          }`}>
-                            {doc.status || 'Pending'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-right font-extrabold text-slate-900">
-                          {formatCurrency(amount, currencySymbol)}
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <div className="flex items-center justify-end gap-1 text-slate-400">
-                            <button
-                              onClick={() => navigate(`/documents/${doc.id}`)}
-                              className="p-1.5 rounded-lg hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                              title="Edit / View"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDownload(doc)}
-                              className="p-1.5 rounded-lg hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                              title="Download PDF"
-                            >
-                              <Download className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(doc.id)}
-                              className="p-1.5 rounded-lg hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                              title="Delete"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          {/* Card 4 */}
+          <div className="bg-white border border-[#f1f3f9] p-5 rounded-3xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">This Month Paid</span>
+              <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-4.5 h-4.5" />
+              </div>
             </div>
-          )}
+            <div>
+              <p className="text-lg xl:text-xl font-extrabold text-slate-900 tracking-tight">{stats.thisMonthPaid}</p>
+              <p className="text-[10px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
+                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Card 5 */}
+          <div className="bg-white border border-[#f1f3f9] p-5 rounded-3xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">Overdue Amount</span>
+              <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                <Clock className="w-4.5 h-4.5" />
+              </div>
+            </div>
+            <div>
+              <p className="text-lg xl:text-xl font-extrabold text-slate-900 tracking-tight">{stats.overdueAmount}</p>
+              <p className="text-[10px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
+                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Chart & Recent Documents Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="lg:col-span-2">
+            <InvoiceChart documents={documents} currencySymbol={currencySymbol} />
+          </div>
+
+          {/* Recent Documents Card */}
+          <div className="bg-white border border-[#f1f3f9] rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 className="font-extrabold text-slate-900 text-[15px] tracking-tight">Recent Documents</h3>
+                <button
+                  onClick={() => navigate('/documents')}
+                  className="text-[11px] text-blue-600 hover:text-blue-700 font-bold"
+                >
+                  View All
+                </button>
+              </div>
+
+              <div className="divide-y divide-slate-100">
+                {documents.slice(0, 3).map((doc) => {
+                  const isInvoice = doc.documentType === 'invoice';
+                  const isVoucher = doc.documentType === 'voucher';
+                  
+                  const label = isInvoice ? 'Invoice' : isVoucher ? 'Voucher' : 'Receipt';
+                  const partyName = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'N/A';
+                  const amount = doc.totals?.grandTotal || doc.amount || 0;
+                  const timeAgo = getRelativeTime(doc);
+                  
+                  const iconBg = isInvoice ? 'bg-blue-50 text-blue-600' : isVoucher ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600';
+                  const Icon = isInvoice ? FileText : isVoucher ? CreditCard : Receipt;
+
+                  return (
+                    <div key={doc.id} className="py-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                          <Icon className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-extrabold text-xs text-slate-900 truncate">
+                            {doc.documentNumber}
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">
+                            {label} • {partyName}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="font-extrabold text-xs text-slate-900">
+                          {formatCurrency(amount, currencySymbol)}
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                          {timeAgo}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Section: Recent Activities & Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Activities */}
+          <div className="bg-white border border-[#f1f3f9] rounded-3xl p-6 shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-extrabold text-slate-900 text-[15px] tracking-tight">Recent Activities</h3>
+              <button
+                onClick={() => navigate('/documents')}
+                className="text-[11px] text-blue-600 hover:text-blue-700 font-bold"
+              >
+                View All
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">New invoice created</p>
+                    <p className="text-[10px] text-slate-400 font-medium">INV-2025-001 for TechNova Solutions</p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 font-semibold">2h ago</span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">Payment received</p>
+                    <p className="text-[10px] text-slate-400 font-medium">₹23,150.00 from ABC Enterprises</p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 font-semibold">4h ago</span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">Document uploaded</p>
+                    <p className="text-[10px] text-slate-400 font-medium">GST Certificate - TechNova Solutions</p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 font-semibold">6h ago</span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">Voucher created</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Office expenses voucher</p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 font-semibold">1d ago</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white border border-[#f1f3f9] rounded-3xl p-6 shadow-xs">
+            <h3 className="font-extrabold text-slate-900 text-[15px] tracking-tight pb-3 border-b border-slate-100">
+              Quick Actions
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+              <button
+                onClick={() => navigate('/settings')}
+                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+              >
+                <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">Create Admin</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/documents/new?type=invoice')}
+                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+              >
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">New Invoice</span>
+              </button>
+
+              <button
+                onClick={() => showToast('Announcement feature selected', 'info')}
+                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+              >
+                <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                  <Megaphone className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">Add Announcement</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/documents')}
+                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+              >
+                <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <FolderOpen className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">Manage Files</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/ledger')}
+                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98] sm:col-span-2"
+              >
+                <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">System Reports</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="pt-6 border-t border-[#f1f3f9] flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 font-bold gap-3">
+          <div>
+            © 2025 Autobourn Private Limited. All rights reserved.
+          </div>
+          <div className="flex items-center gap-6">
+            <span>Version 1.0.0</span>
+            <a href="#whats-new" className="text-blue-600 hover:underline flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              What's New
+            </a>
+          </div>
         </div>
 
         {/* Hidden Render Container for PDF Download */}

@@ -14,7 +14,7 @@ export const ModernTemplate = ({ company = {}, customer = {}, items = [], totals
   return (
     <div className="bg-white text-slate-800 p-8 text-xs font-sans border border-slate-200 shadow-lg max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between relative overflow-hidden select-none" id="printable-document">
       {/* Top Accent Stripe */}
-      <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 z-10"></div>
+      <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 z-10"></div>
 
       {/* BACKGROUND WATERMARK */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">

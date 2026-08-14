@@ -2,7 +2,7 @@ import { openDB } from 'idb';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DB_NAME = 'SaaSInvoiceDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 
@@ -30,6 +30,11 @@ function getDB() {
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
         }
+        if (!db.objectStoreNames.contains('expenses')) {
+          const expenseStore = db.createObjectStore('expenses', { keyPath: 'id' });
+          expenseStore.createIndex('companyId', 'companyId');
+          expenseStore.createIndex('projectEvent', 'projectEvent');
+        }
       },
     }).catch(err => {
       console.warn('IndexedDB failed to open, fallback to localStorage', err);
@@ -45,6 +50,7 @@ function getDB() {
 const LOCAL_STORAGE_KEYS = {
   COMPANIES: 'saas_billing_companies',
   DOCUMENTS: 'saas_billing_documents',
+  EXPENSES: 'saas_billing_expenses',
   ACTIVE_COMPANY: 'saas_billing_active_company_id'
 };
 
@@ -588,5 +594,136 @@ export async function joinCompanyByCode(code, password) {
   }
 
   return company;
+}
+
+// ==========================================
+// Expenses APIs (Supabase + Local Fallback)
+// ==========================================
+
+export async function getAllExpenses(companyId = null) {
+  if (isSupabaseConfigured()) {
+    try {
+      let query = supabase.from('expenses').select('*').order('date', { ascending: false });
+      if (companyId) {
+        query = query.eq('company_id', companyId);
+      }
+      const { data, error } = await query;
+      if (!error && data) {
+        return data.map(row => ({
+          id: row.id,
+          companyId: row.company_id,
+          particulars: row.particulars,
+          amount: parseFloat(row.amount) || 0,
+          category: row.category,
+          date: row.date,
+          projectEvent: row.project_event || '',
+          paidVia: row.paid_via || 'Cash',
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
+        }));
+      }
+      console.warn('Supabase getAllExpenses error (could be missing table):', error);
+    } catch (e) {
+      console.error('Supabase fetch expenses catch:', e);
+    }
+  }
+
+  const db = await getDB();
+  let expenses = [];
+  if (db) {
+    try {
+      if (companyId) {
+        expenses = await db.getAllFromIndex('expenses', 'companyId', companyId);
+      } else {
+        expenses = await db.getAll('expenses');
+      }
+    } catch (e) {
+      console.error('IDB getAllExpenses error', e);
+    }
+  }
+  if (!expenses || expenses.length === 0) {
+    expenses = getLocalJSON(LOCAL_STORAGE_KEYS.EXPENSES, []);
+    if (companyId) {
+      expenses = expenses.filter(e => e.companyId === companyId);
+    }
+  }
+  
+  // Sort by date descending
+  expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return expenses;
+}
+
+export async function saveExpense(expense) {
+  const now = new Date().toISOString();
+  const expenseData = {
+    ...expense,
+    amount: parseFloat(expense.amount) || 0,
+    updatedAt: now,
+    createdAt: expense.createdAt || now
+  };
+
+  if (isSupabaseConfigured()) {
+    try {
+      const row = {
+        id: expenseData.id,
+        company_id: expenseData.companyId,
+        particulars: expenseData.particulars,
+        amount: expenseData.amount,
+        category: expenseData.category,
+        date: expenseData.date,
+        project_event: expenseData.projectEvent || '',
+        paid_via: expenseData.paidVia || 'Cash',
+        created_at: expenseData.createdAt,
+        updated_at: expenseData.updatedAt
+      };
+      const { error } = await supabase.from('expenses').upsert(row);
+      if (error) console.error('Supabase saveExpense error (could be missing table):', error);
+    } catch (e) {
+      console.error('Supabase saveExpense catch:', e);
+    }
+  }
+
+  const db = await getDB();
+  if (db) {
+    try {
+      await db.put('expenses', expenseData);
+    } catch (e) {
+      console.error('IDB saveExpense error', e);
+    }
+  }
+
+  // Backup to localStorage
+  const list = getLocalJSON(LOCAL_STORAGE_KEYS.EXPENSES, []);
+  const idx = list.findIndex(e => e.id === expenseData.id);
+  if (idx >= 0) {
+    list[idx] = expenseData;
+  } else {
+    list.push(expenseData);
+  }
+  setLocalJSON(LOCAL_STORAGE_KEYS.EXPENSES, list);
+
+  return expenseData;
+}
+
+export async function deleteExpense(id) {
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase.from('expenses').delete().eq('id', id);
+    } catch (e) {
+      console.error('Supabase deleteExpense error (could be missing table):', e);
+    }
+  }
+
+  const db = await getDB();
+  if (db) {
+    try {
+      await db.delete('expenses', id);
+    } catch (e) {
+      console.error('IDB deleteExpense error', e);
+    }
+  }
+  const list = getLocalJSON(LOCAL_STORAGE_KEYS.EXPENSES, []);
+  const filtered = list.filter(e => e.id !== id);
+  setLocalJSON(LOCAL_STORAGE_KEYS.EXPENSES, filtered);
 }
 

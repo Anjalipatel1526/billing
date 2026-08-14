@@ -6,7 +6,7 @@ export const mockCompanyAutobourn = {
   businessType: 'Private Limited',
   logo: '',
   watermarkLogo: '',
-  themeColor: '#2563eb',
+  themeColor: '#4f46e5', // Sleek Purple/Indigo theme
   gstNumber: '27AAACA1234B1Z9',
   panNumber: 'AAACA1234B',
   email: 'contact@autobourn.com',
@@ -27,12 +27,12 @@ export const mockCompanyAutobourn = {
     branch: 'Andheri East Branch',
     upiId: 'autobourn@hdfcbank'
   },
-  invoicePrefix: 'INV-',
-  invoiceStartNumber: 1001,
-  voucherPrefix: 'VCH-',
-  voucherStartNumber: 1001,
-  receiptPrefix: 'REC-',
-  receiptStartNumber: 1001,
+  invoicePrefix: 'INV-2025-',
+  invoiceStartNumber: 4,
+  voucherPrefix: 'VCH-2025-',
+  voucherStartNumber: 3,
+  receiptPrefix: 'RCP-2025-',
+  receiptStartNumber: 4,
   defaultTax: 18,
   currency: 'INR ₹',
   paymentTerms: 'Payment due within 15 days of invoice date.',
@@ -43,55 +43,69 @@ export const mockCompanyAutobourn = {
 
 export const mockDocuments = [
   {
-    id: 'doc_inv_1001',
+    id: 'doc_inv_2025_001',
     companyId: 'cmp_autobourn_default',
-    documentNumber: 'INV-1001',
+    documentNumber: 'INV-2025-001',
     documentType: 'invoice',
-    documentDate: new Date().toISOString().split('T')[0],
+    documentDate: new Date(Date.now() - 2 * 3600000).toISOString().split('T')[0], // 2h ago
     dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
     status: 'Paid',
     customer: {
-      customerName: 'Acme Global Technologies',
-      companyName: 'Acme Global Pvt Ltd',
-      billingAddress: '7th Floor, Cyber Towers, Hitec City',
+      customerName: 'TechNova Solutions',
+      companyName: 'TechNova Solutions Pvt Ltd',
+      billingAddress: '4th Floor, Hitec City',
       city: 'Hyderabad',
       state: 'Telangana',
       pincode: '500081',
       gstNumber: '36AAACA9876C1Z3',
-      email: 'finance@acmeglobal.com',
+      email: 'billing@technova.com',
       phone: '+91 91234 56789'
     },
     items: [
-      { id: '1', name: 'SaaS Software License (Annual Subscription)', description: 'Enterprise Plan with multi-tenant access', quantity: 1, rate: 45000, taxRate: 18 },
-      { id: '2', name: 'Custom API Integration & Onboarding', description: 'Implementation setup & developer training', quantity: 1, rate: 15000, taxRate: 18 }
+      { id: '1', name: 'Software Development Services', description: 'Development of cloud platform', quantity: 1, rate: 55305.08, taxRate: 18 }
     ],
     totals: {
-      subtotal: 60000,
-      cgst: 5400,
-      sgst: 5400,
+      subtotal: 55305.08,
+      cgst: 4977.46,
+      sgst: 4977.46,
       igst: 0,
       discountAmount: 0,
       roundOff: 0,
-      grandTotal: 70800
+      grandTotal: 65260.00
     },
     template: 'UNAI Billing',
-    notes: 'Payment received with thanks via Wire Transfer.'
+    createdAt: new Date(Date.now() - 2 * 3600000).toISOString()
   },
   {
-    id: 'doc_vch_1001',
+    id: 'doc_vch_2025_002',
     companyId: 'cmp_autobourn_default',
-    documentNumber: 'VCH-1001',
+    documentNumber: 'VCH-2025-002',
     documentType: 'voucher',
-    voucherType: 'PAYMENT VOUCHER',
-    documentDate: new Date().toISOString().split('T')[0],
+    voucherType: 'Payment Voucher',
+    documentDate: new Date(Date.now() - 4 * 3600000).toISOString().split('T')[0], // 4h ago
     status: 'Paid',
-    paidTo: 'Cloud Server Hosting Operations',
-    paymentMethod: 'Bank Wire Transfer',
-    referenceNumber: 'TXN-99887711',
-    amount: 12500,
-    totals: { grandTotal: 12500 },
-    description: 'Monthly cloud infrastructure hosting and CDN bandwidth usage.',
-    template: 'UNAI Billing'
+    paidTo: 'Office Expenses',
+    paymentMethod: 'Cash',
+    amount: 12800,
+    totals: { grandTotal: 12800 },
+    description: 'Office supply and refreshment expenses.',
+    template: 'UNAI Billing',
+    createdAt: new Date(Date.now() - 4 * 3600000).toISOString()
+  },
+  {
+    id: 'doc_rcp_2025_003',
+    companyId: 'cmp_autobourn_default',
+    documentNumber: 'RCP-2025-003',
+    documentType: 'receipt',
+    documentDate: new Date(Date.now() - 24 * 3600000).toISOString().split('T')[0], // 1d ago
+    status: 'Paid',
+    receivedFrom: 'Payment Received',
+    paymentMethod: 'UPI',
+    amount: 23150,
+    totals: { grandTotal: 23150 },
+    description: 'Advance payment for project consultancy.',
+    template: 'UNAI Billing',
+    createdAt: new Date(Date.now() - 24 * 3600000).toISOString()
   }
 ];
 

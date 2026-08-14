@@ -21,11 +21,11 @@ export const CompanySwitcher = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-slate-800 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-bold text-slate-800 bg-[#fafafc] hover:bg-[#f1f3f9] rounded-xl border border-[#f1f3f9] transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {activeCompany?.logo ? (
-            <img src={activeCompany.logo} alt="Logo" className="w-5 h-5 rounded object-contain shrink-0 bg-white border border-slate-200/50 p-0.5" />
+            <img src={activeCompany.logo} alt="Logo" className="w-5 h-5 rounded object-contain shrink-0 bg-white border border-[#f1f3f9] p-0.5" />
           ) : (
             <div className="w-5 h-5 rounded bg-blue-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
               {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
@@ -42,7 +42,7 @@ export const CompanySwitcher = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1.5 w-full min-w-[220px] bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50 animate-in fade-in duration-100">
+        <div className="absolute top-full left-0 mt-1.5 w-full min-w-[220px] bg-white rounded-2xl shadow-lg border border-[#f1f3f9] py-1.5 z-50 animate-in fade-in duration-100">
           <div className="px-3 py-1 text-[10px] uppercase font-semibold text-slate-400">Companies</div>
           <div className="max-h-48 overflow-y-auto">
             {companies.map(comp => (
@@ -52,8 +52,8 @@ export const CompanySwitcher = () => {
                   switchCompany(comp.id);
                   setIsOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-slate-50 transition-colors ${
-                  comp.id === activeCompany?.id ? 'text-blue-600 font-semibold bg-blue-50/50' : 'text-slate-700'
+                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-slate-50 transition-colors cursor-pointer ${
+                  comp.id === activeCompany?.id ? 'text-blue-600 font-bold bg-blue-50' : 'text-slate-700'
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate">

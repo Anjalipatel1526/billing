@@ -587,7 +587,7 @@ export const Onboarding = () => {
           <div className="text-center md:text-left md:w-full max-w-sm mb-6 space-y-2">
             <h2 className="text-xl md:text-2xl font-extrabold tracking-tight leading-tight">
               Billing <span className="text-white/80">made simple.</span><br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">Business</span> made stronger.
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-400 to-cyan-400">Business</span> made stronger.
             </h2>
             <p className="text-slate-400 text-[11px] leading-relaxed">
               Create invoices, vouchers, receipts and ledgers with ease. Manage your finance, your way.

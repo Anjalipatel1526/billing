@@ -150,10 +150,10 @@ export const Documents = () => {
     <MainLayout title="Documents">
       <div className="space-y-6">
         {/* Header & New Document Button */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
           <div>
-            <h1 className="font-bold text-slate-900 text-lg">Document History</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manage, filter, duplicate, and export all invoices, vouchers, and receipts.</p>
+            <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Document History</h1>
+            <p className="text-xs font-semibold text-slate-500 mt-0.5">Manage, filter, duplicate, and export all invoices, vouchers, and receipts.</p>
           </div>
 
           <Button icon={PlusCircle} onClick={() => navigate('/documents/new')}>
@@ -162,7 +162,7 @@ export const Documents = () => {
         </div>
 
         {/* Filter and Search Bar */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+        <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <Input
               icon={Search}
@@ -205,7 +205,7 @@ export const Documents = () => {
         </div>
 
         {/* Documents Table */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+        <div className="bg-white border border-[#f1f3f9] rounded-3xl shadow-xs overflow-hidden">
           {filteredDocs.length === 0 ? (
             <div className="p-12 text-center space-y-3">
               <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">

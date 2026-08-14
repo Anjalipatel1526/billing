@@ -1,55 +1,80 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, PanelLeftClose, BookOpen } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, FileText, Settings, BookOpen, Plus, SquareTerminal, ChevronLeft, Wallet } from 'lucide-react';
 import { useCompany } from '../../contexts/CompanyContext';
+
+// Sleek minimalist car SVG logo
+const CarLogoSvg = () => (
+  <svg 
+    className="w-5.5 h-5.5 text-white" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2.2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+    <circle cx="7" cy="17" r="2" fill="currentColor" />
+    <circle cx="17" cy="17" r="2" fill="currentColor" />
+    <path d="M7 17h10" />
+  </svg>
+);
 
 export const Sidebar = ({ className = '', onCollapse }) => {
   const { activeCompany } = useCompany();
+  const navigate = useNavigate();
+
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Documents', path: '/documents', icon: FileText },
     { label: 'Ledger', path: '/ledger', icon: BookOpen },
+    { label: 'Expenses', path: '/expenses', icon: Wallet },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];
 
   return (
-    <aside className={`w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between shrink-0 h-screen sticky top-0 font-sans z-40 ${className}`}>
-      <div className="overflow-y-auto flex-1">
-        {/* Brand Header - Active Company Info */}
-        <div className="p-4 border-b border-slate-100/80 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+    <aside className={`w-[260px] bg-white border-r border-[#f1f3f9] flex flex-col justify-between shrink-0 h-screen sticky top-0 font-sans z-40 ${className}`}>
+      <div className="flex-1 flex flex-col pt-5">
+        {/* Brand Header */}
+        <div className="px-6 pb-6 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
             {activeCompany?.logo ? (
-              <img src={activeCompany.logo} alt="Company Logo" className="w-8 h-8 rounded-xl object-contain shrink-0 bg-white border border-slate-200 p-0.5" />
+              <img 
+                src={activeCompany.logo} 
+                alt="Company Logo" 
+                className="w-10 h-10 rounded-full object-contain shrink-0 bg-white border border-slate-100 p-0.5" 
+              />
             ) : (
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-                {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
+              <div className="w-10 h-10 rounded-full bg-[#ea0000] flex items-center justify-center shrink-0 shadow-sm shadow-red-200">
+                <CarLogoSvg />
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <h1 className="font-bold text-slate-900 text-sm tracking-tight leading-none truncate">
-                {activeCompany?.companyName || 'UNAI Billing'}
+              <h1 className="font-extrabold text-slate-900 text-[15px] tracking-tight leading-tight truncate">
+                {activeCompany?.companyName || 'Autobourn'}
               </h1>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5 truncate">
-                {activeCompany?.businessType || 'Enterprise Billing Suite'}
+              <p className="text-[11px] text-slate-400 font-semibold mt-0.5 truncate">
+                {activeCompany?.businessType || 'Private Limited'}
               </p>
             </div>
           </div>
-          {onCollapse && (
-            <button
-              onClick={onCollapse}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors shrink-0"
-              title="Collapse Sidebar"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
-          )}
+          
+          {/* Collapse Sidebar Action */}
+          <button
+            onClick={onCollapse}
+            className="w-7 h-7 rounded-lg border border-[#e2e8f0] hover:border-slate-300 flex items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-slate-50 transition-all shrink-0 active:scale-95 cursor-pointer"
+            title="Hide Sidebar"
+          >
+            <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+          </button>
         </div>
 
-
-
         {/* Navigation Items */}
-        <nav className="px-3 space-y-1">
-          <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider">Main Menu</div>
+        <nav className="px-4 mt-2 space-y-1.5">
+          <div className="px-3 pb-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+            Main Menu
+          </div>
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -57,14 +82,14 @@ export const Sidebar = ({ className = '', onCollapse }) => {
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  `flex items-center gap-3.5 px-4.5 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-200 ${
                     isActive
-                      ? 'bg-blue-50/80 text-blue-600 shadow-2xs'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'bg-blue-50 text-blue-600 shadow-xs'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                   }`
                 }
               >
-                <Icon className="w-4 h-4 shrink-0" />
+                <Icon className="w-4.5 h-4.5 shrink-0 stroke-[2.2]" />
                 <span>{item.label}</span>
               </NavLink>
             );
@@ -72,9 +97,9 @@ export const Sidebar = ({ className = '', onCollapse }) => {
         </nav>
       </div>
 
-      {/* Footer Branding info */}
-      <div className="p-4 border-t border-slate-100/80 text-center">
-        <p className="text-[10px] text-slate-400 font-medium">UNAI Billing • Enterprise Suite</p>
+      {/* Empty bottom area matching image */}
+      <div className="pb-6 px-6">
+        {/* Empty space matching image */}
       </div>
     </aside>
   );
