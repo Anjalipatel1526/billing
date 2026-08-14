@@ -25,6 +25,19 @@ export const Sidebar = ({ className = '', onCollapse }) => {
   const { activeCompany } = useCompany();
   const navigate = useNavigate();
 
+  const getCleanCompanyName = (name, businessType) => {
+    if (!name) return '';
+    if (businessType) {
+      const typeEscaped = businessType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regexType = new RegExp(`\\s+${typeEscaped}$`, 'i');
+      if (regexType.test(name)) {
+        return name.replace(regexType, '').trim();
+      }
+    }
+    const suffixRegex = /\s+(Pvt\.?\s*Ltd\.?|Ltd\.?|Private\s+Limited|LLP|Inc\.?|Corp\.?)$/i;
+    return name.replace(suffixRegex, '').trim() || name;
+  };
+
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Documents', path: '/documents', icon: FileText },
@@ -51,12 +64,14 @@ export const Sidebar = ({ className = '', onCollapse }) => {
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <h1 className="font-extrabold text-slate-900 text-[15px] tracking-tight leading-tight truncate">
-                {activeCompany?.companyName || 'Autobourn'}
+              <h1 className="font-extrabold text-slate-900 text-[15px] tracking-tight leading-tight truncate" title={activeCompany?.companyName || 'Autobourn'}>
+                {getCleanCompanyName(activeCompany?.companyName || 'Autobourn', activeCompany?.businessType)}
               </h1>
-              <p className="text-[11px] text-slate-400 font-semibold mt-0.5 truncate">
-                {activeCompany?.businessType || 'Private Limited'}
-              </p>
+              {activeCompany?.businessType && (
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5 truncate" title={activeCompany.businessType}>
+                  {activeCompany.businessType}
+                </p>
+              )}
             </div>
           </div>
           

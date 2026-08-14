@@ -87,6 +87,7 @@ export const CompanyProvider = ({ children }) => {
           seenIds.add(comp.id);
           seenNames.add(normName);
 
+          let needsUpdate = false;
           // Enrich company with complete mock details if essential fields (email, phone, address) are missing
           if (!comp.email || !comp.phone || !comp.address) {
             comp = {
@@ -104,6 +105,17 @@ export const CompanyProvider = ({ children }) => {
                 ...(comp.bankDetails || {})
               }
             };
+            needsUpdate = true;
+          }
+
+          // Force-load default logo for Autobourn if none is set
+          const isAutobourn = comp.id === 'cmp_autobourn_default' || normName.includes('autobourn');
+          if (isAutobourn && !comp.logo) {
+            comp.logo = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MCA0MCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIj4KICA8Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIyMCIgZmlsbD0iI2VhMDAwMCIgLz4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4LCA4KSI+CiAgICA8c3ZnIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPgogICAgICA8cGF0aCBkPSJNMTkgMTdoMmMuNiAwIDEtLjQgMS0xdi0zYzAtLjktLjctMS43LTEuNS0xLjlDMTguNyAxMC42IDE2IDEwIDE2IDEwcy0xLjMtMS40LTIuMi0yLjNjLS41LS40LTEuMS0uNy0xLjgtLjdINWMtLjYgMC0xLjEuNC0xLjQuOWwtMS40IDIuOUEzLjcgMy43IDAgMCAwIDIgMTJ2NGMwIC42LjQgMSAxIDFoMiIgLz4KICAgICAgPGNpcmNsZSBjeD0iNyIgY3k9IjE3IiByPSIyIiBmaWxsPSIjZmZmZmZmIiAvPgogICAgICA8Y2lyY2xlIGN4PSIxNyIgY3k9IjE3IiByPSIyIiBmaWxsPSIjZmZmZmZmIiAvPgogICAgICA8cGF0aCBkPSJNNyAxN2gxMCIgLz4KICAgIDwvc3ZnPgogIDwvZz4KPC9zdmc+';
+            needsUpdate = true;
+          }
+
+          if (needsUpdate) {
             // Save enriched details back so it persists
             dbSaveCompany(comp).catch(console.error);
           }

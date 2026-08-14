@@ -5,6 +5,19 @@ import { useCompany } from '../../contexts/CompanyContext';
 export const Header = ({ onMenuToggle, isSidebarOpen, title }) => {
   const { activeCompany } = useCompany();
 
+  const getCleanCompanyName = (name, businessType) => {
+    if (!name) return '';
+    if (businessType) {
+      const typeEscaped = businessType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regexType = new RegExp(`\\s+${typeEscaped}$`, 'i');
+      if (regexType.test(name)) {
+        return name.replace(regexType, '').trim();
+      }
+    }
+    const suffixRegex = /\s+(Pvt\.?\s*Ltd\.?|Ltd\.?|Private\s+Limited|LLP|Inc\.?|Corp\.?)$/i;
+    return name.replace(suffixRegex, '').trim() || name;
+  };
+
   return (
     <header className="h-16 bg-white border-b border-slate-200/80 px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 font-sans">
       <div className="flex items-center gap-3">
@@ -29,7 +42,9 @@ export const Header = ({ onMenuToggle, isSidebarOpen, title }) => {
               {activeCompany.companyName.charAt(0).toUpperCase()}
             </div>
           )}
-          <span className="text-xs font-bold text-slate-800 tracking-tight">{activeCompany.companyName}</span>
+          <span className="text-xs font-bold text-slate-800 tracking-tight" title={activeCompany.companyName}>
+            {getCleanCompanyName(activeCompany.companyName, activeCompany.businessType)}
+          </span>
         </div>
       )}
     </header>
