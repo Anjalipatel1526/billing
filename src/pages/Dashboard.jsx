@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { useCompany } from '../contexts/CompanyContext';
 import { useDocument } from '../contexts/DocumentContext';
@@ -8,6 +8,7 @@ import { downloadDocumentPDF } from '../services/pdfGenerator';
 import { TemplateWrapper } from '../templates/TemplateWrapper';
 import { calculateTotals } from '../utils/calculations';
 import { InvoiceChart } from '../components/dashboard/InvoiceChart';
+import { getAllExpenses } from '../services/db';
 import { 
   FileText, 
   Receipt, 
@@ -32,10 +33,24 @@ export const Dashboard = () => {
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [pdfRenderDoc, setPdfRenderDoc] = useState(null);
   const pdfRef = useRef(null);
+  const [expenses, setExpenses] = useState([]);
 
   const currencySymbol = useMemo(() => {
     return activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹';
   }, [activeCompany]);
+
+  useEffect(() => {
+    const loadExpensesData = async () => {
+      if (!activeCompany?.id) return;
+      try {
+        const data = await getAllExpenses(activeCompany.id);
+        setExpenses(data);
+      } catch (err) {
+        console.error('Failed to load expenses for dashboard:', err);
+      }
+    };
+    loadExpensesData();
+  }, [activeCompany?.id, documents]);
 
   // Time based greeting
   const greeting = useMemo(() => {
@@ -61,58 +76,35 @@ export const Dashboard = () => {
     return `${diffDays}d ago`;
   };
 
-  // Compute stat card values (uses hardcoded image statistics by default for clean look, updates dynamically if user modifies)
+  // Compute stat card values dynamically
   const stats = useMemo(() => {
-    const isDefaultCompany = activeCompany?.id === 'cmp_autobourn_default';
-    const hasOnlyMockDocs = documents.length === 3 && 
-      documents.some(d => d.documentNumber === 'INV-2025-001') &&
-      documents.some(d => d.documentNumber === 'VCH-2025-002') &&
-      documents.some(d => d.documentNumber === 'RCP-2025-003');
-
-    if (isDefaultCompany && hasOnlyMockDocs) {
-      return {
-        totalInvoices: 3,
-        totalInvoiced: '₹1,23,663.00',
-        thisMonth: '₹1,23,663.00',
-        thisMonthPaid: '₹63,719.00',
-        overdueAmount: '₹0.00'
-      };
-    }
-
-    // Dynamic calculations
     let invoiceDocs = documents.filter(d => d.documentType === 'invoice' || !d.documentType);
-    let totalCount = documents.length;
+    let totalCount = invoiceDocs.length;
     let totalInv = 0;
     let thisMonthInv = 0;
-    let paidInv = 0;
-    let overdue = 0;
 
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    documents.forEach(doc => {
+    invoiceDocs.forEach(doc => {
       const amt = doc.totals?.grandTotal || parseFloat(doc.amount) || 0;
       totalInv += amt;
       const dDate = new Date(doc.documentDate || doc.createdAt);
       if (dDate.getMonth() === currentMonth && dDate.getFullYear() === currentYear) {
         thisMonthInv += amt;
       }
-      if (doc.status === 'Paid') {
-        paidInv += amt;
-      } else if (doc.status === 'Overdue') {
-        overdue += amt;
-      }
     });
+
+    const totalExp = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
 
     return {
       totalInvoices: totalCount,
       totalInvoiced: formatCurrency(totalInv, currencySymbol),
       thisMonth: formatCurrency(thisMonthInv, currencySymbol),
-      thisMonthPaid: formatCurrency(paidInv, currencySymbol),
-      overdueAmount: formatCurrency(overdue, currencySymbol)
+      expenses: formatCurrency(totalExp, currencySymbol)
     };
-  }, [documents, activeCompany, currencySymbol]);
+  }, [documents, expenses, currencySymbol]);
 
   return (
     <MainLayout title="Dashboard">
@@ -176,8 +168,8 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Stat Cards (5 Column Grid) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-5">
+        {/* Stat Cards (4 Column Grid) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Card 1 */}
           <div className="bg-white border border-[#f1f3f9] p-5 rounded-3xl shadow-xs space-y-3.5">
             <div className="flex items-center justify-between">
@@ -229,29 +221,13 @@ export const Dashboard = () => {
           {/* Card 4 */}
           <div className="bg-white border border-[#f1f3f9] p-5 rounded-3xl shadow-xs space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">This Month Paid</span>
-              <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-4.5 h-4.5" />
+              <span className="text-[11px] font-bold text-slate-500">Expenses</span>
+              <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                <CreditCard className="w-4.5 h-4.5" />
               </div>
             </div>
             <div>
-              <p className="text-lg xl:text-xl font-extrabold text-slate-900 tracking-tight">{stats.thisMonthPaid}</p>
-              <p className="text-[10px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
-                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Card 5 */}
-          <div className="bg-white border border-[#f1f3f9] p-5 rounded-3xl shadow-xs space-y-3.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Overdue Amount</span>
-              <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-                <Clock className="w-4.5 h-4.5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-lg xl:text-xl font-extrabold text-slate-900 tracking-tight">{stats.overdueAmount}</p>
+              <p className="text-lg xl:text-xl font-extrabold text-slate-900 tracking-tight">{stats.expenses}</p>
               <p className="text-[10px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1">
                 <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
               </p>
@@ -292,13 +268,18 @@ export const Dashboard = () => {
                   const Icon = isInvoice ? FileText : isVoucher ? CreditCard : Receipt;
 
                   return (
-                    <div key={doc.id} className="py-4 flex items-center justify-between gap-3">
+                    <div 
+                      key={doc.id} 
+                      onClick={() => navigate(`/documents?preview=${doc.id}`)}
+                      className="py-3 px-2 -mx-2 flex items-center justify-between gap-3 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl transition-all cursor-pointer group active:scale-[0.99]"
+                      title="Click to view bill preview"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${iconBg}`}>
                           <Icon className="w-4.5 h-4.5" />
                         </div>
                         <div className="min-w-0">
-                          <div className="font-extrabold text-xs text-slate-900 truncate">
+                          <div className="font-extrabold text-xs text-slate-900 truncate group-hover:text-blue-600 transition-colors">
                             {doc.documentNumber}
                           </div>
                           <p className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">
@@ -308,7 +289,7 @@ export const Dashboard = () => {
                       </div>
 
                       <div className="text-right shrink-0">
-                        <p className="font-extrabold text-xs text-slate-900">
+                        <p className="font-extrabold text-xs text-slate-900 group-hover:text-blue-600 transition-colors">
                           {formatCurrency(amount, currencySymbol)}
                         </p>
                         <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
@@ -468,7 +449,7 @@ export const Dashboard = () => {
 
         {/* Hidden Render Container for PDF Download */}
         {pdfRenderDoc && (
-          <div style={{ position: 'absolute', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
+          <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
             <div ref={pdfRef}>
               <TemplateWrapper
                 templateName={pdfRenderDoc.template || activeCompany?.selectedTemplate}

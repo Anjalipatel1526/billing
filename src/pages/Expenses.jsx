@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { useCompany } from '../contexts/CompanyContext';
 import { useToast } from '../components/ui/Toast';
+import { useDocument } from '../contexts/DocumentContext';
+import { downloadDocumentPDF } from '../services/pdfGenerator';
 import { 
   getAllExpenses, 
   saveExpense, 
@@ -24,7 +26,10 @@ import {
   Plane, 
   Coffee, 
   Coins, 
-  Filter 
+  Filter,
+  Download,
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/formatting';
 
@@ -44,6 +49,8 @@ const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Card', 'UPI'];
 export const Expenses = () => {
   const { activeCompany } = useCompany();
   const { showToast } = useToast();
+  const { saveDoc, removeDoc } = useDocument();
+  const printRef = useRef(null);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,6 +61,9 @@ export const Expenses = () => {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [lastUsedProject, setLastUsedProject] = useState('');
+  const [isCustomProject, setIsCustomProject] = useState(false);
+  const [customCategory, setCustomCategory] = useState('');
   const [newExpense, setNewExpense] = useState({
     particulars: '',
     amount: '',
@@ -71,112 +81,20 @@ export const Expenses = () => {
     setLoading(true);
     try {
       const data = await getAllExpenses(activeCompany.id);
-      setExpenses(data);
+      // Clean up any old mock expenses in DB
+      const mockIds = data.filter(e => e.id.startsWith('mock_exp_')).map(e => e.id);
+      if (mockIds.length > 0) {
+        for (const mid of mockIds) {
+          await deleteExpense(mid);
+        }
+        const cleanedData = await getAllExpenses(activeCompany.id);
+        setExpenses(cleanedData);
+      } else {
+        setExpenses(data);
+      }
     } catch (err) {
       console.error(err);
       showToast('Failed to load expenses', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLoadMockExpenses = async () => {
-    if (!activeCompany) return;
-    setLoading(true);
-    try {
-      const mockData = [
-        {
-          id: 'mock_exp_1',
-          companyId: activeCompany.id,
-          particulars: 'AWS Cloud Hosting Subscriptions',
-          amount: 14500,
-          category: 'Utilities',
-          date: new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0],
-          projectEvent: 'Product Launch Q3',
-          paidVia: 'Card'
-        },
-        {
-          id: 'mock_exp_2',
-          companyId: activeCompany.id,
-          particulars: 'Ergonomic Office Chairs (Set of 4)',
-          amount: 8200,
-          category: 'Office Supplies',
-          date: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0],
-          projectEvent: 'Office Upgrade',
-          paidVia: 'Cash'
-        },
-        {
-          id: 'mock_exp_3',
-          companyId: activeCompany.id,
-          particulars: 'Meta Ads Q3 Lead Campaign',
-          amount: 18000,
-          category: 'Marketing',
-          date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0],
-          projectEvent: 'Marketing Campaign',
-          paidVia: 'UPI'
-        },
-        {
-          id: 'mock_exp_4',
-          companyId: activeCompany.id,
-          particulars: 'Senior Dev Wages (Contractual)',
-          amount: 85000,
-          category: 'Salaries',
-          date: new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0],
-          projectEvent: 'Product Launch Q3',
-          paidVia: 'Bank Transfer'
-        },
-        {
-          id: 'mock_exp_5',
-          companyId: activeCompany.id,
-          particulars: 'Delhi Client Onsite Meet (Hotel & Flight)',
-          amount: 6800,
-          category: 'Travel',
-          date: new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0],
-          projectEvent: 'Client Meet Delhi',
-          paidVia: 'Card'
-        },
-        {
-          id: 'mock_exp_6',
-          companyId: activeCompany.id,
-          particulars: 'Team Launch Celebrations Dinner',
-          amount: 3200,
-          category: 'Food & Refreshment',
-          date: new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0],
-          projectEvent: 'Office Upgrade',
-          paidVia: 'UPI'
-        },
-        {
-          id: 'mock_exp_7',
-          companyId: activeCompany.id,
-          particulars: 'Broadband Fiber Internet Bill',
-          amount: 1500,
-          category: 'Utilities',
-          date: new Date(Date.now() - 8 * 86400000).toISOString().split('T')[0],
-          projectEvent: '',
-          paidVia: 'Bank Transfer'
-        },
-        {
-          id: 'mock_exp_8',
-          companyId: activeCompany.id,
-          particulars: 'Main HQ Office Rental (August)',
-          amount: 45000,
-          category: 'Rent',
-          date: new Date(Date.now() - 12 * 86400000).toISOString().split('T')[0],
-          projectEvent: '',
-          paidVia: 'Bank Transfer'
-        }
-      ];
-
-      for (const item of mockData) {
-        await saveExpense(item);
-      }
-
-      showToast('Mock expenses populated successfully!', 'success');
-      const data = await getAllExpenses(activeCompany.id);
-      setExpenses(data);
-    } catch (err) {
-      console.error(err);
-      showToast('Failed to load mock expenses', 'error');
     } finally {
       setLoading(false);
     }
@@ -193,6 +111,33 @@ export const Expenses = () => {
       .filter(p => !!p);
     return Array.from(new Set(projects));
   }, [expenses]);
+
+  // List of unique categories for filter panel
+  const uniqueCategories = useMemo(() => {
+    const cats = expenses
+      .map(e => e.category?.trim())
+      .filter(c => !!c);
+    const knownCats = CATEGORIES.map(c => c.value);
+    const customCats = cats.filter(c => !knownCats.includes(c));
+    return Array.from(new Set(customCats));
+  }, [expenses]);
+
+  // Handle open modal
+  const handleOpenModal = () => {
+    const initialProject = selectedProject !== 'all' ? selectedProject : lastUsedProject;
+    setNewExpense({
+      particulars: '',
+      amount: '',
+      category: 'Office Supplies',
+      date: new Date().toISOString().split('T')[0],
+      projectEvent: initialProject,
+      paidVia: 'Cash'
+    });
+    
+    setCustomCategory('');
+    setIsCustomProject(initialProject !== '' && !uniqueProjects.includes(initialProject));
+    setIsModalOpen(true);
+  };
 
   // Computed Stats
   const stats = useMemo(() => {
@@ -236,26 +181,53 @@ export const Expenses = () => {
     }
 
     try {
+      const expId = `exp_${Date.now()}`;
+      const amountVal = parseFloat(newExpense.amount);
+
+      // Save as document representation first (without pre-set ID, letting saveDoc assign a new one + number + counter update)
+      const docPayload = {
+        companyId: activeCompany.id,
+        documentType: 'voucher',
+        voucherType: 'Expense Bill',
+        documentDate: newExpense.date,
+        status: 'Paid',
+        paidTo: newExpense.projectEvent || newExpense.category || 'Office Expenses',
+        paymentMethod: newExpense.paidVia || 'Cash',
+        amount: amountVal,
+        totals: { grandTotal: amountVal },
+        description: `${newExpense.particulars} (Category: ${newExpense.category})`,
+        template: activeCompany.selectedTemplate || 'UNAI Billing'
+      };
+      
+      const savedDoc = await saveDoc(docPayload);
+
+      // Now save the expense payload, referencing the document's id!
       const payload = {
         ...newExpense,
-        id: `exp_${Date.now()}`,
+        id: expId,
         companyId: activeCompany.id,
-        amount: parseFloat(newExpense.amount)
+        amount: amountVal,
+        documentId: savedDoc.id
       };
 
       await saveExpense(payload);
-      showToast('Expense added successfully!', 'success');
+      showToast('Expense created and saved as document successfully!', 'success');
+      
+      // Store as last used project
+      setLastUsedProject(newExpense.projectEvent);
+      
       setIsModalOpen(false);
       
-      // Reset form
+      // Reset form (keeping project values ready for next time handleOpenModal is called)
       setNewExpense({
         particulars: '',
         amount: '',
         category: 'Office Supplies',
         date: new Date().toISOString().split('T')[0],
-        projectEvent: '',
+        projectEvent: newExpense.projectEvent,
         paidVia: 'Cash'
       });
+      setCustomCategory('');
       loadExpenses();
     } catch (err) {
       console.error(err);
@@ -267,13 +239,95 @@ export const Expenses = () => {
   const handleDeleteExpense = async (id) => {
     if (!confirm('Are you sure you want to delete this expense?')) return;
     try {
+      const expenseToDelete = expenses.find(e => e.id === id);
       await deleteExpense(id);
+
+      // Attempt to delete corresponding document representation if it exists
+      if (expenseToDelete && expenseToDelete.documentId) {
+        try {
+          await removeDoc(expenseToDelete.documentId);
+        } catch (err) {
+          console.warn('Corresponding document could not be deleted:', err);
+        }
+      } else {
+        // Fallback to check if a legacy doc exists with id `doc_${id}`
+        try {
+          await removeDoc(`doc_${id}`);
+        } catch (e) {}
+      }
+
       showToast('Expense deleted successfully', 'success');
       loadExpenses();
     } catch (err) {
       console.error(err);
       showToast('Failed to delete expense', 'error');
     }
+  };
+
+  const handleExportCSV = () => {
+    if (filteredExpenses.length === 0) {
+      showToast('No expenses found for the current filters to export.', 'warning');
+      return;
+    }
+
+    try {
+      const headers = ['Date', 'Category', 'Particulars/Description', 'Project/Event', 'Payment Method', `Amount (${currencySymbol})`];
+      const csvRows = [headers.join(',')];
+
+      filteredExpenses.forEach(e => {
+        const row = [
+          e.date,
+          `"${(e.category || '').replace(/"/g, '""')}"`,
+          `"${e.particulars.replace(/"/g, '""')}"`,
+          `"${(e.projectEvent || 'General Office').replace(/"/g, '""')}"`,
+          e.paidVia || 'Cash',
+          e.amount.toFixed(2)
+        ];
+        csvRows.push(row.join(','));
+      });
+
+      // Add total row
+      const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+      const summaryRow = ['TOTAL', '', '', '', '', totalAmount.toFixed(2)];
+      csvRows.push(summaryRow.join(','));
+
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      const projStr = selectedProject === 'all' ? 'All_Projects' : selectedProject.replace(/\s+/g, '_');
+      link.setAttribute('download', `Expenses_${projStr}_Report.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Expenses Excel CSV exported successfully!', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to export Excel CSV.', 'error');
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (filteredExpenses.length === 0) {
+      showToast('No expenses found for the current filters to export.', 'warning');
+      return;
+    }
+
+    showToast('Generating Expense PDF Report...', 'info');
+    setTimeout(async () => {
+      try {
+        if (printRef.current) {
+          const projStr = selectedProject === 'all' ? 'All_Projects' : selectedProject.replace(/\s+/g, '_');
+          await downloadDocumentPDF(printRef.current, `Expenses_${projStr}_Report`, 'portrait');
+          showToast('Expense PDF downloaded successfully!', 'success');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to export PDF.', 'error');
+      }
+    }, 300);
   };
 
   const getCategoryColorClasses = (catName) => {
@@ -306,13 +360,31 @@ export const Expenses = () => {
             <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Company Expenses</h1>
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Track, categorize, and assign expenses to projects or events.</p>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Add New Expense</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-4 py-3 rounded-2xl shadow-xs transition-all cursor-pointer"
+              title="Export Current Expenses to Excel CSV"
+            >
+              <Download className="w-4 h-4 text-slate-500" />
+              <span>Export Excel</span>
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-4 py-3 rounded-2xl shadow-xs transition-all cursor-pointer"
+              title="Download Current Expenses PDF Statement"
+            >
+              <FileText className="w-4 h-4 text-slate-500" />
+              <span>Download PDF</span>
+            </button>
+            <button
+              onClick={handleOpenModal}
+              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Add New Expense</span>
+            </button>
+          </div>
         </div>
 
         {/* Analytics Summary */}
@@ -401,6 +473,9 @@ export const Expenses = () => {
               {CATEGORIES.map(cat => (
                 <option key={cat.value} value={cat.value}>{cat.label}</option>
               ))}
+              {uniqueCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
             </select>
 
             {/* Project/Event Dropdown */}
@@ -454,15 +529,6 @@ export const Expenses = () => {
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="font-extrabold text-slate-800 text-sm">Transaction Logs</h3>
             <div className="flex items-center gap-3">
-              {expenses.length === 0 && !loading && (
-                <button
-                  type="button"
-                  onClick={handleLoadMockExpenses}
-                  className="text-[10px] font-extrabold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer border border-blue-100/50"
-                >
-                  Load Mock Expenses
-                </button>
-              )}
               <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg">
                 Showing {filteredExpenses.length} of {expenses.length} Entries
               </span>
@@ -497,15 +563,6 @@ export const Expenses = () => {
                     <td colSpan={7} className="py-16 text-center text-slate-400 font-medium">
                       <div className="max-w-xs mx-auto space-y-3">
                         <p className="text-slate-400 text-xs">No expense records found.</p>
-                        {expenses.length === 0 && (
-                          <button
-                            type="button"
-                            onClick={handleLoadMockExpenses}
-                            className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-xs font-extrabold transition-all cursor-pointer border border-blue-100/50"
-                          >
-                            Populate Mock Expenses
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -594,7 +651,47 @@ export const Expenses = () => {
               </div>
 
               <form onSubmit={handleAddExpense} className="p-6 space-y-4">
-                {/* Particulars */}
+                {/* Project / Event Name */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Project / Event Name (Optional)</label>
+                  <select
+                    value={isCustomProject ? '__new__' : newExpense.projectEvent}
+                    onChange={(e) => {
+                      if (e.target.value === '__new__') {
+                        setIsCustomProject(true);
+                        setNewExpense(prev => ({ ...prev, projectEvent: '' }));
+                      } else {
+                        setIsCustomProject(false);
+                        setNewExpense(prev => ({ ...prev, projectEvent: e.target.value }));
+                      }
+                    }}
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
+                  >
+                    <option value="">Select an Option</option>
+                    {uniqueProjects.map(proj => (
+                      <option key={proj} value={proj}>{proj}</option>
+                    ))}
+                    <option value="__new__">+ Type a custom Project / Event...</option>
+                  </select>
+                  
+                  {isCustomProject && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter custom Project / Event name"
+                      value={newExpense.projectEvent}
+                      onChange={(e) => setNewExpense(prev => ({ ...prev, projectEvent: e.target.value }))}
+                      className="w-full px-4 py-3 mt-2 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20 animate-fade-in"
+                    />
+                  )}
+                  <p className="text-[9px] text-slate-400">
+                    {isCustomProject 
+                      ? "Enter a custom name for the project or event." 
+                      : "Tag this expense to a specific project or event."}
+                  </p>
+                </div>
+
+                {/* Particulars / Description */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Particulars / Description</label>
                   <input
@@ -641,14 +738,37 @@ export const Expenses = () => {
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Category</label>
                     <select
-                      value={newExpense.category}
-                      onChange={(e) => setNewExpense(prev => ({ ...prev, category: e.target.value }))}
+                      value={CATEGORIES.map(c => c.value).includes(newExpense.category) ? newExpense.category : 'Others'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'Others') {
+                          setNewExpense(prev => ({ ...prev, category: 'Others' }));
+                          setCustomCategory('');
+                        } else {
+                          setNewExpense(prev => ({ ...prev, category: val }));
+                          setCustomCategory('');
+                        }
+                      }}
                       className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
                     >
                       {CATEGORIES.map(cat => (
                         <option key={cat.value} value={cat.value}>{cat.label}</option>
                       ))}
                     </select>
+                    
+                    {(newExpense.category === 'Others' || !CATEGORIES.map(c => c.value).includes(newExpense.category)) && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Enter custom category name (e.g. Software, Licensing)"
+                        value={customCategory || (CATEGORIES.map(c => c.value).includes(newExpense.category) ? '' : newExpense.category)}
+                        onChange={(e) => {
+                          setCustomCategory(e.target.value);
+                          setNewExpense(prev => ({ ...prev, category: e.target.value }));
+                        }}
+                        className="w-full px-4 py-3 mt-2 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20 animate-fade-in"
+                      />
+                    )}
                   </div>
 
                   {/* Payment Method */}
@@ -664,19 +784,6 @@ export const Expenses = () => {
                       ))}
                     </select>
                   </div>
-                </div>
-
-                {/* Project / Event tag */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Project / Event Name (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Annual Meet 2026, Q3 Campaign"
-                    value={newExpense.projectEvent}
-                    onChange={(e) => setNewExpense(prev => ({ ...prev, projectEvent: e.target.value }))}
-                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
-                  />
-                  <p className="text-[9px] text-slate-400">Add a project tag to easily filter expenses for specific business operations.</p>
                 </div>
 
                 {/* Action Buttons */}
@@ -699,6 +806,115 @@ export const Expenses = () => {
             </div>
           </div>
         )}
+
+        {/* Hidden PDF Printable Wrapper */}
+        <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
+          <div ref={printRef} className="p-8 w-[210mm] min-h-[295mm] bg-white font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden">
+            
+            {/* Watermark logo or text */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+              {activeCompany?.watermarkLogo || activeCompany?.logo ? (
+                <img
+                  src={activeCompany.watermarkLogo || activeCompany.logo}
+                  alt="Watermark"
+                  className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
+                />
+              ) : (
+                <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
+                  {activeCompany?.companyName || 'UNAI FINANCE'}
+                </span>
+              )}
+            </div>
+
+            {/* Report Header */}
+            <div className="flex justify-between items-start border-b border-slate-200 pb-4 relative z-10">
+              <div className="flex items-center gap-3">
+                {activeCompany?.logo ? (
+                  <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain border p-1" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base">
+                    {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-sm font-extrabold text-slate-900 uppercase tracking-tight">{activeCompany?.companyName || 'Expenses Report'}</h1>
+                  <p className="text-[9px] text-slate-500">{activeCompany?.address}</p>
+                  <p className="text-[9px] text-slate-500">Phone: {activeCompany?.phone} | Email: {activeCompany?.email}</p>
+                  {activeCompany?.gstNumber && <p className="text-[9px] text-slate-500 font-mono">GSTIN: {activeCompany.gstNumber}</p>}
+                </div>
+              </div>
+              <div className="text-right">
+                <h2 className="text-base font-black text-rose-600 uppercase tracking-wider">Expense Report</h2>
+                <p className="text-[9px] text-slate-500 font-bold mt-0.5">Project/Event: {selectedProject === 'all' ? 'All Projects & Events' : selectedProject}</p>
+                <p className="text-[9px] text-slate-500 font-bold">Category: {selectedCategory === 'all' ? 'All Categories' : selectedCategory}</p>
+                <p className="text-[8px] text-slate-400">Generated: {new Date().toLocaleDateString()}</p>
+              </div>
+            </div>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 relative z-10">
+              <div>
+                <p className="text-[9px] font-bold text-slate-400 uppercase font-mono">Total Expenses Amount</p>
+                <p className="text-xs font-black text-rose-600 mt-0.5">
+                  {formatCurrency(filteredExpenses.reduce((sum, e) => sum + e.amount, 0), currencySymbol)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-slate-400 uppercase font-mono">Total Item Count</p>
+                <p className="text-xs font-black text-slate-900 mt-0.5">{filteredExpenses.length} transactions</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-slate-400 uppercase font-mono">Average Transaction Size</p>
+                <p className="text-xs font-black text-blue-600 mt-0.5">
+                  {formatCurrency(
+                    filteredExpenses.length > 0 
+                      ? filteredExpenses.reduce((sum, e) => sum + e.amount, 0) / filteredExpenses.length 
+                      : 0,
+                    currencySymbol
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Table */}
+            <table className="w-full text-left border-collapse text-[10px] relative z-10">
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[8px]">
+                  <th className="py-2 px-3">Date</th>
+                  <th className="py-2 px-3">Category</th>
+                  <th className="py-2 px-3">Particulars / Description</th>
+                  <th className="py-2 px-3">Project / Event</th>
+                  <th className="py-2 px-3">Method</th>
+                  <th className="py-2 px-3 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 font-medium">
+                {filteredExpenses.map((row, idx) => (
+                  <tr key={idx}>
+                    <td className="py-2 px-3 text-slate-500">{formatDate(row.date)}</td>
+                    <td className="py-2 px-3 text-slate-700 font-semibold">{row.category}</td>
+                    <td className="py-2 px-3 text-slate-800">{row.particulars}</td>
+                    <td className="py-2 px-3 text-slate-600 font-mono text-[9px]">{row.projectEvent || 'General Office'}</td>
+                    <td className="py-2 px-3 text-slate-500 uppercase text-[9px]">{row.paidVia || 'Cash'}</td>
+                    <td className="py-2 px-3 text-right text-rose-600 font-extrabold">{formatCurrency(row.amount, currencySymbol)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Signatures */}
+            <div className="pt-12 flex justify-between relative z-10">
+              <div>
+                <p className="text-[8px] text-slate-400">Generated automatically | Verified ledger representation</p>
+              </div>
+              <div className="text-right border-t border-slate-300 pt-2 pr-6">
+                <p className="font-extrabold text-slate-900">{activeCompany?.companyName}</p>
+                <p className="text-[9px] text-slate-400 mt-0.5">Authorised Signatory</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
 
       </div>
     </MainLayout>

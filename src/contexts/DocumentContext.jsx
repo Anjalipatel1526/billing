@@ -59,7 +59,7 @@ export const DocumentProvider = ({ children }) => {
   const saveDoc = async (docData) => {
     if (!activeCompany) throw new Error('No active company selected');
 
-    const isNew = !docData.id;
+    const isNew = !docData.id || !documents.some(d => d.id === docData.id);
     const now = new Date().toISOString();
     
     let docNumber = docData.documentNumber;

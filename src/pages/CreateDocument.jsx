@@ -81,6 +81,24 @@ export const CreateDocument = () => {
 
   const [errors, setErrors] = useState({});
 
+  // Scroll direction state for hiding/showing sticky header
+  const [scrollDirection, setScrollDirection] = useState('up');
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY && currentScrollY > 150) {
+        setScrollDirection('down');
+      } else {
+        setScrollDirection('up');
+      }
+      setLastScrollY(currentScrollY);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
+
   // Initialize or load existing doc
   useEffect(() => {
     if (id) {
@@ -295,9 +313,11 @@ export const CreateDocument = () => {
 
   return (
     <MainLayout title={id ? `Edit Document ${documentNumber}` : 'Create Document'}>
-      <div className="space-y-4 max-w-5xl mx-auto">
+      <div className="space-y-4 max-w-[1440px] mx-auto px-4">
         {/* Top Navigation & Actions Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
+        <div className={`sticky top-16 md:top-4 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-[#f1f3f9] shadow-sm transition-all duration-300 ${
+          scrollDirection === 'down' ? '-translate-y-40 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/documents')}
@@ -326,8 +346,10 @@ export const CreateDocument = () => {
           </div>
         </div>
 
-        {/* FORM EDITOR (Full Width Container) */}
-        <div className="space-y-6 bg-white p-6 md:p-8 rounded-3xl border border-[#f1f3f9] shadow-xs">
+        {/* Main Grid: Form Editor + Live Preview */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Form Editor */}
+          <div className="lg:col-span-7 space-y-6 bg-white p-6 md:p-8 rounded-3xl border border-[#f1f3f9] shadow-xs">
           {/* Document Type Selector Tabs + Preview Button */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -579,6 +601,8 @@ export const CreateDocument = () => {
                   <option value="Payment Voucher">Payment Voucher</option>
                   <option value="Receipt Voucher">Receipt Voucher</option>
                   <option value="Expense Voucher">Expense Voucher</option>
+                  <option value="Expense Bill">Expense Bill</option>
+                  <option value="Bill">Bill</option>
                   <option value="General Voucher">General Voucher</option>
                 </Select>
               )}
@@ -691,8 +715,36 @@ export const CreateDocument = () => {
           </div>
         </div>
 
+        {/* Right Column: Sticky Live Preview */}
+          <div className="hidden lg:block lg:col-span-5 sticky top-20 max-h-[calc(100vh-120px)] overflow-y-auto bg-slate-100/60 border border-slate-200/80 rounded-3xl p-4 shadow-inner">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5 text-blue-600" />
+                Live Bill Preview
+              </span>
+              <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full uppercase">
+                {docType}
+              </span>
+            </div>
+            
+            <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex justify-center items-start">
+              <ResponsiveDocumentWrapper isInvoice={docType === 'invoice'}>
+                <TemplateWrapper
+                  templateName={selectedTemplate}
+                  company={activeCompany}
+                  customer={customer}
+                  items={items}
+                  totals={totals}
+                  document={docObject}
+                  documents={documents}
+                />
+              </ResponsiveDocumentWrapper>
+            </div>
+          </div>
+        </div>
+
         {/* ALWAYS RENDERED — Hidden Canvas for PDF Download (must be visible to html2canvas) */}
-        <div style={{ position: 'absolute', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
+        <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
           <div ref={previewRef}>
             <TemplateWrapper
               templateName={selectedTemplate}

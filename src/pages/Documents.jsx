@@ -24,7 +24,10 @@ import {
   Filter,
   ArrowUpDown,
   X,
-  Eye
+  Eye,
+  CreditCard,
+  Receipt,
+  Printer
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -49,6 +52,24 @@ export const Documents = () => {
       setPreviewDoc(null);
     }
   }, [search, documents]);
+
+  // Scroll direction state for hiding/showing sticky header
+  const [scrollDirection, setScrollDirection] = useState('up');
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY && currentScrollY > 150) {
+        setScrollDirection('down');
+      } else {
+        setScrollDirection('up');
+      }
+      setLastScrollY(currentScrollY);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   const [typeFilter, setTypeFilter] = useState('all'); // all | invoice | voucher | receipt
   const [statusFilter, setStatusFilter] = useState('all'); // all | Paid | Pending | Overdue | Draft
@@ -150,7 +171,9 @@ export const Documents = () => {
     <MainLayout title="Documents">
       <div className="space-y-6">
         {/* Header & New Document Button */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
+        <div className={`sticky top-16 md:top-4 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-[#f1f3f9] shadow-sm transition-all duration-300 ${
+          scrollDirection === 'down' ? '-translate-y-40 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        }`}>
           <div>
             <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Document History</h1>
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Manage, filter, duplicate, and export all invoices, vouchers, and receipts.</p>
@@ -247,12 +270,26 @@ export const Documents = () => {
                     return (
                       <tr key={doc.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="py-3 px-4 font-mono font-semibold text-slate-900">
-                          {doc.documentNumber}
+                          <button
+                            type="button"
+                            onClick={() => setPreviewDoc(doc)}
+                            className="hover:text-blue-600 font-mono font-semibold transition-colors cursor-pointer text-left"
+                            title="Preview Document"
+                          >
+                            <span>{doc.documentNumber}</span>
+                          </button>
                         </td>
                         <td className="py-3 px-4">
-                          <Badge variant={isInvoice ? 'invoice' : isVoucher ? 'voucher' : 'receipt'}>
-                            {doc.documentType ? doc.documentType.toUpperCase() : 'INVOICE'}
-                          </Badge>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewDoc(doc)}
+                            className="hover:scale-105 active:scale-95 transition-transform"
+                            title="Preview Document"
+                          >
+                            <Badge variant={isInvoice ? 'invoice' : isVoucher ? 'voucher' : 'receipt'}>
+                              {doc.documentType ? doc.documentType.toUpperCase() : 'INVOICE'}
+                            </Badge>
+                          </button>
                         </td>
                         <td className="py-3 px-4 font-medium text-slate-800">{partyName}</td>
                         <td className="py-3 px-4 text-slate-500">{formatDate(doc.documentDate)}</td>
@@ -266,6 +303,13 @@ export const Documents = () => {
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => setPreviewDoc(doc)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                              title="Preview Document"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               onClick={() => navigate(`/documents/${doc.id}`)}
                               className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50"
@@ -307,7 +351,7 @@ export const Documents = () => {
 
         {/* Hidden Render Container for PDF Download */}
         {pdfRenderDoc && (
-          <div style={{ position: 'absolute', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
+          <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
             <div ref={pdfRef}>
               <TemplateWrapper
                 templateName={pdfRenderDoc.template || activeCompany?.selectedTemplate}
@@ -345,16 +389,12 @@ export const Documents = () => {
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button variant="outline" icon={Printer} onClick={() => handleDownload(previewDoc)}>
+                    Print
+                  </Button>
                   <Button icon={Download} onClick={() => handleDownload(previewDoc)}>
                     Download PDF
                   </Button>
-                  <button
-                    onClick={() => navigate('/documents')}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                    title="Close Preview"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
 
@@ -374,7 +414,10 @@ export const Documents = () => {
 
               {/* Modal Footer */}
               <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end">
-                <Button variant="outline" onClick={() => navigate('/documents')}>
+                <Button variant="outline" onClick={() => {
+                  setPreviewDoc(null);
+                  navigate('/documents');
+                }}>
                   Close Preview
                 </Button>
               </div>

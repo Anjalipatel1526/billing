@@ -133,7 +133,7 @@ async function generateWithCanvas(element, filename, orientation) {
   // Clone into a visible off-screen container
   const wrapper = document.createElement('div');
   wrapper.id = '__pdf_render__';
-  wrapper.style.cssText = 'position:absolute;left:-20000px;top:0;background:white;opacity:1;visibility:visible;z-index:-99999;';
+  wrapper.style.cssText = 'position:fixed;left:-20000px;top:0;background:white;opacity:1;visibility:visible;z-index:-99999;';
   document.body.appendChild(wrapper);
 
   try {

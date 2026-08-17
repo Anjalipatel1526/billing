@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { useCompany } from '../contexts/CompanyContext';
 import { useDocument } from '../contexts/DocumentContext';
@@ -21,9 +21,15 @@ import {
   Scale, 
   ExternalLink,
   Eye,
-  X
+  X,
+  FileText,
+  CreditCard,
+  Receipt,
+  Printer,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
+import { getAllExpenses } from '../services/db';
 
 export const Ledger = () => {
   const { activeCompany } = useCompany();
@@ -33,6 +39,9 @@ export const Ledger = () => {
   const printRef = useRef(null);
   const pdfRef = useRef(null);
   const advancePrintRef = useRef(null);
+
+  const [expenses, setExpenses] = useState([]);
+  const [expensesLoading, setExpensesLoading] = useState(false);
 
   // Filters state
   const [selectedParty, setSelectedParty] = useState('all');
@@ -47,7 +56,41 @@ export const Ledger = () => {
   const [previewDoc, setPreviewDoc] = useState(null);
   const [pdfRenderDoc, setPdfRenderDoc] = useState(null);
 
-  // Extract unique customer/party names from all documents
+  // Scroll direction state for hiding/showing sticky header
+  const [scrollDirection, setScrollDirection] = useState('up');
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY && currentScrollY > 150) {
+        setScrollDirection('down');
+      } else {
+        setScrollDirection('up');
+      }
+      setLastScrollY(currentScrollY);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
+
+  useEffect(() => {
+    const loadExpensesData = async () => {
+      if (!activeCompany?.id) return;
+      setExpensesLoading(true);
+      try {
+        const data = await getAllExpenses(activeCompany.id);
+        setExpenses(data);
+      } catch (err) {
+        console.error('Failed to load expenses for ledger:', err);
+      } finally {
+        setExpensesLoading(false);
+      }
+    };
+    loadExpensesData();
+  }, [activeCompany?.id]);
+
+  // Extract unique customer/party names from all documents and expenses
   const parties = useMemo(() => {
     const names = new Set();
     documents.forEach(d => {
@@ -59,8 +102,16 @@ export const Ledger = () => {
         }
       }
     });
+    expenses.forEach(e => {
+      const companySpecific = !e.companyId || !activeCompany?.id || e.companyId === activeCompany.id;
+      if (companySpecific) {
+        if (e.projectEvent && e.projectEvent.trim()) {
+          names.add(e.projectEvent.trim());
+        }
+      }
+    });
     return Array.from(names).sort();
-  }, [documents, activeCompany]);
+  }, [documents, expenses, activeCompany]);
 
   // Compute ledger entries
   const ledgerData = useMemo(() => {
@@ -68,6 +119,9 @@ export const Ledger = () => {
     const activeDocs = documents.filter(d => {
       const companySpecific = !d.companyId || !activeCompany?.id || d.companyId === activeCompany.id;
       if (!companySpecific) return false;
+
+      // Filter out Expense Voucher/Bill documents to avoid duplication with the expenses store
+      if (d.documentType === 'voucher' && (d.voucherType === 'Expense Voucher' || d.voucherType === 'Expense Bill' || d.voucherType === 'Bill')) return false;
 
       // Date check
       const docDate = d.documentDate || d.createdAt?.slice(0, 10);
@@ -80,52 +134,93 @@ export const Ledger = () => {
       }
 
       return true;
+    }).map(d => ({
+      id: d.id,
+      date: d.documentDate || d.createdAt?.slice(0, 10),
+      rawDate: d.documentDate || d.createdAt,
+      type: d.documentType || 'invoice',
+      number: d.documentNumber,
+      particulars: `${(d.documentType || 'invoice').toUpperCase()} - ${d.customer?.customerName || d.paidTo || d.receivedFrom || 'N/A'} ${d.description ? `(${d.description})` : ''}`,
+      amount: d.totals?.grandTotal || parseFloat(d.amount) || 0,
+      voucherType: d.voucherType,
+      previewUrl: `${window.location.origin}/preview/${d.id}`,
+      isExpense: false,
+      partyOrProject: d.customer?.customerName || d.paidTo || d.receivedFrom || 'N/A'
+    }));
+
+    // 2. Filter expenses
+    const activeExpenses = expenses.filter(e => {
+      const companySpecific = !e.companyId || !activeCompany?.id || e.companyId === activeCompany.id;
+      if (!companySpecific) return false;
+
+      // Date check
+      const expDate = e.date || e.createdAt?.slice(0, 10);
+      if (expDate < startDate || expDate > endDate) return false;
+
+      // Party check
+      if (selectedParty !== 'all') {
+        const matchesParty = e.projectEvent?.trim() === selectedParty || 
+                             e.particulars?.toLowerCase().includes(selectedParty.toLowerCase()) ||
+                             e.category?.toLowerCase().includes(selectedParty.toLowerCase());
+        if (!matchesParty) return false;
+      }
+
+      return true;
+    }).map(e => ({
+      id: e.id,
+      date: e.date || e.createdAt?.slice(0, 10),
+      rawDate: e.date || e.createdAt,
+      type: 'expense',
+      number: 'EXP-' + e.id.slice(-6).toUpperCase(),
+      particulars: `EXPENSE - ${e.particulars} [${e.category}] ${e.projectEvent ? `(Project: ${e.projectEvent})` : ''}`,
+      amount: parseFloat(e.amount) || 0,
+      previewUrl: `${window.location.origin}/expenses`,
+      isExpense: true,
+      partyOrProject: e.projectEvent || e.category || 'N/A'
+    }));
+
+    // Combine and sort by date ascending
+    const combined = [...activeDocs, ...activeExpenses];
+    combined.sort((a, b) => {
+      return a.rawDate.localeCompare(b.rawDate);
     });
 
-    // 2. Sort ascending by date to calculate running balance
-    activeDocs.sort((a, b) => {
-      const dateA = a.documentDate || a.createdAt;
-      const dateB = b.documentDate || b.createdAt;
-      return dateA.localeCompare(dateB);
-    });
-
-    // 3. Map into ledger entries and compute running balance
+    // Compute running balance
     let runningBalance = 0;
-    const entries = activeDocs.map(d => {
-      const type = d.documentType || 'invoice';
-      const number = d.documentNumber;
-      const party = d.customer?.customerName || d.paidTo || d.receivedFrom || 'N/A';
-      
+    const entries = combined.map(item => {
       let debit = 0;
       let credit = 0;
 
-      if (type === 'invoice') {
-        debit = d.totals?.grandTotal || parseFloat(d.amount) || 0;
-      } else if (type === 'voucher') {
-        // Payment voucher is an outflow (debit), receipt voucher is an inflow (credit)
-        if (d.voucherType === 'Payment Voucher' || d.voucherType === 'Expense Voucher') {
-          debit = parseFloat(d.amount) || 0;
-        } else {
-          credit = parseFloat(d.amount) || 0;
+      if (item.isExpense) {
+        debit = item.amount;
+      } else {
+        if (item.type === 'invoice') {
+          debit = item.amount;
+        } else if (item.type === 'voucher') {
+          if (item.voucherType === 'Payment Voucher' || item.voucherType === 'Expense Voucher') {
+            debit = item.amount;
+          } else {
+            credit = item.amount;
+          }
+        } else if (item.type === 'receipt') {
+          credit = item.amount;
         }
-      } else if (type === 'receipt') {
-        credit = parseFloat(d.amount) || 0;
       }
 
       runningBalance += (debit - credit);
 
-      const previewUrl = `${window.location.origin}/preview/${d.id}`;
-
       return {
-        id: d.id,
-        date: d.documentDate || d.createdAt?.slice(0, 10),
-        number,
-        type,
-        particulars: `${type.toUpperCase()} - ${party} ${d.description ? `(${d.description})` : ''}`,
+        id: item.id,
+        date: item.date,
+        number: item.number,
+        type: item.type,
+        particulars: item.particulars,
         debit,
         credit,
         balance: runningBalance,
-        previewUrl
+        previewUrl: item.previewUrl,
+        isExpense: item.isExpense,
+        partyOrProject: item.partyOrProject
       };
     });
 
@@ -139,18 +234,20 @@ export const Ledger = () => {
       totalCredit,
       finalBalance: runningBalance
     };
-  }, [documents, activeCompany, selectedParty, startDate, endDate]);
+  }, [documents, expenses, activeCompany, selectedParty, startDate, endDate]);
 
   const advanceAnalytics = useMemo(() => {
     const entries = ledgerData.entries;
     const invoiceVolume = entries.filter(e => e.type === 'invoice').reduce((sum, e) => sum + e.debit, 0);
     const voucherVolume = entries.filter(e => e.type === 'voucher').reduce((sum, e) => sum + e.debit + e.credit, 0);
     const receiptVolume = entries.filter(e => e.type === 'receipt').reduce((sum, e) => sum + e.credit, 0);
-    const totalVolume = invoiceVolume + voucherVolume + receiptVolume;
+    const expenseVolume = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.debit, 0);
+    const totalVolume = invoiceVolume + voucherVolume + receiptVolume + expenseVolume;
 
     const invoiceCount = entries.filter(e => e.type === 'invoice').length;
     const voucherCount = entries.filter(e => e.type === 'voucher').length;
     const receiptCount = entries.filter(e => e.type === 'receipt').length;
+    const expenseCount = entries.filter(e => e.type === 'expense').length;
 
     const maxDebit = entries.reduce((max, e) => Math.max(max, e.debit), 0);
     const maxCredit = entries.reduce((max, e) => Math.max(max, e.credit), 0);
@@ -198,10 +295,12 @@ export const Ledger = () => {
       invoiceVolume,
       voucherVolume,
       receiptVolume,
+      expenseVolume,
       totalVolume,
       invoiceCount,
       voucherCount,
       receiptCount,
+      expenseCount,
       maxDebit,
       maxCredit,
       avgTransaction,
@@ -311,6 +410,99 @@ export const Ledger = () => {
     }, 300);
   };
 
+  const downloadReportForParty = async (partyName, format) => {
+    if (!partyName || partyName === 'N/A') {
+      showToast('No valid party or project associated with this entry.', 'warning');
+      return;
+    }
+
+    showToast(`Generating report for ${partyName}...`, 'info');
+
+    // 1. Filter the entries just for this party/project
+    const partyEntries = ledgerData.entries.filter(e => {
+      return e.partyOrProject === partyName;
+    });
+
+    if (partyEntries.length === 0) {
+      showToast('No ledger data found for this party/project.', 'warning');
+      return;
+    }
+
+    const totalDebit = partyEntries.reduce((sum, e) => sum + e.debit, 0);
+    const totalCredit = partyEntries.reduce((sum, e) => sum + e.credit, 0);
+    const finalBalance = totalDebit - totalCredit;
+
+    if (format === 'excel') {
+      try {
+        const headers = ['Date', 'Document Type', 'Document Number', 'Particulars', `Debit (${currencySymbol})`, `Credit (${currencySymbol})`, `Balance (${currencySymbol})`, 'Bill Preview Link'];
+        const csvRows = [headers.join(',')];
+        
+        let runningBal = 0;
+        partyEntries.forEach(e => {
+          runningBal += (e.debit - e.credit);
+          const row = [
+            e.date,
+            e.type.toUpperCase(),
+            e.number,
+            `"${e.particulars.replace(/"/g, '""')}"`,
+            e.debit.toFixed(2),
+            e.credit.toFixed(2),
+            runningBal.toFixed(2),
+            `"=HYPERLINK(""${e.previewUrl}"",""Preview Bill"")"`
+          ];
+          csvRows.push(row.join(','));
+        });
+
+        // Add totals row
+        const summaryRow = [
+          'TOTALS',
+          '',
+          '',
+          '',
+          totalDebit.toFixed(2),
+          totalCredit.toFixed(2),
+          finalBalance.toFixed(2),
+          ''
+        ];
+        csvRows.push(summaryRow.join(','));
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        const partyStr = partyName.replace(/\s+/g, '_');
+        link.setAttribute('download', `Ledger_${partyStr}_${startDate}_to_${endDate}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast(`Excel CSV for ${partyName} exported successfully!`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to export Excel CSV.', 'error');
+      }
+    } else if (format === 'pdf') {
+      const originalParty = selectedParty;
+      setSelectedParty(partyName);
+      
+      setTimeout(async () => {
+        try {
+          if (printRef.current) {
+            const partyStr = partyName.replace(/\s+/g, '_');
+            await downloadDocumentPDF(printRef.current, `Ledger_${partyStr}_${startDate}_to_${endDate}`, 'portrait');
+            showToast(`Ledger PDF for ${partyName} downloaded successfully!`, 'success');
+          }
+        } catch (err) {
+          console.error(err);
+          showToast('Failed to export PDF.', 'error');
+        } finally {
+          setSelectedParty(originalParty);
+        }
+      }, 100);
+    }
+  };
+
   const handleDownload = async (doc) => {
     setPdfRenderDoc(doc);
     showToast('Generating PDF document...', 'info');
@@ -339,7 +531,9 @@ export const Ledger = () => {
       <div className="space-y-6">
         
         {/* Page Header and Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
+        <div className={`sticky top-16 md:top-4 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-[#f1f3f9] shadow-sm transition-all duration-300 ${
+          scrollDirection === 'down' ? '-translate-y-40 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        }`}>
           <div>
             <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">General Ledger</h1>
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Track account statements, transaction flows, and running balances.</p>
@@ -350,7 +544,7 @@ export const Ledger = () => {
               Export Excel
             </Button>
             <Button variant="outline" icon={Download} onClick={handleExportPDF}>
-              Export PDF
+              Download PDF
             </Button>
             <Button icon={BookOpen} onClick={handleExportAdvancePDF}>
               Advance Report
@@ -480,12 +674,36 @@ export const Ledger = () => {
                   {ledgerData.entries.map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                       <td className="py-3 px-4 text-slate-500">{formatDate(row.date)}</td>
-                      <td className="py-3 px-4 text-slate-800 font-semibold max-w-[200px] truncate">{row.particulars}</td>
+                      <td className="py-3 px-4 max-w-[250px]">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-slate-800 font-semibold truncate" title={row.particulars}>
+                            {row.particulars}
+                          </span>
+                        </div>
+                      </td>
                       <td className="py-3 px-4">
-                        <span className="font-mono text-slate-600 font-semibold uppercase">{row.number}</span>
-                        <Badge variant={row.type === 'invoice' ? 'invoice' : row.type === 'voucher' ? 'voucher' : 'receipt'} className="ml-1.5 py-0 px-1 text-[8px]">
-                          {row.type}
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          {row.isExpense ? (
+                            <span className="font-mono font-semibold uppercase text-slate-600">{row.number}</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const doc = documents.find(d => d.id === row.id);
+                                if (doc) {
+                                  setPreviewDoc(doc);
+                                }
+                              }}
+                              className="hover:text-blue-600 font-mono font-semibold transition-colors cursor-pointer text-left"
+                              title="Preview Document"
+                            >
+                              <span className="uppercase">{row.number}</span>
+                            </button>
+                          )}
+                          <Badge variant={row.type === 'invoice' ? 'invoice' : row.type === 'voucher' ? 'voucher' : row.type === 'receipt' ? 'receipt' : 'expense'} className="py-0 px-1 text-[8px]">
+                            {row.type}
+                          </Badge>
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-right font-semibold text-blue-600">
                         {row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}
@@ -497,19 +715,29 @@ export const Ledger = () => {
                         {formatCurrency(row.balance, currencySymbol)}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const doc = documents.find(d => d.id === row.id);
-                            if (doc) {
-                              setPreviewDoc(doc);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                        >
-                          View Bill
-                          <Eye className="w-3 h-3" />
-                        </button>
+                        {row.isExpense ? (
+                          <a
+                            href="/expenses"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
+                          >
+                            Go to Expenses
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const doc = documents.find(d => d.id === row.id);
+                              if (doc) {
+                                setPreviewDoc(doc);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          >
+                            View Bill
+                            <Eye className="w-3 h-3" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -532,16 +760,12 @@ export const Ledger = () => {
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button variant="outline" icon={Printer} onClick={() => handleDownload(previewDoc)}>
+                    Print
+                  </Button>
                   <Button icon={Download} onClick={() => handleDownload(previewDoc)}>
                     Download PDF
                   </Button>
-                  <button
-                    onClick={() => setPreviewDoc(null)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                    title="Close Preview"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
 
@@ -570,7 +794,7 @@ export const Ledger = () => {
         )}
 
         {/* Hidden PDF Printable Wrapper */}
-        <div style={{ position: 'absolute', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
+        <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
           <div ref={printRef} className="p-8 w-[210mm] min-h-[295mm] bg-white font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden">
             
             {/* BACKGROUND WATERMARK */}
@@ -658,7 +882,7 @@ export const Ledger = () => {
                         rel="noreferrer"
                         className="text-[9px] font-bold text-blue-600 underline"
                       >
-                        Preview Bill
+                        {row.isExpense ? 'Expenses Page' : 'Preview Bill'}
                       </a>
                     </td>
                   </tr>
@@ -681,7 +905,7 @@ export const Ledger = () => {
         </div>
 
         {/* Hidden Advance PDF Printable Wrapper */}
-        <div style={{ position: 'absolute', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
+        <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
           <div ref={advancePrintRef} id="printable-document" className="w-[210mm] bg-white font-sans text-slate-800">
             
             {/* PAGE 1: EXECUTIVE ANALYTICAL SUMMARY */}
@@ -815,6 +1039,20 @@ export const Ledger = () => {
                                 transform="rotate(-90 60 60)" 
                               />
                             )}
+                            {/* Expense slice */}
+                            {advanceAnalytics.expenseVolume > 0 && (
+                              <circle 
+                                cx="60" 
+                                cy="60" 
+                                r="40" 
+                                fill="transparent" 
+                                stroke="#f43f5e" 
+                                strokeWidth="12" 
+                                strokeDasharray={`${(advanceAnalytics.totalVolume > 0 ? (advanceAnalytics.expenseVolume / advanceAnalytics.totalVolume) * 251.3 : 0).toFixed(1)} 251.3`} 
+                                strokeDashoffset={-(advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.invoiceVolume + advanceAnalytics.voucherVolume + advanceAnalytics.receiptVolume) / advanceAnalytics.totalVolume) * 251.3 : 0)} 
+                                transform="rotate(-90 60 60)" 
+                              />
+                            )}
                           </>
                         ) : (
                           <circle cx="60" cy="60" r="40" fill="transparent" stroke="#cbd5e1" strokeWidth="12" />
@@ -829,7 +1067,7 @@ export const Ledger = () => {
                         </g>
                       </svg>
                       
-                      <div className="space-y-1.5 text-[8px] font-semibold text-slate-600">
+                      <div className="space-y-1 text-[8px] font-semibold text-slate-600">
                         <div className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded bg-blue-600 inline-block" />
                           <span>Invoices: {advanceAnalytics.invoiceCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.invoiceVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
@@ -841,6 +1079,10 @@ export const Ledger = () => {
                         <div className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded bg-emerald-500 inline-block" />
                           <span>Receipts: {advanceAnalytics.receiptCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.receiptVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded bg-rose-500 inline-block" />
+                          <span>Expenses: {advanceAnalytics.expenseCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.expenseVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
                         </div>
                       </div>
                     </div>
@@ -1016,7 +1258,7 @@ export const Ledger = () => {
                             rel="noreferrer"
                             className="text-[8px] font-bold text-blue-600 underline"
                           >
-                            Preview Bill
+                            {row.isExpense ? 'Expenses Page' : 'Preview Bill'}
                           </a>
                         </td>
                       </tr>
@@ -1044,7 +1286,7 @@ export const Ledger = () => {
 
         {/* Hidden Render Container for PDF Download */}
         {pdfRenderDoc && (
-          <div style={{ position: 'absolute', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
+          <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
             <div ref={pdfRef}>
               <TemplateWrapper
                 templateName={pdfRenderDoc.template || activeCompany?.selectedTemplate}

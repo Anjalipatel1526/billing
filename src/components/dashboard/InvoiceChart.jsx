@@ -1,43 +1,118 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
-  const [timeFilter, setTimeFilter] = useState('This Month');
+  const currentMonthIdx = new Date().getMonth();
+  const currentYearVal = new Date().getFullYear();
 
-  // Hardcoded coordinates to exactly match the sleek curved area/line chart shown in the image
-  // May 1, May 6, May 11, May 16, May 21, May 26
-  const dataPoints = [
-    { label: 'May 1', invoiceY: 155, paidY: 175, invoiceVal: '₹30K', paidVal: '₹12K' },
-    { label: 'May 6', invoiceY: 140, paidY: 155, invoiceVal: '₹48K', paidVal: '₹30K' },
-    { label: 'May 11', invoiceY: 110, paidY: 130, invoiceVal: '₹75K', paidVal: '₹55K' },
-    { label: 'May 16', invoiceY: 90, paidY: 115, invoiceVal: '₹95K', paidVal: '₹70K' },
-    { label: 'May 21', invoiceY: 75, paidY: 95, invoiceVal: '₹1.1L', paidVal: '₹90K' },
-    { label: 'May 26', invoiceY: 50, paidY: 75, invoiceVal: '₹1.4L', paidVal: '₹1.1L' }
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthIdx);
+  const [selectedYear, setSelectedYear] = useState(currentYearVal);
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // SVG coordinates for responsive rendering (viewBox="0 0 600 220")
+  const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthLabel = monthNamesShort[selectedMonth];
+
+  // SVG coordinates for responsive rendering (viewBox="0 0 600 230")
   const xCoords = [60, 160, 260, 360, 460, 560];
+  const intervals = [1, 6, 11, 16, 21, 26];
+
+  // Compute stat card values dynamically
+  const dataPoints = useMemo(() => {
+    // Filter documents for the selected month and year (invoices only)
+    const invoiceDocs = documents.filter(doc => {
+      if (doc.documentType !== 'invoice' && doc.documentType !== undefined) return false;
+      const dDate = new Date(doc.documentDate || doc.createdAt);
+      return dDate.getMonth() === selectedMonth && dDate.getFullYear() === selectedYear;
+    });
+
+    return intervals.map(d => {
+      let invoiceVal = 0;
+      let paidVal = 0;
+
+      invoiceDocs.forEach(doc => {
+        const dDate = new Date(doc.documentDate || doc.createdAt);
+        const day = dDate.getDate();
+        if (day <= d) {
+          const amt = doc.totals?.grandTotal || parseFloat(doc.amount) || 0;
+          invoiceVal += amt;
+          if (doc.status === 'Paid') {
+            paidVal += amt;
+          }
+        }
+      });
+
+      return {
+        label: `${monthLabel} ${d}`,
+        invoiceVal,
+        paidVal
+      };
+    });
+  }, [documents, selectedMonth, selectedYear, monthLabel]);
+
+  const maxVal = useMemo(() => {
+    const highestVal = Math.max(...dataPoints.map(pt => pt.invoiceVal), 0);
+    return highestVal > 0 ? highestVal : 150000; // default/fallback to 150k
+  }, [dataPoints]);
+
+  const getY = (val) => 200 - (val / maxVal) * 150;
+
+  const pointsWithY = useMemo(() => {
+    return dataPoints.map(pt => ({
+      ...pt,
+      invoiceY: getY(pt.invoiceVal),
+      paidY: getY(pt.paidVal)
+    }));
+  }, [dataPoints, maxVal]);
 
   // Build curved path using Bezier control points
-  // Invoice path (Dark Blue)
-  const invoicePath = `M ${xCoords[0]} ${dataPoints[0].invoiceY} 
-                       C ${xCoords[0]+50} ${dataPoints[0].invoiceY-5}, ${xCoords[1]-50} ${dataPoints[1].invoiceY+5}, ${xCoords[1]} ${dataPoints[1].invoiceY}
-                       C ${xCoords[1]+50} ${dataPoints[1].invoiceY-5}, ${xCoords[2]-50} ${dataPoints[2].invoiceY+5}, ${xCoords[2]} ${dataPoints[2].invoiceY}
-                       C ${xCoords[2]+50} ${dataPoints[2].invoiceY-5}, ${xCoords[3]-50} ${dataPoints[3].invoiceY+5}, ${xCoords[3]} ${dataPoints[3].invoiceY}
-                       C ${xCoords[3]+50} ${dataPoints[3].invoiceY-5}, ${xCoords[4]-50} ${dataPoints[4].invoiceY+5}, ${xCoords[4]} ${dataPoints[4].invoiceY}
-                       C ${xCoords[4]+50} ${dataPoints[4].invoiceY-5}, ${xCoords[5]-50} ${dataPoints[5].invoiceY+5}, ${xCoords[5]} ${dataPoints[5].invoiceY}`;
+  const invoicePath = useMemo(() => {
+    if (pointsWithY.length === 0) return '';
+    let path = `M ${xCoords[0]} ${pointsWithY[0].invoiceY}`;
+    for (let i = 1; i < pointsWithY.length; i++) {
+      const prevX = xCoords[i - 1];
+      const prevY = pointsWithY[i - 1].invoiceY;
+      const currX = xCoords[i];
+      const currY = pointsWithY[i].invoiceY;
+      path += ` C ${prevX + 50} ${prevY}, ${currX - 50} ${currY}, ${currX} ${currY}`;
+    }
+    return path;
+  }, [pointsWithY]);
 
-  // Paid path (Light Blue)
-  const paidPath = `M ${xCoords[0]} ${dataPoints[0].paidY} 
-                     C ${xCoords[0]+50} ${dataPoints[0].paidY-5}, ${xCoords[1]-50} ${dataPoints[1].paidY+5}, ${xCoords[1]} ${dataPoints[1].paidY}
-                     C ${xCoords[1]+50} ${dataPoints[1].paidY-5}, ${xCoords[2]-50} ${dataPoints[2].paidY+5}, ${xCoords[2]} ${dataPoints[2].paidY}
-                     C ${xCoords[2]+50} ${dataPoints[2].paidY-5}, ${xCoords[3]-50} ${dataPoints[3].paidY+5}, ${xCoords[3]} ${dataPoints[3].paidY}
-                     C ${xCoords[3]+50} ${dataPoints[3].paidY-5}, ${xCoords[4]-50} ${dataPoints[4].paidY+5}, ${xCoords[4]} ${dataPoints[4].paidY}
-                     C ${xCoords[4]+50} ${dataPoints[4].paidY-5}, ${xCoords[5]-50} ${dataPoints[5].paidY+5}, ${xCoords[5]} ${dataPoints[5].paidY}`;
+  const paidPath = useMemo(() => {
+    if (pointsWithY.length === 0) return '';
+    let path = `M ${xCoords[0]} ${pointsWithY[0].paidY}`;
+    for (let i = 1; i < pointsWithY.length; i++) {
+      const prevX = xCoords[i - 1];
+      const prevY = pointsWithY[i - 1].paidY;
+      const currX = xCoords[i];
+      const currY = pointsWithY[i].paidY;
+      path += ` C ${prevX + 50} ${prevY}, ${currX - 50} ${currY}, ${currX} ${currY}`;
+    }
+    return path;
+  }, [pointsWithY]);
 
   // Area paths (close the loop to ground level y=200 for gradient fill)
   const invoiceArea = `${invoicePath} L ${xCoords[5]} 200 L ${xCoords[0]} 200 Z`;
   const paidArea = `${paidPath} L ${xCoords[5]} 200 L ${xCoords[0]} 200 Z`;
+
+  const formatAxisLabel = (value) => {
+    if (value === 0) return `${currencySymbol}0`;
+    if (value >= 100000) return `${currencySymbol}${(value / 100000).toFixed(1)}L`;
+    if (value >= 1000) return `${currencySymbol}${(value / 1000).toFixed(0)}K`;
+    return `${currencySymbol}${value}`;
+  };
+
+  const formatTooltipValue = (value) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currencySymbol === '₹' ? 'INR' : 'USD',
+      maximumFractionDigits: 0
+    }).format(value);
+  };
 
   return (
     <div className="bg-white border border-[#f1f3f9] rounded-3xl p-6 shadow-xs">
@@ -61,10 +136,22 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
           </div>
 
           {/* Filter Dropdown */}
-          <button className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-white border border-[#e2e8f0] py-1.5 px-3 rounded-xl hover:bg-slate-50 transition-colors">
-            <span>{timeFilter}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
+          <div className="relative">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
+              className="appearance-none text-[11px] font-bold text-slate-600 bg-white border border-[#e2e8f0] py-1.5 pl-3 pr-8 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer outline-none"
+            >
+              {months.map((m, idx) => (
+                <option key={idx} value={idx}>
+                  {m} {selectedYear}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -96,10 +183,10 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
 
           {/* Y-Axis Labels */}
           <g fill="#94a3b8" fontSize="10" fontWeight="bold" textAnchor="end" fontFamily="sans-serif">
-            <text x="35" y="53">₹1.5L</text>
-            <text x="35" y="103">₹1.0L</text>
-            <text x="35" y="153">₹50K</text>
-            <text x="35" y="203">₹0</text>
+            <text x="35" y="53">{formatAxisLabel(maxVal)}</text>
+            <text x="35" y="103">{formatAxisLabel(maxVal * 2 / 3)}</text>
+            <text x="35" y="153">{formatAxisLabel(maxVal / 3)}</text>
+            <text x="35" y="203">{formatAxisLabel(0)}</text>
           </g>
 
           {/* Area under curves */}
@@ -111,10 +198,13 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
           <path d={paidPath} fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
 
           {/* Interactive dots on data points */}
-          {dataPoints.map((pt, idx) => {
+          {pointsWithY.map((pt, idx) => {
             const x = xCoords[idx];
             return (
               <g key={idx} className="cursor-pointer group">
+                <title>
+                  {pt.label}: Invoiced {formatTooltipValue(pt.invoiceVal)} | Paid {formatTooltipValue(pt.paidVal)}
+                </title>
                 {/* Invisible hover helper for bigger mouse target */}
                 <circle cx={x} cy={pt.invoiceY} r="8" fill="transparent" />
                 <circle cx={x} cy={pt.paidY} r="8" fill="transparent" />
@@ -145,7 +235,7 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
           })}
 
           {/* X-Axis labels */}
-          {dataPoints.map((pt, idx) => (
+          {pointsWithY.map((pt, idx) => (
             <text 
               key={idx}
               x={xCoords[idx]} 
