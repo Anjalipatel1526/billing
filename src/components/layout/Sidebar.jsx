@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, BookOpen, Plus, SquareTerminal, ChevronLeft, Wallet } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, BookOpen, Plus, SquareTerminal, ChevronLeft, Wallet, Bell } from 'lucide-react';
 import { useCompany } from '../../contexts/CompanyContext';
 
 // Sleek minimalist car SVG logo
@@ -43,6 +43,7 @@ export const Sidebar = ({ className = '', onCollapse }) => {
     { label: 'Documents', path: '/documents', icon: FileText },
     { label: 'Ledger', path: '/ledger', icon: BookOpen },
     { label: 'Expenses', path: '/expenses', icon: Wallet },
+    { label: 'Recurring', path: '/recurring', icon: Bell },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];
 

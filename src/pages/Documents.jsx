@@ -27,7 +27,8 @@ import {
   Eye,
   CreditCard,
   Receipt,
-  Printer
+  Printer,
+  MoreVertical
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -78,6 +79,17 @@ export const Documents = () => {
 
   const [pdfRenderDoc, setPdfRenderDoc] = useState(null);
   const pdfRef = useRef(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.dropdown-container')) {
+        setActiveMenuId(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   const filteredDocs = useMemo(() => {
     let result = [...documents];
@@ -305,39 +317,73 @@ export const Documents = () => {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => setPreviewDoc(doc)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
                               title="Preview Document"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => navigate(`/documents/${doc.id}`)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                              title="Edit Document"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDuplicate(doc.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50"
-                              title="Duplicate Document"
-                            >
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                            <button
                               onClick={() => handleDownload(doc)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
                               title="Download PDF"
                             >
                               <Download className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={() => setDeleteDocId(doc.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            
+                            {/* Action Dropdown Menu */}
+                            <div className="relative dropdown-container">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuId(activeMenuId === doc.id ? null : doc.id);
+                                }}
+                                className={`p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer ${
+                                  activeMenuId === doc.id ? 'bg-slate-100 text-slate-800' : ''
+                                }`}
+                                title="More Actions"
+                              >
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </button>
+                              
+                              {activeMenuId === doc.id && (
+                                <div className="absolute right-0 mt-1 w-32 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-30 animate-in fade-in slide-in-from-top-1 duration-100">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveMenuId(null);
+                                      navigate(`/documents/${doc.id}`);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 cursor-pointer transition-colors"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveMenuId(null);
+                                      handleDuplicate(doc.id);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-purple-600 flex items-center gap-2 cursor-pointer transition-colors"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    <span>Duplicate</span>
+                                  </button>
+                                  <hr className="my-1 border-slate-100" />
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveMenuId(null);
+                                      setDeleteDocId(doc.id);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer transition-colors"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                    <span>Delete</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>

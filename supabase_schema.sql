@@ -110,3 +110,52 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.companies;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.documents;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.ledger_entries;
+
+-- ========================================================
+-- NEW ENTITIES: EXPENSES & RECURRING REMINDERS
+-- ========================================================
+
+-- 6. EXPENSES TABLE
+CREATE TABLE IF NOT EXISTS public.expenses (
+  id TEXT PRIMARY KEY,
+  company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE,
+  particulars TEXT NOT NULL,
+  amount NUMERIC DEFAULT 0,
+  category TEXT,
+  date TEXT,
+  project_event TEXT DEFAULT '',
+  paid_via TEXT DEFAULT 'Cash',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7. RECURRING REMINDERS TABLE
+CREATE TABLE IF NOT EXISTS public.recurring_reminders (
+  id TEXT PRIMARY KEY,
+  company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE,
+  type TEXT NOT NULL, -- 'income' | 'outcome'
+  title TEXT NOT NULL,
+  amount NUMERIC DEFAULT 0,
+  frequency TEXT NOT NULL, -- 'daily' | 'weekly' | 'monthly' | 'yearly'
+  next_date TEXT,
+  reminder_days_before INTEGER DEFAULT 1,
+  emails JSONB DEFAULT '[]'::jsonb,
+  status TEXT DEFAULT 'active', -- 'active' | 'paused'
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indices for performance optimization
+CREATE INDEX IF NOT EXISTS idx_expenses_company_id ON public.expenses(company_id);
+CREATE INDEX IF NOT EXISTS idx_recurring_reminders_company_id ON public.recurring_reminders(company_id);
+
+-- Enable RLS
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recurring_reminders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read/write access to expenses" ON public.expenses FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public read/write access to recurring_reminders" ON public.recurring_reminders FOR ALL USING (true) WITH CHECK (true);
+
+-- Enable Realtime Replication
+ALTER PUBLICATION supabase_realtime ADD TABLE public.expenses;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.recurring_reminders;

@@ -2,7 +2,7 @@ import { openDB } from 'idb';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DB_NAME = 'SaaSInvoiceDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise = null;
 
@@ -34,6 +34,10 @@ function getDB() {
           const expenseStore = db.createObjectStore('expenses', { keyPath: 'id' });
           expenseStore.createIndex('companyId', 'companyId');
           expenseStore.createIndex('projectEvent', 'projectEvent');
+        }
+        if (!db.objectStoreNames.contains('recurring_reminders')) {
+          const reminderStore = db.createObjectStore('recurring_reminders', { keyPath: 'id' });
+          reminderStore.createIndex('companyId', 'companyId');
         }
       },
     }).catch(err => {
@@ -535,6 +539,8 @@ export async function clearAllData() {
       await supabase.from('documents').delete().neq('id', '');
       await supabase.from('companies').delete().neq('id', '');
       await supabase.from('settings').delete().neq('key', '');
+      await supabase.from('expenses').delete().neq('id', '');
+      await supabase.from('recurring_reminders').delete().neq('id', '');
     } catch (e) {
       console.error('Supabase clearAllData error:', e);
     }
@@ -546,6 +552,8 @@ export async function clearAllData() {
       await db.clear('companies');
       await db.clear('documents');
       await db.clear('settings');
+      await db.clear('expenses');
+      await db.clear('recurring_reminders');
     } catch (e) {
       console.error(e);
     }
@@ -553,6 +561,15 @@ export async function clearAllData() {
   localStorage.removeItem(LOCAL_STORAGE_KEYS.COMPANIES);
   localStorage.removeItem(LOCAL_STORAGE_KEYS.DOCUMENTS);
   localStorage.removeItem(LOCAL_STORAGE_KEYS.ACTIVE_COMPANY);
+  localStorage.removeItem(LOCAL_STORAGE_KEYS.EXPENSES);
+  localStorage.removeItem('saas_billing_recurring_reminders');
+  
+  // Clean all simulated email logs
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('simulated_email_logs_')) {
+      localStorage.removeItem(key);
+    }
+  });
 }
 
 /**
@@ -725,5 +742,132 @@ export async function deleteExpense(id) {
   const list = getLocalJSON(LOCAL_STORAGE_KEYS.EXPENSES, []);
   const filtered = list.filter(e => e.id !== id);
   setLocalJSON(LOCAL_STORAGE_KEYS.EXPENSES, filtered);
+}
+
+export async function getAllRecurringReminders(companyId = null) {
+  if (isSupabaseConfigured()) {
+    try {
+      let query = supabase.from('recurring_reminders').select('*').order('created_at', { ascending: false });
+      if (companyId) {
+        query = query.eq('company_id', companyId);
+      }
+      const { data, error } = await query;
+      if (!error && data) {
+        return data.map(row => ({
+          id: row.id,
+          companyId: row.company_id,
+          type: row.type,
+          title: row.title,
+          amount: parseFloat(row.amount) || 0,
+          frequency: row.frequency,
+          nextDate: row.next_date,
+          reminderDaysBefore: parseInt(row.reminder_days_before) || 1,
+          emails: row.emails || [],
+          status: row.status || 'active',
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
+        }));
+      }
+    } catch (e) {
+      console.warn('Supabase recurring reminders fetch error:', e);
+    }
+  }
+
+  const db = await getDB();
+  let list = [];
+  if (db) {
+    try {
+      if (companyId) {
+        list = await db.getAllFromIndex('recurring_reminders', 'companyId', companyId);
+      } else {
+        list = await db.getAll('recurring_reminders');
+      }
+    } catch (e) {
+      console.error('IDB getAllRecurringReminders error', e);
+    }
+  }
+
+  if (!list || list.length === 0) {
+    list = getLocalJSON('saas_billing_recurring_reminders', []);
+    if (companyId) {
+      list = list.filter(r => r.companyId === companyId);
+    }
+  }
+  return list;
+}
+
+export async function saveRecurringReminder(reminder) {
+  const now = new Date().toISOString();
+  const data = {
+    ...reminder,
+    amount: parseFloat(reminder.amount) || 0,
+    updatedAt: now,
+    createdAt: reminder.createdAt || now
+  };
+
+  if (isSupabaseConfigured()) {
+    try {
+      const row = {
+        id: data.id,
+        company_id: data.companyId,
+        type: data.type,
+        title: data.title,
+        amount: data.amount,
+        frequency: data.frequency,
+        next_date: data.nextDate,
+        reminder_days_before: data.reminderDaysBefore,
+        emails: data.emails,
+        status: data.status,
+        created_at: data.createdAt,
+        updated_at: data.updatedAt
+      };
+      await supabase.from('recurring_reminders').upsert(row);
+    } catch (e) {
+      console.warn('Supabase saveRecurringReminder error:', e);
+    }
+  }
+
+  const db = await getDB();
+  if (db) {
+    try {
+      await db.put('recurring_reminders', data);
+    } catch (e) {
+      console.error('IDB saveRecurringReminder error', e);
+    }
+  }
+
+  const list = getLocalJSON('saas_billing_recurring_reminders', []);
+  const idx = list.findIndex(r => r.id === data.id);
+  if (idx >= 0) {
+    list[idx] = data;
+  } else {
+    list.push(data);
+  }
+  setLocalJSON('saas_billing_recurring_reminders', list);
+
+  return data;
+}
+
+export async function deleteRecurringReminder(id) {
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase.from('recurring_reminders').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase deleteRecurringReminder error:', e);
+    }
+  }
+
+  const db = await getDB();
+  if (db) {
+    try {
+      await db.delete('recurring_reminders', id);
+    } catch (e) {
+      console.error('IDB deleteRecurringReminder error', e);
+    }
+  }
+
+  const list = getLocalJSON('saas_billing_recurring_reminders', []);
+  const filtered = list.filter(r => r.id !== id);
+  setLocalJSON('saas_billing_recurring_reminders', filtered);
 }
 

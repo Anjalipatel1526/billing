@@ -13,6 +13,7 @@ import { Settings } from './pages/Settings';
 import { Ledger } from './pages/Ledger';
 import { PublicPreview } from './pages/PublicPreview';
 import { Expenses } from './pages/Expenses';
+import { Recurring } from './pages/Recurring';
 
 import { 
   Shield, FileText, Receipt, CreditCard, BookOpen 
@@ -202,6 +203,11 @@ const AppRoutes = () => {
       <Route
         path="/expenses"
         element={hasCompany ? <Expenses /> : <Navigate to="/" replace />}
+      />
+
+      <Route
+        path="/recurring"
+        element={hasCompany ? <Recurring /> : <Navigate to="/" replace />}
       />
 
       <Route
