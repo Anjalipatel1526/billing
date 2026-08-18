@@ -72,10 +72,18 @@ export const Documents = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  const [typeFilter, setTypeFilter] = useState('all'); // all | invoice | voucher | receipt
-  const [statusFilter, setStatusFilter] = useState('all'); // all | Paid | Pending | Overdue | Draft
+  const queryParams = useMemo(() => new URLSearchParams(search), [search]);
+
+  const [typeFilter, setTypeFilter] = useState(queryParams.get('type') || 'all'); // all | invoice | voucher | receipt
+  const [statusFilter, setStatusFilter] = useState(queryParams.get('status') || 'all'); // all | Paid | Pending | Overdue | Draft
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest'); // newest | oldest | highest | lowest
+
+  // Sync filters when search query params change
+  useEffect(() => {
+    setTypeFilter(queryParams.get('type') || 'all');
+    setStatusFilter(queryParams.get('status') || 'all');
+  }, [queryParams]);
 
   const [pdfRenderDoc, setPdfRenderDoc] = useState(null);
   const pdfRef = useRef(null);

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { ChartContainer, ChartTooltip } from '@/components/ui/line-charts-4';
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
   const currentMonthIdx = new Date().getMonth();
@@ -16,8 +18,6 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
   const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const monthLabel = monthNamesShort[selectedMonth];
 
-  // SVG coordinates for responsive rendering (viewBox="0 0 600 230")
-  const xCoords = [60, 160, 260, 360, 460, 560];
   const intervals = [1, 6, 11, 16, 21, 26];
 
   // Compute stat card values dynamically
@@ -58,47 +58,6 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
     return highestVal > 0 ? highestVal : 150000; // default/fallback to 150k
   }, [dataPoints]);
 
-  const getY = (val) => 200 - (val / maxVal) * 150;
-
-  const pointsWithY = useMemo(() => {
-    return dataPoints.map(pt => ({
-      ...pt,
-      invoiceY: getY(pt.invoiceVal),
-      paidY: getY(pt.paidVal)
-    }));
-  }, [dataPoints, maxVal]);
-
-  // Build curved path using Bezier control points
-  const invoicePath = useMemo(() => {
-    if (pointsWithY.length === 0) return '';
-    let path = `M ${xCoords[0]} ${pointsWithY[0].invoiceY}`;
-    for (let i = 1; i < pointsWithY.length; i++) {
-      const prevX = xCoords[i - 1];
-      const prevY = pointsWithY[i - 1].invoiceY;
-      const currX = xCoords[i];
-      const currY = pointsWithY[i].invoiceY;
-      path += ` C ${prevX + 50} ${prevY}, ${currX - 50} ${currY}, ${currX} ${currY}`;
-    }
-    return path;
-  }, [pointsWithY]);
-
-  const paidPath = useMemo(() => {
-    if (pointsWithY.length === 0) return '';
-    let path = `M ${xCoords[0]} ${pointsWithY[0].paidY}`;
-    for (let i = 1; i < pointsWithY.length; i++) {
-      const prevX = xCoords[i - 1];
-      const prevY = pointsWithY[i - 1].paidY;
-      const currX = xCoords[i];
-      const currY = pointsWithY[i].paidY;
-      path += ` C ${prevX + 50} ${prevY}, ${currX - 50} ${currY}, ${currX} ${currY}`;
-    }
-    return path;
-  }, [pointsWithY]);
-
-  // Area paths (close the loop to ground level y=200 for gradient fill)
-  const invoiceArea = `${invoicePath} L ${xCoords[5]} 200 L ${xCoords[0]} 200 Z`;
-  const paidArea = `${paidPath} L ${xCoords[5]} 200 L ${xCoords[0]} 200 Z`;
-
   const formatAxisLabel = (value) => {
     if (value === 0) return `${currencySymbol}0`;
     if (value >= 100000) return `${currencySymbol}${(value / 100000).toFixed(1)}L`;
@@ -106,23 +65,57 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
     return `${currencySymbol}${value}`;
   };
 
-  const formatTooltipValue = (value) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: currencySymbol === '₹' ? 'INR' : 'USD',
-      maximumFractionDigits: 0
-    }).format(value);
+  const chartConfig = {
+    invoiceVal: {
+      label: 'Invoice Amount',
+      color: '#10b981', // Emerald 500
+    },
+    paidVal: {
+      label: 'Paid Amount',
+      color: '#ef4444', // Rose 500
+    },
+  };
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="rounded-lg border border-[#e2e8f0] bg-white p-3 shadow-md shadow-black/5 min-w-[150px]">
+          <div className="text-[11px] font-bold text-slate-400 tracking-wide mb-2.5">{label}</div>
+          <div className="space-y-2">
+            {payload.map((entry, index) => {
+              const labelStr = entry.dataKey === 'invoiceVal' ? 'Invoiced' : 'Paid';
+              const valueStr = new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: currencySymbol === '₹' ? 'INR' : 'USD',
+                maximumFractionDigits: 0
+              }).format(entry.value);
+
+              return (
+                <div key={index} className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className="size-3 border-2 rounded-full bg-white" style={{ borderColor: entry.color }}></div>
+                    <span className="text-slate-500 font-medium">{labelStr}:</span>
+                  </div>
+                  <span className="font-extrabold text-slate-800">{valueStr}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
     <div className="bg-white border border-[#f1f3f9] rounded-3xl p-6 shadow-xs">
       {/* Header Controls */}
-      <div className="flex items-center justify-between gap-4 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-50 mb-4">
         <div>
           <h3 className="font-extrabold text-slate-900 text-[15px] tracking-tight">Invoice Overview</h3>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-6">
           {/* Legend */}
           <div className="flex items-center gap-4 text-[11px] font-bold">
             <div className="flex items-center gap-2">
@@ -157,101 +150,72 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
         </div>
       </div>
 
-      {/* SVG Line / Area Chart */}
-      <div className="relative w-full pt-4">
-        <svg 
-          viewBox="0 0 600 230" 
-          className="w-full h-auto overflow-visible"
+      {/* Recharts / ChartContainer Integration */}
+      <div className="relative w-full pt-2">
+        <ChartContainer
+          config={chartConfig}
+          className="h-[210px] w-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-initial"
         >
-          <defs>
-            {/* Gradients for area fills */}
-            <linearGradient id="invoiceGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.16" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
-            </linearGradient>
-            <linearGradient id="paidGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.10" />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
+          <LineChart
+            data={dataPoints}
+            margin={{
+              top: 10,
+              right: 10,
+              left: -10,
+              bottom: 5,
+            }}
+          >
+            <CartesianGrid
+              strokeDasharray="4 8"
+              stroke="#e2e8f0"
+              strokeOpacity={0.8}
+              horizontal={true}
+              vertical={false}
+            />
 
-          {/* Horizontal gridlines */}
-          <g stroke="#f8fafc" strokeWidth="1" strokeDasharray="3 3">
-            <line x1="45" y1="50" x2="580" y2="50" />
-            <line x1="45" y1="100" x2="580" y2="100" />
-            <line x1="45" y1="150" x2="580" y2="150" />
-            <line x1="45" y1="200" x2="580" y2="200" />
-          </g>
+            <XAxis
+              dataKey="label"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 'bold' }}
+              tickMargin={12}
+            />
 
-          {/* Y-Axis Labels */}
-          <g fill="#94a3b8" fontSize="10" fontWeight="bold" textAnchor="end" fontFamily="sans-serif">
-            <text x="35" y="53">{formatAxisLabel(maxVal)}</text>
-            <text x="35" y="103">{formatAxisLabel(maxVal * 2 / 3)}</text>
-            <text x="35" y="153">{formatAxisLabel(maxVal / 3)}</text>
-            <text x="35" y="203">{formatAxisLabel(0)}</text>
-          </g>
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 'bold' }}
+              tickFormatter={formatAxisLabel}
+              domain={[0, maxVal]}
+              tickMargin={8}
+            />
 
-          {/* Area under curves */}
-          <path d={invoiceArea} fill="url(#invoiceGrad)" />
-          <path d={paidArea} fill="url(#paidGrad)" />
+            <ChartTooltip
+              content={<CustomTooltip />}
+              cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }}
+            />
 
-          {/* Line paths */}
-          <path d={invoicePath} fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
-          <path d={paidPath} fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
+            {/* Invoice Line */}
+            <Line
+              dataKey="invoiceVal"
+              type="monotone"
+              stroke="#10b981"
+              strokeWidth={2.5}
+              dot={{ r: 4, strokeWidth: 2, stroke: '#10b981', fill: '#fff' }}
+              activeDot={{ r: 6 }}
+            />
 
-          {/* Interactive dots on data points */}
-          {pointsWithY.map((pt, idx) => {
-            const x = xCoords[idx];
-            return (
-              <g key={idx} className="cursor-pointer group">
-                <title>
-                  {pt.label}: Invoiced {formatTooltipValue(pt.invoiceVal)} | Paid {formatTooltipValue(pt.paidVal)}
-                </title>
-                {/* Invisible hover helper for bigger mouse target */}
-                <circle cx={x} cy={pt.invoiceY} r="8" fill="transparent" />
-                <circle cx={x} cy={pt.paidY} r="8" fill="transparent" />
-                
-                {/* Invoice Dots */}
-                <circle 
-                  cx={x} 
-                  cy={pt.invoiceY} 
-                  r="4" 
-                  fill="#ffffff" 
-                  stroke="#10b981" 
-                  strokeWidth="2.5"
-                  className="transition-transform group-hover:scale-125"
-                />
-                
-                {/* Paid Dots */}
-                <circle 
-                  cx={x} 
-                  cy={pt.paidY} 
-                  r="4" 
-                  fill="#ffffff" 
-                  stroke="#ef4444" 
-                  strokeWidth="2.5"
-                  className="transition-transform group-hover:scale-125"
-                />
-              </g>
-            );
-          })}
-
-          {/* X-Axis labels */}
-          {pointsWithY.map((pt, idx) => (
-            <text 
-              key={idx}
-              x={xCoords[idx]} 
-              y="222" 
-              fill="#94a3b8" 
-              fontSize="10" 
-              fontWeight="bold" 
-              textAnchor="middle" 
-              fontFamily="sans-serif"
-            >
-              {pt.label}
-            </text>
-          ))}
-        </svg>
+            {/* Paid Line */}
+            <Line
+              dataKey="paidVal"
+              type="monotone"
+              stroke="#ef4444"
+              strokeWidth={2.5}
+              dot={{ r: 4, strokeWidth: 2, stroke: '#ef4444', fill: '#fff' }}
+              activeDot={{ r: 6 }}
+            />
+          </LineChart>
+        </ChartContainer>
       </div>
     </div>
   );

@@ -3,6 +3,30 @@
 
 @theme {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-facebook: var(--color-blue-600);
+  --color-instagram: var(--color-orange-500);
+  --color-linkedin: var(--color-slate-600);
 }
 
 :root {
@@ -17,6 +41,22 @@
   --success: #10b981;
   --danger: #ef4444;
   --ring: rgba(37, 99, 235, 0.2);
+
+  --input: #e2e8f0;
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --card-foreground: #0f172a;
+
+  --color-blue-600: #2563eb;
+  --color-orange-500: #f97316;
+  --color-slate-600: #475569;
 }
 
 * {
@@ -98,6 +138,42 @@ body {
 
 .animate-pulse-slow {
   animation: pulse-slow 4s ease-in-out infinite;
+}
+
+@keyframes wave-shake {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-15deg); }
+  30% { transform: rotate(12deg); }
+  45% { transform: rotate(-10deg); }
+  60% { transform: rotate(9deg); }
+  75% { transform: rotate(-4deg); }
+  90% { transform: rotate(0deg); }
+}
+
+@keyframes border-beam {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -1200;
+  }
+}
+
+.animate-border-beam {
+  stroke-dasharray: 180 800;
+  animation: border-beam 6s linear infinite;
+}
+
+.welcome-border-rect {
+  width: calc(100% - 2.5px);
+  height: calc(100% - 2.5px);
+  x: 1.25px;
+  y: 1.25px;
+}
+
+.animate-wave-shake {
+  animation: wave-shake 0.8s ease-in-out infinite;
+  transform-origin: 70% 70%;
 }
 
 .glass-card {
