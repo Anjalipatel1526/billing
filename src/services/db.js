@@ -5,12 +5,19 @@ const DB_NAME = 'SaaSInvoiceDB';
 const DB_VERSION = 3;
 
 let dbPromise = null;
+let dbTimedOut = false;
 
 function getDB() {
   if (!dbPromise) {
+    let didTimeout = false;
+
     const timeoutPromise = new Promise((resolve) => {
       setTimeout(() => {
-        console.warn('IndexedDB connection timed out, falling back to storage.');
+        didTimeout = true;
+        if (!dbTimedOut) {
+          dbTimedOut = true;
+          console.warn('IndexedDB connection timed out, falling back to storage.');
+        }
         resolve(null);
       }, 5000);
     });
@@ -40,29 +47,18 @@ function getDB() {
           reminderStore.createIndex('companyId', 'companyId');
         }
       },
-      blocked() {
-        console.warn('IndexedDB database upgrade is blocked by another tab.');
-      },
-      blocking() {
-        console.warn('IndexedDB database is blocking an upgrade in another tab.');
-      },
-      terminated() {
-        console.warn('IndexedDB connection terminated.');
-        dbPromise = null;
-      }
-    }).then(db => {
-      if (db) {
-        // Cache the successful database connection so subsequent calls use it
-        dbPromise = Promise.resolve(db);
-        return db;
-      }
-      return null;
     }).catch(err => {
       console.warn('IndexedDB failed to open, fallback to localStorage', err);
       return null;
     });
 
-    dbPromise = Promise.race([openDbPromise, timeoutPromise]);
+    dbPromise = Promise.race([openDbPromise, timeoutPromise]).then(result => {
+      if (result === null && didTimeout) {
+        // Reset so next call can retry instead of being stuck on null forever
+        dbPromise = null;
+      }
+      return result;
+    });
   }
   return dbPromise;
 }
