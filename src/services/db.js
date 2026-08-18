@@ -4,25 +4,17 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 const DB_NAME = 'SaaSInvoiceDB';
 const DB_VERSION = 3;
 
-let dbPromise = null;
-let dbTimedOut = false;
+let dbInstance = null;
+let dbFailed = false;
 
-function getDB() {
-  if (!dbPromise) {
-    let didTimeout = false;
+async function getDB() {
+  // If we already have a working connection, return it
+  if (dbInstance) return dbInstance;
+  // If it previously failed, don't spam retries — return null
+  if (dbFailed) return null;
 
-    const timeoutPromise = new Promise((resolve) => {
-      setTimeout(() => {
-        didTimeout = true;
-        if (!dbTimedOut) {
-          dbTimedOut = true;
-          console.warn('IndexedDB connection timed out, falling back to storage.');
-        }
-        resolve(null);
-      }, 5000);
-    });
-
-    const openDbPromise = openDB(DB_NAME, DB_VERSION, {
+  try {
+    dbInstance = await openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('companies')) {
           const companyStore = db.createObjectStore('companies', { keyPath: 'id' });
@@ -47,20 +39,13 @@ function getDB() {
           reminderStore.createIndex('companyId', 'companyId');
         }
       },
-    }).catch(err => {
-      console.warn('IndexedDB failed to open, fallback to localStorage', err);
-      return null;
     });
-
-    dbPromise = Promise.race([openDbPromise, timeoutPromise]).then(result => {
-      if (result === null && didTimeout) {
-        // Reset so next call can retry instead of being stuck on null forever
-        dbPromise = null;
-      }
-      return result;
-    });
+    return dbInstance;
+  } catch (err) {
+    console.warn('IndexedDB unavailable, using localStorage fallback.', err);
+    dbFailed = true;
+    return null;
   }
-  return dbPromise;
 }
 
 // Fallback LocalStorage Helpers
