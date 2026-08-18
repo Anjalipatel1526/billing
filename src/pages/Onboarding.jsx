@@ -395,10 +395,12 @@ export const Onboarding = () => {
                     
                     <div className="space-y-3.5">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-800 mb-1.5">Workspace Password</label>
+                        <label htmlFor="companyPassword" className="block text-xs font-semibold text-slate-800 mb-1.5">Workspace Password</label>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input
+                            id="companyPassword"
+                            name="companyPassword"
                             type={showCompanyPassword ? "text" : "password"}
                             value={companyPassword}
                             onChange={(e) => setCompanyPassword(e.target.value)}
@@ -409,6 +411,7 @@ export const Onboarding = () => {
                             }}
                             placeholder="Min. 8 characters"
                             className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            autoComplete="new-password"
                           />
                           <button
                             type="button"
@@ -422,10 +425,12 @@ export const Onboarding = () => {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-800 mb-1.5">Confirm Password</label>
+                        <label htmlFor="confirmPassword" className="block text-xs font-semibold text-slate-800 mb-1.5">Confirm Password</label>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input
+                            id="confirmPassword"
+                            name="confirmPassword"
                             type={showConfirmPassword ? "text" : "password"}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -436,6 +441,7 @@ export const Onboarding = () => {
                             }}
                             placeholder="Re-enter password"
                             className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            autoComplete="new-password"
                           />
                           <button
                             type="button"
@@ -783,10 +789,12 @@ export const Onboarding = () => {
 
                 <div className="space-y-4 max-w-sm mx-auto">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-800 mb-1.5">Company ID</label>
+                    <label htmlFor="joinCode" className="block text-xs font-semibold text-slate-800 mb-1.5">Company ID</label>
                     <div className="relative">
                       <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
+                        id="joinCode"
+                        name="joinCode"
                         type="text"
                         value={joinCode}
                         onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
@@ -803,10 +811,12 @@ export const Onboarding = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-800 mb-1.5">Password</label>
+                    <label htmlFor="joinPassword" className="block text-xs font-semibold text-slate-800 mb-1.5">Password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
+                        id="joinPassword"
+                        name="joinPassword"
                         type={showJoinPassword ? "text" : "password"}
                         value={joinPassword}
                         onChange={(e) => setJoinPassword(e.target.value)}
@@ -817,6 +827,7 @@ export const Onboarding = () => {
                         }}
                         placeholder="Enter company password"
                         className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        autoComplete="current-password"
                       />
                       <button
                         type="button"

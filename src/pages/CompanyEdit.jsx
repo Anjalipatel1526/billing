@@ -153,6 +153,8 @@ export const CompanyEdit = () => {
             </label>
             <div className="flex items-center gap-3">
               <input
+                id="themeColor"
+                name="themeColor"
                 type="color"
                 value={formData.themeColor || '#f97316'}
                 onChange={(e) => updateField('themeColor', e.target.value)}

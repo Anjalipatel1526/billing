@@ -138,6 +138,8 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
           {/* Filter Dropdown */}
           <div className="relative">
             <select
+              id="selectedMonth"
+              name="selectedMonth"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
               className="appearance-none text-[11px] font-bold text-slate-600 bg-white border border-[#e2e8f0] py-1.5 pl-3 pr-8 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer outline-none"

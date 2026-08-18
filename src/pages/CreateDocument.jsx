@@ -502,6 +502,7 @@ export const CreateDocument = () => {
                 <input
                   type="checkbox"
                   id="sameShipping"
+                  name="sameShipping"
                   checked={customer.sameAsBilling}
                   onChange={(e) => setCustomer({ ...customer, sameAsBilling: e.target.checked })}
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
@@ -574,6 +575,7 @@ export const CreateDocument = () => {
                 <input
                   type="checkbox"
                   id="roundOff"
+                  name="roundOff"
                   checked={applyRoundOff}
                   onChange={(e) => setApplyRoundOff(e.target.checked)}
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
@@ -700,10 +702,12 @@ export const CreateDocument = () => {
                   </button>
                 </div>
               ) : (
-                <label className="flex items-center gap-2 text-xs text-blue-600 border border-slate-200 hover:bg-slate-50 p-2.5 rounded-lg cursor-pointer w-fit">
+                <label htmlFor="signatureFile" className="flex items-center gap-2 text-xs text-blue-600 border border-slate-200 hover:bg-slate-50 p-2.5 rounded-lg cursor-pointer w-fit">
                   <ImageIcon className="w-4 h-4" />
                   <span>Upload Signature Image</span>
                   <input
+                    id="signatureFile"
+                    name="signatureFile"
                     type="file"
                     accept="image/*"
                     className="hidden"

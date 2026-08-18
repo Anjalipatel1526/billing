@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
 export const LogoUploader = ({ value, onChange, label = 'Company Logo' }) => {
   const [dragOver, setDragOver] = useState(false);
+  const generatedId = useId();
+  const uploaderId = `logo_upload_${label.toLowerCase().replace(/\s+/g, '_')}_${generatedId.replace(/:/g, '')}`;
 
   const processFile = (file) => {
     if (!file) return;
@@ -69,9 +71,11 @@ export const LogoUploader = ({ value, onChange, label = 'Company Logo' }) => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-blue-600 hover:text-blue-700 cursor-pointer">
+            <label htmlFor={uploaderId} className="text-xs font-medium text-blue-600 hover:text-blue-700 cursor-pointer">
               Replace
               <input
+                id={uploaderId}
+                name={uploaderId}
                 type="file"
                 accept="image/*"
                 className="hidden"
@@ -96,7 +100,7 @@ export const LogoUploader = ({ value, onChange, label = 'Company Logo' }) => {
             dragOver ? 'border-blue-500 bg-blue-50/50' : 'border-slate-300 hover:border-slate-400 bg-slate-50/50'
           }`}
         >
-          <label className="cursor-pointer block">
+          <label htmlFor={uploaderId} className="cursor-pointer block">
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-2 text-slate-500">
               <Upload className="w-5 h-5" />
             </div>
@@ -105,6 +109,8 @@ export const LogoUploader = ({ value, onChange, label = 'Company Logo' }) => {
             </p>
             <p className="text-[10px] text-slate-400 mt-1">PNG, JPG, WEBP or SVG (Max 400x400 output)</p>
             <input
+              id={uploaderId}
+              name={uploaderId}
               type="file"
               accept="image/*"
               className="hidden"

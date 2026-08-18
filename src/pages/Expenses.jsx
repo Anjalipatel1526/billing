@@ -455,6 +455,8 @@ export const Expenses = () => {
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
+                id="searchTerm"
+                name="searchTerm"
                 type="text"
                 placeholder="Search description, project..."
                 value={searchTerm}
@@ -465,6 +467,8 @@ export const Expenses = () => {
 
             {/* Category Dropdown */}
             <select
+              id="selectedCategory"
+              name="selectedCategory"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
@@ -480,6 +484,8 @@ export const Expenses = () => {
 
             {/* Project/Event Dropdown */}
             <select
+              id="selectedProject"
+              name="selectedProject"
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
               className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
@@ -653,8 +659,10 @@ export const Expenses = () => {
               <form onSubmit={handleAddExpense} className="p-6 space-y-4">
                 {/* Project / Event Name */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Project / Event Name (Optional)</label>
+                  <label htmlFor="modalProjectSelect" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Project / Event Name (Optional)</label>
                   <select
+                    id="modalProjectSelect"
+                    name="modalProjectSelect"
                     value={isCustomProject ? '__new__' : newExpense.projectEvent}
                     onChange={(e) => {
                       if (e.target.value === '__new__') {
@@ -676,6 +684,8 @@ export const Expenses = () => {
                   
                   {isCustomProject && (
                     <input
+                      id="customProjectEvent"
+                      name="customProjectEvent"
                       type="text"
                       required
                       placeholder="Enter custom Project / Event name"
@@ -693,8 +703,10 @@ export const Expenses = () => {
 
                 {/* Particulars / Description */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Particulars / Description</label>
+                  <label htmlFor="expenseParticulars" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Particulars / Description</label>
                   <input
+                    id="expenseParticulars"
+                    name="expenseParticulars"
                     type="text"
                     required
                     placeholder="e.g. Office catering, Server hosting, Travel allowance"
@@ -707,8 +719,10 @@ export const Expenses = () => {
                 <div className="grid grid-cols-2 gap-4">
                   {/* Amount */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Amount ({currencySymbol})</label>
+                    <label htmlFor="expenseAmount" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Amount ({currencySymbol})</label>
                     <input
+                      id="expenseAmount"
+                      name="expenseAmount"
                       type="number"
                       required
                       min="0.01"
@@ -722,8 +736,10 @@ export const Expenses = () => {
 
                   {/* Date */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Date</label>
+                    <label htmlFor="expenseDate" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Date</label>
                     <input
+                      id="expenseDate"
+                      name="expenseDate"
                       type="date"
                       required
                       value={newExpense.date}
@@ -736,8 +752,10 @@ export const Expenses = () => {
                 <div className="grid grid-cols-2 gap-4">
                   {/* Category */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Category</label>
+                    <label htmlFor="expenseCategory" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Category</label>
                     <select
+                      id="expenseCategory"
+                      name="expenseCategory"
                       value={CATEGORIES.map(c => c.value).includes(newExpense.category) ? newExpense.category : 'Others'}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -758,6 +776,8 @@ export const Expenses = () => {
                     
                     {(newExpense.category === 'Others' || !CATEGORIES.map(c => c.value).includes(newExpense.category)) && (
                       <input
+                        id="customCategory"
+                        name="customCategory"
                         type="text"
                         required
                         placeholder="Enter custom category name (e.g. Software, Licensing)"
@@ -773,8 +793,10 @@ export const Expenses = () => {
 
                   {/* Payment Method */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Payment Method</label>
+                    <label htmlFor="expensePaidVia" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Payment Method</label>
                     <select
+                      id="expensePaidVia"
+                      name="expensePaidVia"
                       value={newExpense.paidVia}
                       onChange={(e) => setNewExpense(prev => ({ ...prev, paidVia: e.target.value }))}
                       className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
