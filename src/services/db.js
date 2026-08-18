@@ -12,7 +12,7 @@ function getDB() {
       setTimeout(() => {
         console.warn('IndexedDB connection timed out, falling back to storage.');
         resolve(null);
-      }, 1200);
+      }, 5000);
     });
 
     const openDbPromise = openDB(DB_NAME, DB_VERSION, {
@@ -40,6 +40,23 @@ function getDB() {
           reminderStore.createIndex('companyId', 'companyId');
         }
       },
+      blocked() {
+        console.warn('IndexedDB database upgrade is blocked by another tab.');
+      },
+      blocking() {
+        console.warn('IndexedDB database is blocking an upgrade in another tab.');
+      },
+      terminated() {
+        console.warn('IndexedDB connection terminated.');
+        dbPromise = null;
+      }
+    }).then(db => {
+      if (db) {
+        // Cache the successful database connection so subsequent calls use it
+        dbPromise = Promise.resolve(db);
+        return db;
+      }
+      return null;
     }).catch(err => {
       console.warn('IndexedDB failed to open, fallback to localStorage', err);
       return null;
