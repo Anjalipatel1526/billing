@@ -8,6 +8,7 @@ import {
   getLocalCompanyIds
 } from '../services/db';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useAuth } from './AuthContext';
 
 const CompanyContext = createContext(null);
 
@@ -59,23 +60,38 @@ export const CompanyProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const suppressRealtimeRef = useRef(false);
   const realtimeDebounceRef = useRef(null);
+  const { user } = useAuth();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       let localIdsArray = await getLocalCompanyIds();
-      
-      // Auto-seed mock Autobourn company if workspace is completely fresh
-      if (localIdsArray.length === 0) {
+      const hasUser = !!user;
+
+      const cloudIds = user?.user_metadata?.company_ids || [];
+      const mergedIdsSet = new Set([...localIdsArray, ...cloudIds]);
+      let mergedIdsArray = Array.from(mergedIdsSet);
+
+      // Auto-seed mock Autobourn company if workspace is completely fresh and NOT authenticated
+      if (mergedIdsArray.length === 0 && !hasUser) {
         const { populateMockData } = await import('../utils/sampleData');
         await populateMockData();
         await dbSetActiveCompanyId('cmp_autobourn_default');
         localIdsArray = await getLocalCompanyIds();
+        mergedIdsArray = Array.from(new Set([...localIdsArray, ...cloudIds]));
       }
 
       const list = await getAllCompanies();
-      const localIdsSet = new Set(localIdsArray);
+      const mergedIdsSetObj = new Set(mergedIdsArray);
       
+      // Sync cloud companies locally so they exist in IndexedDB/LocalStorage
+      const localIdsSet = new Set(localIdsArray);
+      for (const comp of list) {
+        if (comp && comp.id && mergedIdsSetObj.has(comp.id) && !localIdsSet.has(comp.id)) {
+          await dbSaveCompany(comp).catch(console.error);
+        }
+      }
+
       // Filter out duplicate profiles by ID or company name, and only keep locally joined/created ones
       const uniqueList = [];
       const seenIds = new Set();
@@ -83,7 +99,7 @@ export const CompanyProvider = ({ children }) => {
 
       for (let comp of list) {
         if (!comp || !comp.companyName) continue;
-        if (!localIdsSet.has(comp.id)) continue;
+        if (!mergedIdsSetObj.has(comp.id)) continue;
         const normName = comp.companyName.trim().toLowerCase();
         if (!seenIds.has(comp.id) && !seenNames.has(normName)) {
           seenIds.add(comp.id);
@@ -147,7 +163,7 @@ export const CompanyProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadData();
@@ -206,6 +222,21 @@ export const CompanyProvider = ({ children }) => {
     const fullData = { ...defaultCompanyState, ...companyData, id };
     
     const saved = await dbSaveCompany(fullData);
+
+    // Save company ID to user metadata if authenticated
+    if (user && isSupabaseConfigured()) {
+      try {
+        const currentIds = user.user_metadata?.company_ids || [];
+        if (!currentIds.includes(saved.id)) {
+          const newIds = [...currentIds, saved.id];
+          await supabase.auth.updateUser({
+            data: { company_ids: newIds }
+          });
+        }
+      } catch (err) {
+        console.error('Failed to update user company metadata:', err);
+      }
+    }
     
     await loadData();
     await switchCompany(saved.id);
