@@ -1,7 +1,9 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, BookOpen, Plus, SquareTerminal, ChevronLeft, Wallet, Bell } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, BookOpen, ChevronLeft, Wallet, Bell, LogOut } from 'lucide-react';
 import { useCompany } from '../../contexts/CompanyContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { isSupabaseConfigured } from '../../lib/supabase';
 
 // Sleek minimalist car SVG logo
 const CarLogoSvg = () => (
@@ -23,7 +25,17 @@ const CarLogoSvg = () => (
 
 export const Sidebar = ({ className = '', onCollapse }) => {
   const { activeCompany } = useCompany();
+  const { isAuthenticated, signOut } = useAuth();
   const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (err) {
+      console.error('Failed to sign out', err);
+    }
+  };
 
   const getCleanCompanyName = (name, businessType) => {
     if (!name) return '';
@@ -113,9 +125,17 @@ export const Sidebar = ({ className = '', onCollapse }) => {
         </nav>
       </div>
 
-      {/* Empty bottom area matching image */}
+      {/* Sign Out Option */}
       <div className="pb-6 px-6">
-        {/* Empty space matching image */}
+        {isSupabaseConfigured() && isAuthenticated && (
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center justify-center gap-2.5 px-4.5 py-3 rounded-xl text-[13px] font-bold text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 cursor-pointer active:scale-[0.98] border border-transparent hover:border-red-100"
+          >
+            <LogOut className="w-4 h-4 shrink-0 stroke-[2.2]" />
+            <span>Sign Out</span>
+          </button>
+        )}
       </div>
     </aside>
   );
