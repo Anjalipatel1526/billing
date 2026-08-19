@@ -18,11 +18,29 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       'Pragma': 'no-cache',
     },
     fetch: (url, options = {}) => {
-      // Strip conditional headers that trigger 304 responses
-      const headers = new Headers(options.headers);
-      headers.delete('If-None-Match');
-      headers.delete('If-Modified-Since');
-      return fetch(url, { ...options, headers, cache: 'no-store' });
+      // Strip conditional headers in-place to prevent breaking internal property assignments
+      if (options.headers) {
+        if (options.headers instanceof Headers) {
+          options.headers.delete('If-None-Match');
+          options.headers.delete('If-Modified-Since');
+          options.headers.delete('if-none-match');
+          options.headers.delete('if-modified-since');
+        } else if (Array.isArray(options.headers)) {
+          options.headers = options.headers.filter(
+            (item) => {
+              const key = Array.isArray(item) ? item[0] : '';
+              return !['if-none-match', 'if-modified-since'].includes(key.toLowerCase());
+            }
+          );
+        } else if (typeof options.headers === 'object') {
+          for (const key of Object.keys(options.headers)) {
+            if (['if-none-match', 'if-modified-since'].includes(key.toLowerCase())) {
+              delete options.headers[key];
+            }
+          }
+        }
+      }
+      return fetch(url, { ...options, cache: 'no-store' });
     },
   },
 });
