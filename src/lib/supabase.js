@@ -10,4 +10,20 @@ export const isSupabaseConfigured = () => {
   );
 };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  db: { schema: 'public' },
+  global: {
+    headers: {
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    },
+    fetch: (url, options = {}) => {
+      // Strip conditional headers that trigger 304 responses
+      const headers = new Headers(options.headers);
+      headers.delete('If-None-Match');
+      headers.delete('If-Modified-Since');
+      return fetch(url, { ...options, headers, cache: 'no-store' });
+    },
+  },
+});
+
