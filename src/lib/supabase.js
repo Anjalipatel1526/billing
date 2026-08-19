@@ -18,6 +18,27 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       'Pragma': 'no-cache',
     },
     fetch: (url, options = {}) => {
+      // Log outgoing request headers for debugging
+      const isCompUrl = url.includes('/companies') || url.includes('/rest/v1/');
+      if (isCompUrl) {
+        console.log('[Supabase Fetch Debug] URL:', url);
+        if (options.headers) {
+          const keys = options.headers instanceof Headers 
+            ? [...options.headers.keys()] 
+            : Object.keys(options.headers);
+          console.log('[Supabase Fetch Debug] Headers type:', options.headers.constructor.name, 'keys:', keys);
+          if (options.headers instanceof Headers) {
+            console.log('[Supabase Fetch Debug] apikey:', options.headers.get('apikey') ? 'PRESENT' : 'MISSING');
+            console.log('[Supabase Fetch Debug] Authorization:', options.headers.get('Authorization') ? 'PRESENT' : 'MISSING');
+          } else {
+            console.log('[Supabase Fetch Debug] apikey:', options.headers['apikey'] ? 'PRESENT' : 'MISSING');
+            console.log('[Supabase Fetch Debug] Authorization:', options.headers['Authorization'] ? 'PRESENT' : 'MISSING');
+          }
+        } else {
+          console.log('[Supabase Fetch Debug] No headers present in options!');
+        }
+      }
+
       // Strip conditional headers in-place to prevent breaking internal property assignments
       if (options.headers) {
         if (options.headers instanceof Headers) {
