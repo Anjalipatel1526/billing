@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { 
   getAllCompanies, 
   saveCompany as dbSaveCompany, 
@@ -57,8 +57,10 @@ export const CompanyProvider = ({ children }) => {
   const [companies, setCompanies] = useState([]);
   const [activeCompany, setActiveCompany] = useState(null);
   const [loading, setLoading] = useState(true);
+  const suppressRealtimeRef = useRef(false);
+  const realtimeDebounceRef = useRef(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       let localIdsArray = await getLocalCompanyIds();
@@ -117,7 +119,11 @@ export const CompanyProvider = ({ children }) => {
 
           if (needsUpdate) {
             // Save enriched details back so it persists
-            dbSaveCompany(comp).catch(console.error);
+            // Suppress realtime to prevent infinite loop
+            suppressRealtimeRef.current = true;
+            dbSaveCompany(comp).catch(console.error).finally(() => {
+              setTimeout(() => { suppressRealtimeRef.current = false; }, 2000);
+            });
           }
 
           uniqueList.push(comp);
@@ -141,20 +147,28 @@ export const CompanyProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
 
     if (isSupabaseConfigured()) {
+      // Debounced reload to prevent rapid-fire from multiple realtime events
+      const debouncedReload = () => {
+        // Skip if we ourselves triggered the change (enrichment writes)
+        if (suppressRealtimeRef.current) return;
+        if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+        realtimeDebounceRef.current = setTimeout(() => {
+          loadData();
+        }, 1500);
+      };
+
       const companiesChannel = supabase
         .channel('companies-realtime-sync')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'companies' },
-          () => {
-            loadData();
-          }
+          debouncedReload
         )
         .subscribe();
 
@@ -163,18 +177,17 @@ export const CompanyProvider = ({ children }) => {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'settings' },
-          () => {
-            loadData();
-          }
+          debouncedReload
         )
         .subscribe();
 
       return () => {
+        if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
         supabase.removeChannel(companiesChannel);
         supabase.removeChannel(settingsChannel);
       };
     }
-  }, []);
+  }, [loadData]);
 
   const switchCompany = async (companyId) => {
     let found = companies.find(c => c.id === companyId);
