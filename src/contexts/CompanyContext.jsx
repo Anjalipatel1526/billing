@@ -81,7 +81,7 @@ export const CompanyProvider = ({ children }) => {
         mergedIdsArray = Array.from(new Set([...localIdsArray, ...cloudIds]));
       }
 
-      const list = await getAllCompanies();
+      const list = await getAllCompanies(mergedIdsArray);
       const mergedIdsSetObj = new Set(mergedIdsArray);
       
       // Sync cloud companies locally so they exist in IndexedDB/LocalStorage
@@ -232,6 +232,8 @@ export const CompanyProvider = ({ children }) => {
           await supabase.auth.updateUser({
             data: { company_ids: newIds }
           });
+          // Force refresh session to immediately update the JWT access token claims
+          await supabase.auth.refreshSession();
         }
       } catch (err) {
         console.error('Failed to update user company metadata:', err);

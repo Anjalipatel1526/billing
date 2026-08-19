@@ -6,63 +6,63 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIU
 export const isSupabaseConfigured = () => {
   return (
     (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'https://xyzcompany.supabase.co') ||
-    supabaseUrl !== ''
+    supabaseUrl !== 'https://xyzcompany.supabase.co'
   );
 };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   db: { schema: 'public' },
   global: {
-    headers: {
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-    },
     fetch: (url, options = {}) => {
-      // Log outgoing request headers for debugging
-      const isCompUrl = url.includes('/companies') || url.includes('/rest/v1/');
-      if (isCompUrl) {
-        console.log('[Supabase Fetch Debug] URL:', url);
-        if (options.headers) {
-          const keys = options.headers instanceof Headers 
-            ? [...options.headers.keys()] 
-            : Object.keys(options.headers);
-          console.log('[Supabase Fetch Debug] Headers type:', options.headers.constructor.name, 'keys:', keys);
-          if (options.headers instanceof Headers) {
-            console.log('[Supabase Fetch Debug] apikey:', options.headers.get('apikey') ? 'PRESENT' : 'MISSING');
-            console.log('[Supabase Fetch Debug] Authorization:', options.headers.get('Authorization') ? 'PRESENT' : 'MISSING');
-          } else {
-            console.log('[Supabase Fetch Debug] apikey:', options.headers['apikey'] ? 'PRESENT' : 'MISSING');
-            console.log('[Supabase Fetch Debug] Authorization:', options.headers['Authorization'] ? 'PRESENT' : 'MISSING');
-          }
-        } else {
-          console.log('[Supabase Fetch Debug] No headers present in options!');
+      // Safely parse and copy headers into a clean plain JavaScript object
+      let reqHeaders = {};
+      if (options.headers) {
+        if (options.headers instanceof Headers) {
+          options.headers.forEach((val, key) => {
+            reqHeaders[key] = val;
+          });
+        } else if (Array.isArray(options.headers)) {
+          options.headers.forEach((item) => {
+            if (Array.isArray(item) && item[0]) {
+              reqHeaders[item[0]] = item[1];
+            }
+          });
+        } else if (typeof options.headers === 'object') {
+          reqHeaders = { ...options.headers };
         }
       }
 
-      // Strip conditional headers in-place to prevent breaking internal property assignments
-      if (options.headers) {
-        if (options.headers instanceof Headers) {
-          options.headers.delete('If-None-Match');
-          options.headers.delete('If-Modified-Since');
-          options.headers.delete('if-none-match');
-          options.headers.delete('if-modified-since');
-        } else if (Array.isArray(options.headers)) {
-          options.headers = options.headers.filter(
-            (item) => {
-              const key = Array.isArray(item) ? item[0] : '';
-              return !['if-none-match', 'if-modified-since'].includes(key.toLowerCase());
-            }
-          );
-        } else if (typeof options.headers === 'object') {
-          for (const key of Object.keys(options.headers)) {
-            if (['if-none-match', 'if-modified-since'].includes(key.toLowerCase())) {
-              delete options.headers[key];
+      // Enforce cache-bypassing headers
+      reqHeaders['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      reqHeaders['Pragma'] = 'no-cache';
+      reqHeaders['Expires'] = '0';
+
+      // Explicitly delete conditional request headers to avoid 304 Not Modified responses
+      delete reqHeaders['if-none-match'];
+      delete reqHeaders['if-modified-since'];
+      delete reqHeaders['If-None-Match'];
+      delete reqHeaders['If-Modified-Since'];
+
+      options.headers = reqHeaders;
+
+      return fetch(url, { ...options, cache: 'no-store' }).then(response => {
+        if (response.status === 401) {
+          console.warn('[Supabase Fetch] Received 401 Unauthorized. Clearing stale auth session...');
+          
+          let cleared = false;
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('sb-') || key.includes('auth-token'))) {
+              localStorage.removeItem(key);
+              cleared = true;
             }
           }
+          if (cleared) {
+            window.location.href = '/';
+          }
         }
-      }
-      return fetch(url, { ...options, cache: 'no-store' });
+        return response;
+      });
     },
   },
 });
-

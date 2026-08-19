@@ -207,15 +207,23 @@ function rowToDoc(r) {
 // Service APIs (Supabase + Local Fallback)
 // ==========================================
 
-export async function getAllCompanies() {
+export async function getAllCompanies(companyIds = null) {
   let list = [];
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await supabase.from('companies').select('*').order('created_at', { ascending: false });
-      if (!error && data) {
-        list = data.map(rowToCompany);
-      } else if (error) {
-        console.warn('Supabase getAllCompanies error:', error);
+      if (companyIds && companyIds.length === 0) {
+        list = [];
+      } else {
+        let query = supabase.from('companies').select('*');
+        if (companyIds) {
+          query = query.in('id', companyIds);
+        }
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (!error && data) {
+          list = data.map(rowToCompany);
+        } else if (error) {
+          console.warn('Supabase getAllCompanies error:', error);
+        }
       }
     } catch (e) {
       console.error('Supabase fetch error:', e);

@@ -79,14 +79,68 @@ CREATE INDEX IF NOT EXISTS idx_documents_company_id ON public.documents(company_
 CREATE INDEX IF NOT EXISTS idx_documents_document_type ON public.documents(document_type);
 CREATE INDEX IF NOT EXISTS idx_documents_created_at ON public.documents(created_at);
 
--- Row Level Security (RLS) Policies (Enable Public Access for API Key access)
+-- Row Level Security (RLS) Policies (Enforce Authentication & User Ownership)
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read/write access to companies" ON public.companies FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public read/write access to documents" ON public.documents FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public read/write access to settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+-- 1. COMPANIES POLICIES
+-- SELECT: Anyone can read companies (needed for public preview of invoices and looking up companies by code to join).
+CREATE POLICY "Allow select for companies" 
+ON public.companies FOR SELECT 
+USING (true);
+
+-- INSERT: Only authenticated users can create companies.
+CREATE POLICY "Allow insert for authenticated companies" 
+ON public.companies FOR INSERT 
+TO authenticated 
+WITH CHECK (true);
+
+-- UPDATE: Only authenticated users who are members of the company can update it.
+CREATE POLICY "Allow update for company members" 
+ON public.companies FOR UPDATE 
+TO authenticated 
+USING (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(id)
+)
+WITH CHECK (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(id)
+);
+
+-- DELETE: Only authenticated users who are members of the company can delete it.
+CREATE POLICY "Allow delete for company members" 
+ON public.companies FOR DELETE 
+TO authenticated 
+USING (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(id)
+);
+
+
+-- 2. DOCUMENTS POLICIES
+-- SELECT: Anyone can read documents (needed for public preview of invoices).
+CREATE POLICY "Allow select for documents" 
+ON public.documents FOR SELECT 
+USING (true);
+
+-- ALL OTHER OPERATIONS (INSERT, UPDATE, DELETE): Only authenticated users who are members of the company can modify documents.
+CREATE POLICY "Allow write for company members on documents" 
+ON public.documents FOR ALL 
+TO authenticated 
+USING (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
+)
+WITH CHECK (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
+);
+
+
+-- 3. SETTINGS POLICIES
+-- Enforce that only authenticated users can read/write settings.
+CREATE POLICY "Allow all operations for authenticated users on settings" 
+ON public.settings FOR ALL 
+TO authenticated 
+USING (true)
+WITH CHECK (true);
 
 -- 4. LEDGER ENTRIES TABLE (Optional / Manual Reconciliations)
 CREATE TABLE IF NOT EXISTS public.ledger_entries (
@@ -149,12 +203,43 @@ CREATE TABLE IF NOT EXISTS public.recurring_reminders (
 CREATE INDEX IF NOT EXISTS idx_expenses_company_id ON public.expenses(company_id);
 CREATE INDEX IF NOT EXISTS idx_recurring_reminders_company_id ON public.recurring_reminders(company_id);
 
--- Enable RLS
+-- Enable RLS for newly added entities and ledger
+ALTER TABLE public.ledger_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recurring_reminders ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read/write access to expenses" ON public.expenses FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public read/write access to recurring_reminders" ON public.recurring_reminders FOR ALL USING (true) WITH CHECK (true);
+-- 4. LEDGER ENTRIES POLICIES
+CREATE POLICY "Allow all operations for company members on ledger_entries" 
+ON public.ledger_entries FOR ALL 
+TO authenticated 
+USING (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
+)
+WITH CHECK (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
+);
+
+-- 5. EXPENSES POLICIES
+CREATE POLICY "Allow all operations for company members on expenses" 
+ON public.expenses FOR ALL 
+TO authenticated 
+USING (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
+)
+WITH CHECK (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
+);
+
+-- 6. RECURRING REMINDERS POLICIES
+CREATE POLICY "Allow all operations for company members on recurring_reminders" 
+ON public.recurring_reminders FOR ALL 
+TO authenticated 
+USING (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
+)
+WITH CHECK (
+  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
+);
 
 -- Enable Realtime Replication
 ALTER PUBLICATION supabase_realtime ADD TABLE public.expenses;
