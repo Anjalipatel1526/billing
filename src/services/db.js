@@ -222,7 +222,7 @@ export async function getAllCompanies(companyIds = null) {
         if (!error && data) {
           list = data.map(rowToCompany);
         } else if (error) {
-          console.warn('Supabase getAllCompanies error:', error);
+          console.warn('Supabase getAllCompanies error:', error.message, 'Code:', error.code, error);
         }
       }
     } catch (e) {

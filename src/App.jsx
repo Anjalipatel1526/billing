@@ -164,17 +164,6 @@ const AppRoutes = () => {
 const AuthGatedApp = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
 
-  // If Supabase is not configured (local dev), skip auth entirely
-  if (!isSupabaseConfigured()) {
-    return (
-      <CompanyProvider>
-        <DocumentProvider>
-          <AppRoutes />
-        </DocumentProvider>
-      </CompanyProvider>
-    );
-  }
-
   // Show loading while checking auth state
   if (authLoading) {
     return (
@@ -189,19 +178,13 @@ const AuthGatedApp = () => {
     );
   }
 
-  // Not authenticated — show login page
-  if (!isAuthenticated) {
+  // If Supabase is configured, the user is not authenticated, and it is not a public preview page, show the auth login page
+  const isPreviewRoute = window.location.pathname.startsWith('/preview/');
+  if (isSupabaseConfigured() && !isAuthenticated && !isPreviewRoute) {
     return <AuthPage />;
   }
 
-  // Authenticated — render the full app
-  return (
-    <CompanyProvider>
-      <DocumentProvider>
-        <AppRoutes />
-      </DocumentProvider>
-    </CompanyProvider>
-  );
+  return <AppRoutes />;
 };
 
 export function App() {
@@ -209,7 +192,11 @@ export function App() {
     <Router>
       <ToastProvider>
         <AuthProvider>
-          <AuthGatedApp />
+          <CompanyProvider>
+            <DocumentProvider>
+              <AuthGatedApp />
+            </DocumentProvider>
+          </CompanyProvider>
         </AuthProvider>
       </ToastProvider>
     </Router>
