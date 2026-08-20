@@ -4,6 +4,53 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 const DB_NAME = 'SaaSInvoiceDB';
 const DB_VERSION = 3;
 
+// --- IN-MEMORY CACHE FOR EGRESS OPTIMIZATION ---
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+  dbVersion: string;
+}
+
+const queryCache: {
+  companies?: CacheEntry;
+  documents: { [companyId: string]: CacheEntry };
+  expenses: { [companyId: string]: CacheEntry };
+  reminders: { [companyId: string]: CacheEntry };
+  activeCompanyId?: CacheEntry;
+} = {
+  documents: {},
+  expenses: {},
+  reminders: {}
+};
+
+const CACHE_TTL_MS = 30000; // 30 seconds TTL
+
+function getDbVersion(): string {
+  try {
+    return localStorage.getItem('saas_billing_db_version') || '0';
+  } catch (e) {
+    return '0';
+  }
+}
+
+function incrementDbVersion() {
+  try {
+    const current = parseInt(localStorage.getItem('saas_billing_db_version') || '0', 10);
+    localStorage.setItem('saas_billing_db_version', (current + 1).toString());
+  } catch (e) {}
+}
+
+function isCacheValid(entry: CacheEntry | undefined): boolean {
+  if (!entry) return false;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) return false;
+  if (entry.dbVersion !== getDbVersion()) return false;
+  return true;
+}
+
+function cloneData<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data));
+}
+
 let dbInstance: any = null;
 let dbFailed = false;
 
@@ -330,6 +377,16 @@ export function rowToReminder(r: any): any {
 // ==========================================
 
 export async function getAllCompanies(companyIds: string[] | null = null) {
+  // Check if cache is valid first
+  if (isCacheValid(queryCache.companies)) {
+    const cachedList = cloneData(queryCache.companies!.data);
+    if (companyIds) {
+      const idsSet = new Set(companyIds);
+      return cachedList.filter((c: any) => idsSet.has(c.id));
+    }
+    return cachedList;
+  }
+
   let list: any[] = [];
   if (isSupabaseConfigured()) {
     try {
@@ -382,6 +439,13 @@ export async function getAllCompanies(companyIds: string[] | null = null) {
     }
   }
 
+  // Populate cache with the full list
+  queryCache.companies = {
+    data: uniqueCompanies,
+    timestamp: Date.now(),
+    dbVersion: getDbVersion()
+  };
+
   if (companyIds) {
     const idsSet = new Set(companyIds);
     return uniqueCompanies.filter(c => idsSet.has(c.id));
@@ -391,6 +455,12 @@ export async function getAllCompanies(companyIds: string[] | null = null) {
 }
 
 export async function getCompanyById(id: string) {
+  // Check companies cache
+  if (isCacheValid(queryCache.companies)) {
+    const found = queryCache.companies!.data.find((c: any) => c.id === id);
+    if (found) return cloneData(found);
+  }
+
   if (isSupabaseConfigured()) {
     try {
       const { data } = await supabase.from('companies').select('*').eq('id', id).single();
@@ -434,6 +504,7 @@ export async function getLocalCompanyIds() {
 }
 
 export async function saveCompany(company: any, localOnly = false) {
+  incrementDbVersion();
   const now = new Date().toISOString();
   const companyData = {
     ...company,
@@ -474,6 +545,7 @@ export async function saveCompany(company: any, localOnly = false) {
 }
 
 export async function deleteCompany(id: string, localOnly = false) {
+  incrementDbVersion();
   if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('companies').delete().eq('id', id);
@@ -496,28 +568,53 @@ export async function deleteCompany(id: string, localOnly = false) {
 }
 
 export async function getActiveCompanyId() {
+  if (isCacheValid(queryCache.activeCompanyId)) {
+    return queryCache.activeCompanyId!.data;
+  }
+
+  let value: string | null = null;
   if (isSupabaseConfigured()) {
     try {
       const { data } = await supabase.from('settings').select('value').eq('key', 'activeCompanyId').single();
-      if (data?.value) return data.value;
+      if (data?.value) value = data.value;
     } catch (e) {
       console.error(e);
     }
   }
 
-  const db = await getDB();
-  if (db) {
-    try {
-      const setting = await db.get('settings', 'activeCompanyId');
-      if (setting) return setting.value;
-    } catch (e) {
-      console.error(e);
+  if (!value) {
+    const db = await getDB();
+    if (db) {
+      try {
+        const setting = await db.get('settings', 'activeCompanyId');
+        if (setting) value = setting.value;
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
-  return localStorage.getItem(LOCAL_STORAGE_KEYS.ACTIVE_COMPANY) || null;
+
+  if (!value) {
+    value = localStorage.getItem(LOCAL_STORAGE_KEYS.ACTIVE_COMPANY) || null;
+  }
+
+  queryCache.activeCompanyId = {
+    data: value,
+    timestamp: Date.now(),
+    dbVersion: getDbVersion()
+  };
+
+  return value;
 }
 
 export async function setActiveCompanyId(id: string | null) {
+  incrementDbVersion();
+  queryCache.activeCompanyId = {
+    data: id,
+    timestamp: Date.now(),
+    dbVersion: getDbVersion()
+  };
+
   if (isSupabaseConfigured()) {
     try {
       await supabase.from('settings').upsert({ key: 'activeCompanyId', value: id, updated_at: new Date().toISOString() });
@@ -542,6 +639,12 @@ export async function setActiveCompanyId(id: string | null) {
 }
 
 export async function getAllDocuments(companyId: string | null = null) {
+  const cacheKey = companyId || 'all';
+  if (isCacheValid(queryCache.documents[cacheKey])) {
+    return cloneData(queryCache.documents[cacheKey].data);
+  }
+
+  let docs: any[] = [];
   if (isSupabaseConfigured()) {
     try {
       let query = supabase.from('documents').select('*');
@@ -550,25 +653,27 @@ export async function getAllDocuments(companyId: string | null = null) {
       }
       const { data, error } = await query;
       if (!error && data) {
-        return data.map(rowToDoc);
+        docs = data.map(rowToDoc);
+      } else if (error) {
+        console.warn('Supabase getAllDocuments error:', error);
       }
-      console.warn('Supabase getAllDocuments error:', error);
     } catch (e) {
       console.error('Supabase fetch documents catch:', e);
     }
   }
 
-  const db = await getDB();
-  let docs = [];
-  if (db) {
-    try {
-      if (companyId) {
-        docs = await db.getAllFromIndex('documents', 'companyId', companyId);
-      } else {
-        docs = await db.getAll('documents');
+  if (!docs || docs.length === 0) {
+    const db = await getDB();
+    if (db) {
+      try {
+        if (companyId) {
+          docs = await db.getAllFromIndex('documents', 'companyId', companyId);
+        } else {
+          docs = await db.getAll('documents');
+        }
+      } catch (e) {
+        console.error('IDB getAllDocuments error', e);
       }
-    } catch (e) {
-      console.error('IDB getAllDocuments error', e);
     }
   }
   if (!docs || docs.length === 0) {
@@ -577,10 +682,18 @@ export async function getAllDocuments(companyId: string | null = null) {
       docs = docs.filter(d => d.companyId === companyId);
     }
   }
+
+  queryCache.documents[cacheKey] = {
+    data: docs,
+    timestamp: Date.now(),
+    dbVersion: getDbVersion()
+  };
+
   return docs;
 }
 
 export async function saveDocument(document: any, localOnly = false) {
+  incrementDbVersion();
   const now = new Date().toISOString();
   const docData = {
     ...document,
@@ -621,6 +734,14 @@ export async function saveDocument(document: any, localOnly = false) {
 }
 
 export async function getDocumentById(id: string) {
+  // Check documents cache
+  for (const cacheKey of Object.keys(queryCache.documents)) {
+    if (isCacheValid(queryCache.documents[cacheKey])) {
+      const found = queryCache.documents[cacheKey].data.find((d: any) => d.id === id);
+      if (found) return cloneData(found);
+    }
+  }
+
   if (isSupabaseConfigured()) {
     try {
       const { data } = await supabase.from('documents').select('*').eq('id', id).single();
@@ -644,6 +765,7 @@ export async function getDocumentById(id: string) {
 }
 
 export async function deleteDocument(id: string, localOnly = false) {
+  incrementDbVersion();
   if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('documents').delete().eq('id', id);
@@ -666,6 +788,13 @@ export async function deleteDocument(id: string, localOnly = false) {
 }
 
 export async function clearAllData() {
+  incrementDbVersion();
+  queryCache.companies = undefined;
+  queryCache.documents = {};
+  queryCache.expenses = {};
+  queryCache.reminders = {};
+  queryCache.activeCompanyId = undefined;
+
   if (isSupabaseConfigured()) {
     try {
       await supabase.from('documents').delete().neq('id', '');
@@ -716,6 +845,7 @@ export async function clearAllData() {
  * Returns the company object on success, or throws on failure.
  */
 export async function joinCompanyByCode(code: string, password: string) {
+  incrementDbVersion();
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase is not configured. Join Company requires a cloud connection.');
   }
@@ -757,6 +887,12 @@ export async function joinCompanyByCode(code: string, password: string) {
 // ==========================================
 
 export async function getAllExpenses(companyId: string | null = null) {
+  const cacheKey = companyId || 'all';
+  if (isCacheValid(queryCache.expenses[cacheKey])) {
+    return cloneData(queryCache.expenses[cacheKey].data);
+  }
+
+  let expenses: any[] = [];
   if (isSupabaseConfigured()) {
     try {
       let query = supabase.from('expenses').select('*').order('date', { ascending: false });
@@ -765,25 +901,27 @@ export async function getAllExpenses(companyId: string | null = null) {
       }
       const { data, error } = await query;
       if (!error && data) {
-        return data.map(rowToExpense);
+        expenses = data.map(rowToExpense);
+      } else if (error) {
+        console.warn('Supabase getAllExpenses error (could be missing table):', error);
       }
-      console.warn('Supabase getAllExpenses error (could be missing table):', error);
     } catch (e) {
       console.error('Supabase fetch expenses catch:', e);
     }
   }
 
-  const db = await getDB();
-  let expenses = [];
-  if (db) {
-    try {
-      if (companyId) {
-        expenses = await db.getAllFromIndex('expenses', 'companyId', companyId);
-      } else {
-        expenses = await db.getAll('expenses');
+  if (!expenses || expenses.length === 0) {
+    const db = await getDB();
+    if (db) {
+      try {
+        if (companyId) {
+          expenses = await db.getAllFromIndex('expenses', 'companyId', companyId);
+        } else {
+          expenses = await db.getAll('expenses');
+        }
+      } catch (e) {
+        console.error('IDB getAllExpenses error', e);
       }
-    } catch (e) {
-      console.error('IDB getAllExpenses error', e);
     }
   }
   if (!expenses || expenses.length === 0) {
@@ -795,10 +933,18 @@ export async function getAllExpenses(companyId: string | null = null) {
   
   // Sort by date descending
   expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  queryCache.expenses[cacheKey] = {
+    data: expenses,
+    timestamp: Date.now(),
+    dbVersion: getDbVersion()
+  };
+
   return expenses;
 }
 
 export async function saveExpense(expense: any, localOnly = false) {
+  incrementDbVersion();
   const now = new Date().toISOString();
   const expenseData = {
     ...expense,
@@ -851,6 +997,7 @@ export async function saveExpense(expense: any, localOnly = false) {
 }
 
 export async function deleteExpense(id: string, localOnly = false) {
+  incrementDbVersion();
   if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('expenses').delete().eq('id', id);
@@ -873,6 +1020,12 @@ export async function deleteExpense(id: string, localOnly = false) {
 }
 
 export async function getAllRecurringReminders(companyId: string | null = null) {
+  const cacheKey = companyId || 'all';
+  if (isCacheValid(queryCache.reminders[cacheKey])) {
+    return cloneData(queryCache.reminders[cacheKey].data);
+  }
+
+  let list: any[] = [];
   if (isSupabaseConfigured()) {
     try {
       let query = supabase.from('recurring_reminders').select('*').order('created_at', { ascending: false });
@@ -881,7 +1034,7 @@ export async function getAllRecurringReminders(companyId: string | null = null) 
       }
       const { data, error } = await query;
       if (!error && data) {
-        return data.map(rowToReminder);
+        list = data.map(rowToReminder);
       }
     } catch (e) {
       console.warn('Supabase recurring reminders fetch error:', e);
@@ -889,7 +1042,6 @@ export async function getAllRecurringReminders(companyId: string | null = null) 
   }
 
   const db = await getDB();
-  let list = [];
   if (db) {
     try {
       if (companyId) {
@@ -908,10 +1060,18 @@ export async function getAllRecurringReminders(companyId: string | null = null) 
       list = list.filter(r => r.companyId === companyId);
     }
   }
+
+  queryCache.reminders[cacheKey] = {
+    data: list,
+    timestamp: Date.now(),
+    dbVersion: getDbVersion()
+  };
+
   return list;
 }
 
 export async function saveRecurringReminder(reminder: any, localOnly = false) {
+  incrementDbVersion();
   const now = new Date().toISOString();
   const data = {
     ...reminder,
@@ -964,6 +1124,7 @@ export async function saveRecurringReminder(reminder: any, localOnly = false) {
 }
 
 export async function deleteRecurringReminder(id: string, localOnly = false) {
+  incrementDbVersion();
   if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('recurring_reminders').delete().eq('id', id);

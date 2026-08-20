@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
 import { CompanyProvider, useCompany } from './contexts/CompanyContext';
 import { DocumentProvider } from './contexts/DocumentContext';
 import { ToastProvider } from './components/ui/Toast';
@@ -166,13 +165,11 @@ export function App() {
   return (
     <Router>
       <ToastProvider>
-        <AuthProvider>
-          <CompanyProvider>
-            <DocumentProvider>
-              <AuthGatedApp />
-            </DocumentProvider>
-          </CompanyProvider>
-        </AuthProvider>
+        <CompanyProvider>
+          <DocumentProvider>
+            <AuthGatedApp />
+          </DocumentProvider>
+        </CompanyProvider>
       </ToastProvider>
     </Router>
   );
