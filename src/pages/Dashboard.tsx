@@ -160,8 +160,7 @@ export const Dashboard = () => {
   const { showToast } = useToast();
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
-  const [pdfRenderDoc, setPdfRenderDoc] = useState(null);
-  const pdfRef = useRef(null);
+
   const [expenses, setExpenses] = useState([]);
   const [recurringReminders, setRecurringReminders] = useState([]);
 
@@ -207,12 +206,14 @@ export const Dashboard = () => {
   }, []);
 
   // Format relative time helper
-  const getRelativeTime = (doc) => {
-    if (doc.documentNumber === 'INV-2025-001') return '2h ago';
-    if (doc.documentNumber === 'VCH-2025-002') return '4h ago';
-    if (doc.documentNumber === 'RCP-2025-003') return '1d ago';
+  const getRelativeTime = (item) => {
+    const dateStr = typeof item === 'string' 
+      ? item 
+      : (item?.createdAt || item?.documentDate || item?.date);
     
-    const created = new Date(doc.createdAt || doc.documentDate);
+    if (!dateStr) return 'Just now';
+    
+    const created = new Date(dateStr);
     const diffMs = Date.now() - created.getTime();
     const diffHours = Math.floor(diffMs / 3600000);
     if (diffHours < 1) return 'Just now';
@@ -300,6 +301,37 @@ export const Dashboard = () => {
       expensesPercent: targetExpenses > 0 ? Math.round((totalExp / targetExpenses) * 100) : 0,
     };
   }, [documents, expenses, recurringReminders]);
+
+  const activities = useMemo(() => {
+    const docActivities = documents.map(doc => {
+      const isInvoice = doc.documentType === 'invoice';
+      const isVoucher = doc.documentType === 'voucher';
+      const typeLabel = isInvoice ? 'invoice' : isVoucher ? 'voucher' : 'receipt';
+      const party = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'N/A';
+      
+      return {
+        id: `act_${doc.id}`,
+        title: `New ${typeLabel} created`,
+        detail: `${doc.documentNumber} for ${party}`,
+        date: doc.createdAt || doc.documentDate,
+        type: doc.documentType || 'invoice'
+      };
+    });
+
+    const expenseActivities = expenses.map(exp => {
+      return {
+        id: `act_${exp.id}`,
+        title: `Expense recorded`,
+        detail: `${exp.particulars} - ${exp.category}`,
+        date: exp.createdAt || exp.date,
+        type: 'expense'
+      };
+    });
+
+    const combined = [...docActivities, ...expenseActivities];
+    combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return combined.slice(0, 4);
+  }, [documents, expenses]);
 
   const handlePointerMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -405,7 +437,7 @@ export const Dashboard = () => {
             {/* Welcome Card Content */}
             <div className="relative z-10">
               <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                <span>{greeting}, {activeCompany?.companyName ? activeCompany.companyName.split(' ')[0] : 'Autobourn'}!</span>
+                <span>{greeting}, {activeCompany?.companyName ? activeCompany.companyName.split(' ')[0] : 'there'}!</span>
                 <span className={`inline-block transition-transform duration-300 ${isWelcomeHovered ? 'animate-wave-shake' : ''}`}>👋</span>
               </h1>
               <p className="text-xs text-slate-500 font-semibold mt-1">
@@ -639,50 +671,57 @@ export const Dashboard = () => {
               </div>
 
               <div className="divide-y divide-slate-100">
-                {documents.slice(0, 3).map((doc) => {
-                  const isInvoice = doc.documentType === 'invoice';
-                  const isVoucher = doc.documentType === 'voucher';
-                  
-                  const label = isInvoice ? 'Invoice' : isVoucher ? 'Voucher' : 'Receipt';
-                  const partyName = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'N/A';
-                  const amount = doc.totals?.grandTotal || doc.amount || 0;
-                  const timeAgo = getRelativeTime(doc);
-                  
-                  const iconBg = isInvoice ? 'bg-blue-50 text-blue-600' : isVoucher ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600';
-                  const Icon = isInvoice ? FileText : isVoucher ? CreditCard : Receipt;
+                {documents.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center text-slate-400">
+                    <p className="text-xs font-semibold">No recent documents</p>
+                    <p className="text-[10px] mt-0.5">Documents you generate will appear here.</p>
+                  </div>
+                ) : (
+                  documents.slice(0, 3).map((doc) => {
+                    const isInvoice = doc.documentType === 'invoice';
+                    const isVoucher = doc.documentType === 'voucher';
+                    
+                    const label = isInvoice ? 'Invoice' : isVoucher ? 'Voucher' : 'Receipt';
+                    const partyName = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'N/A';
+                    const amount = doc.totals?.grandTotal || doc.amount || 0;
+                    const timeAgo = getRelativeTime(doc);
+                    
+                    const iconBg = isInvoice ? 'bg-blue-50 text-blue-600' : isVoucher ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600';
+                    const Icon = isInvoice ? FileText : isVoucher ? CreditCard : Receipt;
 
-                  return (
-                    <div 
-                      key={doc.id} 
-                      onClick={() => navigate(`/documents?preview=${doc.id}`)}
-                      className="py-3 px-2 -mx-2 flex items-center justify-between gap-3 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl transition-all cursor-pointer group active:scale-[0.99]"
-                      title="Click to view bill preview"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${iconBg}`}>
-                          <Icon className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-extrabold text-xs text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                            {doc.documentNumber}
+                    return (
+                      <div 
+                        key={doc.id} 
+                        onClick={() => navigate(`/documents?preview=${doc.id}`)}
+                        className="py-3 px-2 -mx-2 flex items-center justify-between gap-3 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl transition-all cursor-pointer group active:scale-[0.99]"
+                        title="Click to view bill preview"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${iconBg}`}>
+                            <Icon className="w-4.5 h-4.5" />
                           </div>
-                          <p className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">
-                            {label} • {partyName}
+                          <div className="min-w-0">
+                            <div className="font-extrabold text-xs text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                              {doc.documentNumber}
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">
+                              {label} • {partyName}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <p className="font-extrabold text-xs text-slate-900 group-hover:text-blue-600 transition-colors">
+                            {formatCurrency(amount, currencySymbol)}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                            {timeAgo}
                           </p>
                         </div>
                       </div>
-
-                      <div className="text-right shrink-0">
-                        <p className="font-extrabold text-xs text-slate-900 group-hover:text-blue-600 transition-colors">
-                          {formatCurrency(amount, currencySymbol)}
-                        </p>
-                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                          {timeAgo}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -703,57 +742,49 @@ export const Dashboard = () => {
             </div>
 
             <div className="mt-3 space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">New invoice created</p>
-                    <p className="text-[10px] text-slate-400 font-medium">INV-2025-001 for TechNova Solutions</p>
-                  </div>
+              {activities.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center text-slate-400">
+                  <p className="text-xs font-semibold">No recent activity</p>
+                  <p className="text-[10px] mt-0.5">Create your first document to see activities.</p>
                 </div>
-                <span className="text-[10px] text-slate-400 font-semibold">2h ago</span>
-              </div>
+              ) : (
+                activities.map((act) => {
+                  const isInvoice = act.type === 'invoice';
+                  const isVoucher = act.type === 'voucher';
+                  const isReceipt = act.type === 'receipt';
+                  
+                  const iconBg = isInvoice 
+                    ? 'bg-blue-50 text-blue-600' 
+                    : isVoucher 
+                      ? 'bg-purple-50 text-purple-600' 
+                      : isReceipt 
+                        ? 'bg-emerald-50 text-emerald-600' 
+                        : 'bg-rose-50 text-rose-600';
+                  
+                  const Icon = isInvoice 
+                    ? FileText 
+                    : isVoucher 
+                      ? CreditCard 
+                      : isReceipt 
+                        ? Receipt 
+                        : TrendingUp;
 
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">Payment received</p>
-                    <p className="text-[10px] text-slate-400 font-medium">₹23,150.00 from ABC Enterprises</p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 font-semibold">4h ago</span>
-              </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                    <TrendingUp className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">Document uploaded</p>
-                    <p className="text-[10px] text-slate-400 font-medium">GST Certificate - TechNova Solutions</p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 font-semibold">6h ago</span>
-              </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-                    <CreditCard className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">Voucher created</p>
-                    <p className="text-[10px] text-slate-400 font-medium">Office expenses voucher</p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 font-semibold">1d ago</span>
-              </div>
+                  return (
+                    <div key={act.id} className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+                          <Icon className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-slate-900 truncate">{act.title}</p>
+                          <p className="text-[10px] text-slate-400 font-semibold truncate mt-0.5">{act.detail}</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-bold shrink-0">{getRelativeTime(act.date)}</span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -820,7 +851,7 @@ export const Dashboard = () => {
         {/* Footer */}
         <div className="pt-6 border-t border-[#f1f3f9] flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 font-bold gap-3">
           <div>
-            © 2025 Autobourn Private Limited. All rights reserved.
+            © 2026 UNAI Billing. All rights reserved.
           </div>
           <div className="flex items-center gap-6">
             <span>Version 1.0.0</span>
@@ -831,21 +862,7 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Hidden Render Container for PDF Download */}
-        {pdfRenderDoc && (
-          <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
-            <div ref={pdfRef}>
-              <TemplateWrapper
-                templateName={pdfRenderDoc.template || activeCompany?.selectedTemplate}
-                company={activeCompany}
-                customer={pdfRenderDoc.customer}
-                items={pdfRenderDoc.items || []}
-                totals={pdfRenderDoc.totals || calculateTotals(pdfRenderDoc.items || [], pdfRenderDoc.discount)}
-                document={pdfRenderDoc}
-              />
-            </div>
-          </div>
-        )}
+
       </div>
     </MainLayout>
   );

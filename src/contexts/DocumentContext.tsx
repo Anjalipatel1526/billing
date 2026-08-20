@@ -3,11 +3,11 @@ import {
   getAllDocuments, 
   saveDocument as dbSaveDocument, 
   deleteDocument as dbDeleteDocument,
-  getDocumentById 
+  getDocumentById,
+  rowToDoc
 } from '../services/db';
 import { useCompany } from './CompanyContext';
 import { generateNextDocNumber } from '../utils/documentNumber';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DocumentContext = createContext(null);
 
@@ -26,7 +26,7 @@ export const DocumentProvider = ({ children }) => {
     try {
       const list = await getAllDocuments(activeCompany.id);
       // Sort newest first
-      list.sort((a, b) => new Date(b.createdAt || b.documentDate) - new Date(a.createdAt || a.documentDate));
+      list.sort((a, b) => new Date(b.createdAt || b.documentDate).getTime() - new Date(a.createdAt || a.documentDate).getTime());
       setDocuments(list);
     } catch (err) {
       console.error('Failed to fetch documents:', err);
@@ -37,23 +37,6 @@ export const DocumentProvider = ({ children }) => {
 
   useEffect(() => {
     fetchDocuments();
-
-    if (isSupabaseConfigured()) {
-      const docsChannel = supabase
-        .channel('documents-realtime-sync')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'documents' },
-          () => {
-            fetchDocuments();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(docsChannel);
-      };
-    }
   }, [fetchDocuments]);
 
   const saveDoc = async (docData) => {

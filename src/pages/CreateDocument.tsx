@@ -7,14 +7,14 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { ItemTable } from '../components/documents/ItemTable';
-import { TemplateWrapper, TEMPLATES_CONFIG } from '../templates/TemplateWrapper';
+import { TemplateWrapper } from '../templates/TemplateWrapper';
 import { calculateTotals } from '../utils/calculations';
 import { ResponsiveDocumentWrapper } from '../components/ui/ResponsiveDocumentWrapper';
 import { numberToWords } from '../utils/numberToWords';
 import { generateNextDocNumber } from '../utils/documentNumber';
 import { downloadDocumentPDF } from '../services/pdfGenerator';
 import { validateEmail, validateGST } from '../utils/formatting';
-import { Save, Download, FileText, CreditCard, Receipt, Eye, Edit3, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
+import { Save, Download, FileText, CreditCard, Receipt, Eye, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
 export const CreateDocument = () => {
@@ -159,11 +159,7 @@ export const CreateDocument = () => {
     }
   }, [items, discount, taxType, activeCompany?.defaultTax, applyRoundOff, docType, amount]);
 
-  // Amount in Words
-  const amountWords = useMemo(() => {
-    const currencySymbol = activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹';
-    return numberToWords(totals.grandTotal, currencySymbol);
-  }, [totals.grandTotal, activeCompany?.currency]);
+
 
   // Validation
   const validateForm = () => {

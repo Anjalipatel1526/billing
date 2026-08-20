@@ -7,7 +7,7 @@ import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { LogoUploader } from '../components/company/LogoUploader';
 import { validateEmail, validateGST, validatePAN } from '../utils/formatting';
-import { Save, ArrowLeft, Building2, Landmark, Sliders, Palette, Image as ImageIcon } from 'lucide-react';
+import { Save, ArrowLeft, Building2, Landmark, Sliders, Palette } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
 export const CompanyEdit = () => {
@@ -64,7 +64,7 @@ export const CompanyEdit = () => {
     try {
       await saveCompanyProfile(formData);
       showToast('Company profile saved!', 'success');
-      navigate('/companies');
+      navigate('/settings');
     } catch (err) {
       console.error(err);
       showToast('Failed to save company profile.', 'error');
@@ -78,7 +78,7 @@ export const CompanyEdit = () => {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/companies')}
+              onClick={() => navigate('/settings')}
               className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -366,7 +366,7 @@ export const CompanyEdit = () => {
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
-          <Button variant="outline" onClick={() => navigate('/companies')}>
+          <Button variant="outline" onClick={() => navigate('/settings')}>
             Cancel
           </Button>
           <Button type="submit" icon={Save}>

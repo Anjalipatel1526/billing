@@ -9,7 +9,8 @@ import {
   getAllRecurringReminders, 
   saveRecurringReminder, 
   deleteRecurringReminder,
-  getAllDocuments
+  getAllDocuments,
+  rowToReminder
 } from '../../services/db';
 import { 
   Bell, 
@@ -127,7 +128,6 @@ export const RecurringRemindersSection = () => {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompany?.id]);
 
   // Next Occurrence date calculation helper

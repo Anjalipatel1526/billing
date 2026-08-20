@@ -21,12 +21,7 @@ import {
   Scale, 
   ExternalLink,
   Eye,
-  X,
-  FileText,
-  CreditCard,
-  Receipt,
-  Printer,
-  FileSpreadsheet
+  Printer
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import { getAllExpenses } from '../services/db';
@@ -41,7 +36,6 @@ export const Ledger = () => {
   const advancePrintRef = useRef(null);
 
   const [expenses, setExpenses] = useState([]);
-  const [expensesLoading, setExpensesLoading] = useState(false);
 
   // Filters state
   const [selectedParty, setSelectedParty] = useState('all');
@@ -77,14 +71,11 @@ export const Ledger = () => {
   useEffect(() => {
     const loadExpensesData = async () => {
       if (!activeCompany?.id) return;
-      setExpensesLoading(true);
       try {
         const data = await getAllExpenses(activeCompany.id);
         setExpenses(data);
       } catch (err) {
         console.error('Failed to load expenses for ledger:', err);
-      } finally {
-        setExpensesLoading(false);
       }
     };
     loadExpensesData();
@@ -410,98 +401,7 @@ export const Ledger = () => {
     }, 300);
   };
 
-  const downloadReportForParty = async (partyName, format) => {
-    if (!partyName || partyName === 'N/A') {
-      showToast('No valid party or project associated with this entry.', 'warning');
-      return;
-    }
 
-    showToast(`Generating report for ${partyName}...`, 'info');
-
-    // 1. Filter the entries just for this party/project
-    const partyEntries = ledgerData.entries.filter(e => {
-      return e.partyOrProject === partyName;
-    });
-
-    if (partyEntries.length === 0) {
-      showToast('No ledger data found for this party/project.', 'warning');
-      return;
-    }
-
-    const totalDebit = partyEntries.reduce((sum, e) => sum + e.debit, 0);
-    const totalCredit = partyEntries.reduce((sum, e) => sum + e.credit, 0);
-    const finalBalance = totalDebit - totalCredit;
-
-    if (format === 'excel') {
-      try {
-        const headers = ['Date', 'Document Type', 'Document Number', 'Particulars', `Debit (${currencySymbol})`, `Credit (${currencySymbol})`, `Balance (${currencySymbol})`, 'Bill Preview Link'];
-        const csvRows = [headers.join(',')];
-        
-        let runningBal = 0;
-        partyEntries.forEach(e => {
-          runningBal += (e.debit - e.credit);
-          const row = [
-            e.date,
-            e.type.toUpperCase(),
-            e.number,
-            `"${e.particulars.replace(/"/g, '""')}"`,
-            e.debit.toFixed(2),
-            e.credit.toFixed(2),
-            runningBal.toFixed(2),
-            `"=HYPERLINK(""${e.previewUrl}"",""Preview Bill"")"`
-          ];
-          csvRows.push(row.join(','));
-        });
-
-        // Add totals row
-        const summaryRow = [
-          'TOTALS',
-          '',
-          '',
-          '',
-          totalDebit.toFixed(2),
-          totalCredit.toFixed(2),
-          finalBalance.toFixed(2),
-          ''
-        ];
-        csvRows.push(summaryRow.join(','));
-
-        const csvContent = csvRows.join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        const partyStr = partyName.replace(/\s+/g, '_');
-        link.setAttribute('download', `Ledger_${partyStr}_${startDate}_to_${endDate}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showToast(`Excel CSV for ${partyName} exported successfully!`, 'success');
-      } catch (err) {
-        console.error(err);
-        showToast('Failed to export Excel CSV.', 'error');
-      }
-    } else if (format === 'pdf') {
-      const originalParty = selectedParty;
-      setSelectedParty(partyName);
-      
-      setTimeout(async () => {
-        try {
-          if (printRef.current) {
-            const partyStr = partyName.replace(/\s+/g, '_');
-            await downloadDocumentPDF(printRef.current, `Ledger_${partyStr}_${startDate}_to_${endDate}`, 'portrait');
-            showToast(`Ledger PDF for ${partyName} downloaded successfully!`, 'success');
-          }
-        } catch (err) {
-          console.error(err);
-          showToast('Failed to export PDF.', 'error');
-        } finally {
-          setSelectedParty(originalParty);
-        }
-      }, 100);
-    }
-  };
 
   const handleDownload = async (doc) => {
     setPdfRenderDoc(doc);

@@ -4,13 +4,98 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 const DB_NAME = 'SaaSInvoiceDB';
 const DB_VERSION = 3;
 
-let dbInstance = null;
+let dbInstance: any = null;
 let dbFailed = false;
 
+let mockDataCleaned = false;
+
+async function checkAndCleanMockData(db: any) {
+  if (mockDataCleaned) return;
+  mockDataCleaned = true;
+  try {
+    const companies = await db.getAll('companies');
+    const mockCompanyIds = companies
+      .filter((c: any) => c && c.companyName && c.companyName.toLowerCase().includes('autobourn'))
+      .map((c: any) => c.id);
+
+    if (mockCompanyIds.length > 0) {
+      console.log('Detected mock company "Autobourn". Cleaning all mock data...');
+      
+      const tx = db.transaction(['companies', 'documents', 'expenses', 'recurring_reminders'], 'readwrite');
+      const companiesStore = tx.objectStore('companies');
+      const docsStore = tx.objectStore('documents');
+      const expensesStore = tx.objectStore('expenses');
+      const remindersStore = tx.objectStore('recurring_reminders');
+
+      for (const id of mockCompanyIds) {
+        await companiesStore.delete(id);
+      }
+      
+      const docs = await docsStore.getAll();
+      for (const d of docs) {
+        if (d && mockCompanyIds.includes(d.companyId)) {
+          await docsStore.delete(d.id);
+        }
+      }
+
+      const expenses = await expensesStore.getAll();
+      for (const e of expenses) {
+        if (e && mockCompanyIds.includes(e.companyId)) {
+          await expensesStore.delete(e.id);
+        }
+      }
+
+      const reminders = await remindersStore.getAll();
+      for (const r of reminders) {
+        if (r && mockCompanyIds.includes(r.companyId)) {
+          await remindersStore.delete(r.id);
+        }
+      }
+
+      await tx.done;
+
+      // Clean up localStorage
+      localStorage.removeItem('saas_billing_active_company_id');
+      
+      const localCompanies = localStorage.getItem('saas_billing_companies');
+      if (localCompanies) {
+        try {
+          const parsed = JSON.parse(localCompanies);
+          const filtered = parsed.filter((c: any) => c && c.companyName && !c.companyName.toLowerCase().includes('autobourn'));
+          localStorage.setItem('saas_billing_companies', JSON.stringify(filtered));
+        } catch (e) {}
+      }
+      
+      const localDocs = localStorage.getItem('saas_billing_documents');
+      if (localDocs) {
+        try {
+          const parsed = JSON.parse(localDocs);
+          const filtered = parsed.filter((d: any) => d && !mockCompanyIds.includes(d.companyId));
+          localStorage.setItem('saas_billing_documents', JSON.stringify(filtered));
+        } catch (e) {}
+      }
+
+      const localExpenses = localStorage.getItem('saas_billing_expenses');
+      if (localExpenses) {
+        try {
+          const parsed = JSON.parse(localExpenses);
+          const filtered = parsed.filter((e: any) => e && !mockCompanyIds.includes(e.companyId));
+          localStorage.setItem('saas_billing_expenses', JSON.stringify(filtered));
+        } catch (e) {}
+      }
+    }
+  } catch (err) {
+    console.warn('Error during silent mock data cleanup:', err);
+  }
+}
+
 async function getDB() {
-  // If we already have a working connection, return it
-  if (dbInstance) return dbInstance;
-  // If it previously failed, don't spam retries — return null
+  if (dbInstance) {
+    if (!mockDataCleaned) {
+      checkAndCleanMockData(dbInstance).catch(console.error);
+    }
+    return dbInstance;
+  }
   if (dbFailed) return null;
 
   try {
@@ -40,6 +125,11 @@ async function getDB() {
         }
       },
     });
+
+    if (dbInstance) {
+      await checkAndCleanMockData(dbInstance).catch(console.error);
+    }
+
     return dbInstance;
   } catch (err) {
     console.warn('IndexedDB unavailable, using localStorage fallback.', err);
@@ -56,7 +146,7 @@ const LOCAL_STORAGE_KEYS = {
   ACTIVE_COMPANY: 'saas_billing_active_company_id'
 };
 
-function getLocalJSON(key, defaultVal = []) {
+function getLocalJSON(key: string, defaultVal: any = []) {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : defaultVal;
@@ -66,7 +156,7 @@ function getLocalJSON(key, defaultVal = []) {
   }
 }
 
-function setLocalJSON(key, val) {
+function setLocalJSON(key: string, val: any) {
   try {
     localStorage.setItem(key, JSON.stringify(val));
   } catch (e) {
@@ -74,8 +164,8 @@ function setLocalJSON(key, val) {
   }
 }
 
-// Data Mapping Helpers (CamelCase JS <-> SnakeCase Supabase)
-function companyToRow(c) {
+// Named exports for mapping helper functions
+export function companyToRow(c: any): any {
   return {
     id: c.id,
     company_name: c.companyName,
@@ -115,16 +205,16 @@ function companyToRow(c) {
   };
 }
 
-function rowToCompany(r) {
+export function rowToCompany(r: any): any {
   return {
     id: r.id,
-    companyName: r.company_name,
-    businessType: r.business_type,
+    companyName: r.company_name || r.companyName,
+    businessType: r.business_type || r.businessType,
     logo: r.logo,
     watermarkLogo: r.watermark_logo || r.watermarkLogo || '',
-    themeColor: r.theme_color,
-    gstNumber: r.gst_number,
-    panNumber: r.pan_number,
+    themeColor: r.theme_color || r.themeColor,
+    gstNumber: r.gst_number || r.gstNumber,
+    panNumber: r.pan_number || r.panNumber,
     email: r.email,
     phone: r.phone,
     website: r.website,
@@ -134,28 +224,28 @@ function rowToCompany(r) {
     country: r.country,
     pincode: r.pincode,
     cin: r.cin,
-    udyamNumber: r.udyam_number,
-    bankDetails: r.bank_details || {},
-    invoicePrefix: r.invoice_prefix,
-    invoiceStartNumber: r.invoice_start_number,
-    voucherPrefix: r.voucher_prefix,
-    voucherStartNumber: r.voucher_start_number,
-    receiptPrefix: r.receipt_prefix,
-    receiptStartNumber: r.receipt_start_number,
-    defaultTax: r.default_tax,
+    udyamNumber: r.udyam_number || r.udyamNumber,
+    bankDetails: r.bank_details || r.bankDetails || {},
+    invoicePrefix: r.invoice_prefix || r.invoicePrefix,
+    invoiceStartNumber: r.invoice_start_number || r.invoiceStartNumber,
+    voucherPrefix: r.voucher_prefix || r.voucherPrefix,
+    voucherStartNumber: r.voucher_start_number || r.voucherStartNumber,
+    receiptPrefix: r.receipt_prefix || r.receiptPrefix,
+    receiptStartNumber: r.receipt_start_number || r.receiptStartNumber,
+    defaultTax: r.default_tax || r.defaultTax,
     currency: r.currency,
-    paymentTerms: r.payment_terms,
+    paymentTerms: r.payment_terms || r.paymentTerms,
     notes: r.notes,
-    paymentInstructions: r.payment_instructions,
-    selectedTemplate: r.selected_template,
-    companyCode: r.company_code,
-    companyPassword: r.company_password,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at
+    paymentInstructions: r.payment_instructions || r.paymentInstructions,
+    selectedTemplate: r.selected_template || r.selectedTemplate,
+    companyCode: r.company_code || r.companyCode,
+    companyPassword: r.company_password || r.companyPassword,
+    createdAt: r.created_at || r.createdAt,
+    updatedAt: r.updated_at || r.updatedAt
   };
 }
 
-function docToRow(d) {
+export function docToRow(d: any): any {
   return {
     id: d.id,
     company_id: d.companyId,
@@ -179,27 +269,59 @@ function docToRow(d) {
   };
 }
 
-function rowToDoc(r) {
+export function rowToDoc(r: any): any {
   return {
     id: r.id,
-    companyId: r.company_id,
-    documentNumber: r.document_number,
-    documentType: r.document_type,
-    documentDate: r.document_date,
-    dueDate: r.due_date,
+    companyId: r.company_id || r.companyId,
+    documentNumber: r.document_number || r.documentNumber,
+    documentType: r.document_type || r.documentType,
+    documentDate: r.document_date || r.documentDate,
+    dueDate: r.due_date || r.dueDate,
     status: r.status,
     customer: r.customer || {},
     items: r.items || [],
     totals: r.totals || {},
-    paidTo: r.paid_to,
-    receivedFrom: r.received_from,
+    paidTo: r.paid_to || r.paidTo,
+    receivedFrom: r.received_from || r.receivedFrom,
     amount: r.amount,
     template: r.template,
     notes: r.notes,
     terms: r.terms,
     discount: typeof r.discount === 'number' ? { type: 'fixed', value: r.discount } : (r.discount || { type: 'percentage', value: 0 }),
-    createdAt: r.created_at,
-    updatedAt: r.updated_at
+    createdAt: r.created_at || r.createdAt,
+    updatedAt: r.updated_at || r.updatedAt
+  };
+}
+
+export function rowToExpense(r: any): any {
+  return {
+    id: r.id,
+    companyId: r.company_id || r.companyId,
+    particulars: r.particulars,
+    amount: parseFloat(r.amount) || 0,
+    category: r.category,
+    date: r.date,
+    projectEvent: r.project_event || r.projectEvent || '',
+    paidVia: r.paid_via || r.paidVia || 'Cash',
+    createdAt: r.created_at || r.createdAt,
+    updatedAt: r.updated_at || r.updatedAt
+  };
+}
+
+export function rowToReminder(r: any): any {
+  return {
+    id: r.id,
+    companyId: r.company_id || r.companyId,
+    type: r.type,
+    title: r.title,
+    amount: parseFloat(r.amount) || 0,
+    frequency: r.frequency,
+    nextDate: r.next_date || r.nextDate,
+    reminderDaysBefore: parseInt(r.reminder_days_before || r.reminderDaysBefore) || 1,
+    emails: r.emails || [],
+    status: r.status || 'active',
+    createdAt: r.created_at || r.createdAt,
+    updatedAt: r.updated_at || r.updatedAt
   };
 }
 
@@ -207,8 +329,8 @@ function rowToDoc(r) {
 // Service APIs (Supabase + Local Fallback)
 // ==========================================
 
-export async function getAllCompanies(companyIds = null) {
-  let list = [];
+export async function getAllCompanies(companyIds: string[] | null = null) {
+  let list: any[] = [];
   if (isSupabaseConfigured()) {
     try {
       if (companyIds && companyIds.length === 0) {
@@ -245,7 +367,7 @@ export async function getAllCompanies(companyIds = null) {
     list = getLocalJSON(LOCAL_STORAGE_KEYS.COMPANIES, []);
   }
 
-  // Deduplicate by ID and by normalized Company Name to eliminate duplicate business entries
+  // Deduplicate by ID and normalized company name
   const seenIds = new Set();
   const seenNames = new Set();
   const uniqueCompanies = [];
@@ -253,7 +375,6 @@ export async function getAllCompanies(companyIds = null) {
   for (const c of list) {
     if (!c || !c.companyName) continue;
     const normName = c.companyName.trim().toLowerCase();
-    
     if (!seenIds.has(c.id) && !seenNames.has(normName)) {
       seenIds.add(c.id);
       seenNames.add(normName);
@@ -261,10 +382,15 @@ export async function getAllCompanies(companyIds = null) {
     }
   }
 
+  if (companyIds) {
+    const idsSet = new Set(companyIds);
+    return uniqueCompanies.filter(c => idsSet.has(c.id));
+  }
+
   return uniqueCompanies;
 }
 
-export async function getCompanyById(id) {
+export async function getCompanyById(id: string) {
   if (isSupabaseConfigured()) {
     try {
       const { data } = await supabase.from('companies').select('*').eq('id', id).single();
@@ -307,7 +433,7 @@ export async function getLocalCompanyIds() {
   return Array.from(ids);
 }
 
-export async function saveCompany(company) {
+export async function saveCompany(company: any, localOnly = false) {
   const now = new Date().toISOString();
   const companyData = {
     ...company,
@@ -315,7 +441,7 @@ export async function saveCompany(company) {
     createdAt: company.createdAt || now
   };
 
-  if (isSupabaseConfigured()) {
+  if (isSupabaseConfigured() && !localOnly) {
     try {
       const row = companyToRow(companyData);
       const { error } = await supabase.from('companies').upsert(row);
@@ -347,8 +473,8 @@ export async function saveCompany(company) {
   return companyData;
 }
 
-export async function deleteCompany(id) {
-  if (isSupabaseConfigured()) {
+export async function deleteCompany(id: string, localOnly = false) {
+  if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('companies').delete().eq('id', id);
     } catch (e) {
@@ -391,7 +517,7 @@ export async function getActiveCompanyId() {
   return localStorage.getItem(LOCAL_STORAGE_KEYS.ACTIVE_COMPANY) || null;
 }
 
-export async function setActiveCompanyId(id) {
+export async function setActiveCompanyId(id: string | null) {
   if (isSupabaseConfigured()) {
     try {
       await supabase.from('settings').upsert({ key: 'activeCompanyId', value: id, updated_at: new Date().toISOString() });
@@ -415,10 +541,10 @@ export async function setActiveCompanyId(id) {
   }
 }
 
-export async function getAllDocuments(companyId = null) {
+export async function getAllDocuments(companyId: string | null = null) {
   if (isSupabaseConfigured()) {
     try {
-      let query = supabase.from('documents').select('*').order('created_at', { ascending: false });
+      let query = supabase.from('documents').select('*');
       if (companyId) {
         query = query.eq('company_id', companyId);
       }
@@ -454,7 +580,7 @@ export async function getAllDocuments(companyId = null) {
   return docs;
 }
 
-export async function saveDocument(document) {
+export async function saveDocument(document: any, localOnly = false) {
   const now = new Date().toISOString();
   const docData = {
     ...document,
@@ -462,7 +588,7 @@ export async function saveDocument(document) {
     createdAt: document.createdAt || now
   };
 
-  if (isSupabaseConfigured()) {
+  if (isSupabaseConfigured() && !localOnly) {
     try {
       const row = docToRow(docData);
       const { error } = await supabase.from('documents').upsert(row);
@@ -494,7 +620,7 @@ export async function saveDocument(document) {
   return docData;
 }
 
-export async function getDocumentById(id) {
+export async function getDocumentById(id: string) {
   if (isSupabaseConfigured()) {
     try {
       const { data } = await supabase.from('documents').select('*').eq('id', id).single();
@@ -517,8 +643,8 @@ export async function getDocumentById(id) {
   return list.find(d => d.id === id) || null;
 }
 
-export async function deleteDocument(id) {
-  if (isSupabaseConfigured()) {
+export async function deleteDocument(id: string, localOnly = false) {
+  if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('documents').delete().eq('id', id);
     } catch (e) {
@@ -529,7 +655,7 @@ export async function deleteDocument(id) {
   const db = await getDB();
   if (db) {
     try {
-      await db.delete('companies', id);
+      await db.delete('documents', id);
     } catch (e) {
       console.error('IDB deleteDocument error', e);
     }
@@ -570,6 +696,13 @@ export async function clearAllData() {
   localStorage.removeItem(LOCAL_STORAGE_KEYS.EXPENSES);
   localStorage.removeItem('saas_billing_recurring_reminders');
   
+  // Clear all sync flags
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('supabase_synced_')) {
+      localStorage.removeItem(key);
+    }
+  });
+
   // Clean all simulated email logs
   Object.keys(localStorage).forEach(key => {
     if (key.startsWith('simulated_email_logs_')) {
@@ -582,7 +715,7 @@ export async function clearAllData() {
  * Looks up a company by its unique join code and verifies the password.
  * Returns the company object on success, or throws on failure.
  */
-export async function joinCompanyByCode(code, password) {
+export async function joinCompanyByCode(code: string, password: string) {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase is not configured. Join Company requires a cloud connection.');
   }
@@ -623,7 +756,7 @@ export async function joinCompanyByCode(code, password) {
 // Expenses APIs (Supabase + Local Fallback)
 // ==========================================
 
-export async function getAllExpenses(companyId = null) {
+export async function getAllExpenses(companyId: string | null = null) {
   if (isSupabaseConfigured()) {
     try {
       let query = supabase.from('expenses').select('*').order('date', { ascending: false });
@@ -632,18 +765,7 @@ export async function getAllExpenses(companyId = null) {
       }
       const { data, error } = await query;
       if (!error && data) {
-        return data.map(row => ({
-          id: row.id,
-          companyId: row.company_id,
-          particulars: row.particulars,
-          amount: parseFloat(row.amount) || 0,
-          category: row.category,
-          date: row.date,
-          projectEvent: row.project_event || '',
-          paidVia: row.paid_via || 'Cash',
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        }));
+        return data.map(rowToExpense);
       }
       console.warn('Supabase getAllExpenses error (could be missing table):', error);
     } catch (e) {
@@ -672,11 +794,11 @@ export async function getAllExpenses(companyId = null) {
   }
   
   // Sort by date descending
-  expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+  expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   return expenses;
 }
 
-export async function saveExpense(expense) {
+export async function saveExpense(expense: any, localOnly = false) {
   const now = new Date().toISOString();
   const expenseData = {
     ...expense,
@@ -685,7 +807,7 @@ export async function saveExpense(expense) {
     createdAt: expense.createdAt || now
   };
 
-  if (isSupabaseConfigured()) {
+  if (isSupabaseConfigured() && !localOnly) {
     try {
       const row = {
         id: expenseData.id,
@@ -728,8 +850,8 @@ export async function saveExpense(expense) {
   return expenseData;
 }
 
-export async function deleteExpense(id) {
-  if (isSupabaseConfigured()) {
+export async function deleteExpense(id: string, localOnly = false) {
+  if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('expenses').delete().eq('id', id);
     } catch (e) {
@@ -750,7 +872,7 @@ export async function deleteExpense(id) {
   setLocalJSON(LOCAL_STORAGE_KEYS.EXPENSES, filtered);
 }
 
-export async function getAllRecurringReminders(companyId = null) {
+export async function getAllRecurringReminders(companyId: string | null = null) {
   if (isSupabaseConfigured()) {
     try {
       let query = supabase.from('recurring_reminders').select('*').order('created_at', { ascending: false });
@@ -759,20 +881,7 @@ export async function getAllRecurringReminders(companyId = null) {
       }
       const { data, error } = await query;
       if (!error && data) {
-        return data.map(row => ({
-          id: row.id,
-          companyId: row.company_id,
-          type: row.type,
-          title: row.title,
-          amount: parseFloat(row.amount) || 0,
-          frequency: row.frequency,
-          nextDate: row.next_date,
-          reminderDaysBefore: parseInt(row.reminder_days_before) || 1,
-          emails: row.emails || [],
-          status: row.status || 'active',
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        }));
+        return data.map(rowToReminder);
       }
     } catch (e) {
       console.warn('Supabase recurring reminders fetch error:', e);
@@ -802,7 +911,7 @@ export async function getAllRecurringReminders(companyId = null) {
   return list;
 }
 
-export async function saveRecurringReminder(reminder) {
+export async function saveRecurringReminder(reminder: any, localOnly = false) {
   const now = new Date().toISOString();
   const data = {
     ...reminder,
@@ -811,7 +920,7 @@ export async function saveRecurringReminder(reminder) {
     createdAt: reminder.createdAt || now
   };
 
-  if (isSupabaseConfigured()) {
+  if (isSupabaseConfigured() && !localOnly) {
     try {
       const row = {
         id: data.id,
@@ -854,8 +963,8 @@ export async function saveRecurringReminder(reminder) {
   return data;
 }
 
-export async function deleteRecurringReminder(id) {
-  if (isSupabaseConfigured()) {
+export async function deleteRecurringReminder(id: string, localOnly = false) {
+  if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('recurring_reminders').delete().eq('id', id);
     } catch (e) {
@@ -876,4 +985,3 @@ export async function deleteRecurringReminder(id) {
   const filtered = list.filter(r => r.id !== id);
   setLocalJSON('saas_billing_recurring_reminders', filtered);
 }
-

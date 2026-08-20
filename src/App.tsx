@@ -1,12 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { CompanyProvider, useCompany } from './contexts/CompanyContext';
 import { DocumentProvider } from './contexts/DocumentContext';
 import { ToastProvider } from './components/ui/Toast';
-import { isSupabaseConfigured } from './lib/supabase';
 
-import { AuthPage } from './pages/AuthPage';
 import { Onboarding } from './pages/Onboarding';
 import { Dashboard } from './pages/Dashboard';
 import { Documents } from './pages/Documents';
@@ -160,30 +158,7 @@ const AppRoutes = () => {
   );
 };
 
-// Auth-gated app wrapper — shows AuthPage if Supabase is configured and user is not logged in
 const AuthGatedApp = () => {
-  const { isAuthenticated, loading: authLoading } = useAuth();
-
-  // Show loading while checking auth state
-  if (authLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-[#f8fafc]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-white border border-slate-100 shadow-md flex items-center justify-center">
-            <img src="/favicon.png" alt="Loading" className="w-6 h-6 object-contain animate-spin" style={{ animationDuration: '3s' }} />
-          </div>
-          <p className="text-slate-400 text-[10px] font-medium">Checking authentication...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // If Supabase is configured, the user is not authenticated, and it is not a public preview page, show the auth login page
-  const isPreviewRoute = window.location.pathname.startsWith('/preview/');
-  if (isSupabaseConfigured() && !isAuthenticated && !isPreviewRoute) {
-    return <AuthPage />;
-  }
-
   return <AppRoutes />;
 };
 

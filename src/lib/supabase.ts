@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://dlvnjnmnczfphpfwkpog.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsdm5qbm1uY3pmcGhwZndrcG9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxOTY0OTksImV4cCI6MjEwMTc3MjQ5OX0.Cvo7thUTavpU6PM7Fk1DxPCrWw6p1XH3nRzslxunDi0';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://emqpsswicousslzdmikj.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcXBzc3dpY291c3NsemRtaWtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMTI3ODMsImV4cCI6MjEwMjc4ODc4M30.zNNWcTD7fLpB5ZaElx480saAMBfIbTJpj_eDRxRpeFM';
 
 export const isSupabaseConfigured = () => {
   return (
@@ -15,7 +15,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     fetch: (url, options = {}) => {
       // Safely parse and copy headers into a clean plain JavaScript object
-      let reqHeaders = {};
+      let reqHeaders: Record<string, string> = {};
       if (options.headers) {
         if (options.headers instanceof Headers) {
           options.headers.forEach((val, key) => {
@@ -24,11 +24,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         } else if (Array.isArray(options.headers)) {
           options.headers.forEach((item) => {
             if (Array.isArray(item) && item[0]) {
-              reqHeaders[item[0]] = item[1];
+              reqHeaders[item[0] as string] = item[1] as string;
             }
           });
         } else if (typeof options.headers === 'object') {
-          reqHeaders = { ...options.headers };
+          reqHeaders = { ...options.headers } as Record<string, string>;
         }
       }
 

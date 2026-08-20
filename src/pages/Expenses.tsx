@@ -7,7 +7,8 @@ import { downloadDocumentPDF } from '../services/pdfGenerator';
 import { 
   getAllExpenses, 
   saveExpense, 
-  deleteExpense 
+  deleteExpense,
+  rowToExpense
 } from '../services/db';
 import { 
   Plus, 
@@ -28,8 +29,7 @@ import {
   Coins, 
   Filter,
   Download,
-  FileText,
-  FileSpreadsheet
+  FileText
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/formatting';
 
@@ -76,33 +76,23 @@ export const Expenses = () => {
   const currencySymbol = activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹';
 
   // Load expenses
-  const loadExpenses = async () => {
+  const loadExpenses = useCallback(async () => {
     if (!activeCompany) return;
     setLoading(true);
     try {
       const data = await getAllExpenses(activeCompany.id);
-      // Clean up any old mock expenses in DB
-      const mockIds = data.filter(e => e.id.startsWith('mock_exp_')).map(e => e.id);
-      if (mockIds.length > 0) {
-        for (const mid of mockIds) {
-          await deleteExpense(mid);
-        }
-        const cleanedData = await getAllExpenses(activeCompany.id);
-        setExpenses(cleanedData);
-      } else {
-        setExpenses(data);
-      }
+      setExpenses(data);
     } catch (err) {
       console.error(err);
       showToast('Failed to load expenses', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeCompany, showToast]);
 
   useEffect(() => {
     loadExpenses();
-  }, [activeCompany?.id]);
+  }, [activeCompany?.id, loadExpenses]);
 
   // List of unique projects for filter panel
   const uniqueProjects = useMemo(() => {
