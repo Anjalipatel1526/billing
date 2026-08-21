@@ -823,20 +823,16 @@ export const Expenses = () => {
         <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
           <div ref={printRef} className="p-8 w-[210mm] min-h-[295mm] bg-white font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden">
             
-            {/* Watermark logo or text */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-              {activeCompany?.watermarkLogo || activeCompany?.logo ? (
+            {/* Watermark logo */}
+            {activeCompany?.watermarkLogo && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
                 <img
-                  src={activeCompany.watermarkLogo || activeCompany.logo}
+                  src={activeCompany.watermarkLogo}
                   alt="Watermark"
                   className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
                 />
-              ) : (
-                <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
-                  {activeCompany?.companyName || 'UNAI FINANCE'}
-                </span>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Report Header */}
             <div className="flex justify-between items-start border-b border-slate-200 pb-4 relative z-10">

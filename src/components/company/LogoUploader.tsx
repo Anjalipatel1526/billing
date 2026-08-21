@@ -42,7 +42,9 @@ export const LogoUploader = ({ value, onChange, label = 'Company Logo' }) => {
         const compressedBase64 = canvas.toDataURL(file.type === 'image/svg+xml' ? 'image/svg+xml' : 'image/png', 0.85);
         onChange(compressedBase64);
       };
-      img.src = e.target.result;
+      if (e.target && typeof e.target.result === 'string') {
+        img.src = e.target.result;
+      }
     };
     reader.readAsDataURL(file);
   };

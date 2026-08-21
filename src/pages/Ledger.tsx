@@ -424,7 +424,7 @@ export const Ledger = () => {
     }, 300);
   };
 
-  const watermarkImage = activeCompany?.watermarkLogo || activeCompany?.logo;
+  const watermarkImage = activeCompany?.watermarkLogo;
 
   return (
     <MainLayout title="General Ledger">
@@ -698,19 +698,15 @@ export const Ledger = () => {
           <div ref={printRef} className="p-8 w-[210mm] min-h-[295mm] bg-white font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden">
             
             {/* BACKGROUND WATERMARK */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-              {watermarkImage ? (
+            {watermarkImage && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
                 <img
                   src={watermarkImage}
                   alt="Company Watermark"
                   className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
                 />
-              ) : (
-                <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
-                  {activeCompany?.companyName || 'UNAI BILLING'}
-                </span>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Report Header */}
             <div className="flex justify-between items-start border-b border-slate-200 pb-4 relative z-10">
@@ -811,19 +807,15 @@ export const Ledger = () => {
             {/* PAGE 1: EXECUTIVE ANALYTICAL SUMMARY */}
             <div className="p-8 min-h-[295mm] flex flex-col justify-between relative overflow-hidden" style={{ pageBreakAfter: 'always' }}>
               {/* BACKGROUND WATERMARK */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                {watermarkImage ? (
+              {watermarkImage && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
                   <img
                     src={watermarkImage}
                     alt="Company Watermark"
                     className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
                   />
-                ) : (
-                  <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
-                    {activeCompany?.companyName || 'UNAI BILLING'}
-                  </span>
-                )}
-              </div>
+                </div>
+              )}
               <div className="space-y-6 relative z-10">
                 
                 {/* Bank Statement Style Header */}
@@ -1094,19 +1086,15 @@ export const Ledger = () => {
             {/* PAGE 2: DETAILED TRANSACTION statement LOG */}
             <div className="p-8 min-h-[295mm] flex flex-col justify-between relative overflow-hidden">
               {/* BACKGROUND WATERMARK */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                {watermarkImage ? (
+              {watermarkImage && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
                   <img
                     src={watermarkImage}
                     alt="Company Watermark"
                     className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
                   />
-                ) : (
-                  <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
-                    {activeCompany?.companyName || 'UNAI BILLING'}
-                  </span>
-                )}
-              </div>
+                </div>
+              )}
               <div className="space-y-6 relative z-10">
                 
                 {/* Mini Header */}

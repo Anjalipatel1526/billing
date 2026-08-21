@@ -17,7 +17,7 @@ export const CompanyEdit = () => {
   const { showToast } = useToast();
 
   const [formData, setFormData] = useState(defaultCompanyState);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (id && id !== 'new') {
@@ -44,7 +44,7 @@ export const CompanyEdit = () => {
   };
 
   const validate = () => {
-    const errs = {};
+    const errs: Record<string, string> = {};
     if (!formData.companyName.trim()) errs.companyName = 'Company Name is required.';
     if (formData.email && !validateEmail(formData.email)) errs.email = 'Invalid email address.';
     if (formData.gstNumber && !validateGST(formData.gstNumber)) errs.gstNumber = 'Invalid GSTIN format.';

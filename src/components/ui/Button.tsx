@@ -1,5 +1,11 @@
 import React from 'react';
 
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
+  icon?: React.ComponentType<any>;
+}
+
 export const Button = ({
   children,
   variant = 'primary', // primary | secondary | outline | danger | ghost
@@ -10,7 +16,7 @@ export const Button = ({
   type = 'button',
   className = '',
   ...props
-}) => {
+}: ButtonProps) => {
   const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-150 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed select-none';
 
   const variants = {

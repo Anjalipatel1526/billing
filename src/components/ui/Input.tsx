@@ -1,5 +1,13 @@
 import React, { useId } from 'react';
 
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+  required?: boolean;
+  helperText?: string;
+  icon?: React.ComponentType<any>;
+}
+
 export const Input = ({
   label,
   error,
@@ -10,7 +18,7 @@ export const Input = ({
   type = 'text',
   icon: Icon,
   ...props
-}) => {
+}: InputProps) => {
   const generatedId = useId();
   const inputId = id || (label ? `input_${label.toLowerCase().replace(/\s+/g, '_')}` : generatedId);
   const inputName = props.name || inputId;

@@ -36,7 +36,9 @@ export const defaultCompanyState = {
     accountNumber: '',
     ifsc: '',
     branch: '',
-    upiId: ''
+    upiId: '',
+    accountType: 'Saving',
+    dailyLimit: 100000
   },
   invoicePrefix: 'INV-',
   invoiceStartNumber: 1001,

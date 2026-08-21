@@ -1,5 +1,17 @@
 import React, { useId } from 'react';
 
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  label?: string;
+  options?: SelectOption[];
+  error?: string;
+  required?: boolean;
+}
+
 export const Select = ({
   label,
   options = [],
@@ -9,7 +21,7 @@ export const Select = ({
   id,
   children,
   ...props
-}) => {
+}: SelectProps) => {
   const generatedId = useId();
   const selectId = id || (label ? `select_${label.toLowerCase().replace(/\s+/g, '_')}` : generatedId);
   const selectName = props.name || selectId;

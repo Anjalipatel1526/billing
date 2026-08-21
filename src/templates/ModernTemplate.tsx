@@ -8,8 +8,8 @@ export const ModernTemplate = ({ company = {}, customer = {}, items = [], totals
   const isVoucher = document.documentType === 'voucher';
   const isReceipt = document.documentType === 'receipt';
 
-  // Watermark image
-  const watermarkImage = company.watermarkLogo || company.logo;
+  // Watermark image (Only custom watermark image)
+  const watermarkImage = company.watermarkLogo;
 
   return (
     <div className="bg-white text-slate-800 p-8 text-xs font-sans border border-slate-200 shadow-lg max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between relative overflow-hidden select-none" id="printable-document">
@@ -17,19 +17,15 @@ export const ModernTemplate = ({ company = {}, customer = {}, items = [], totals
       <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 z-10"></div>
 
       {/* BACKGROUND WATERMARK */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-        {watermarkImage ? (
+      {watermarkImage && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
           <img
             src={watermarkImage}
             alt="Company Watermark"
             className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
           />
-        ) : (
-          <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
-            {company.companyName || 'UNAI BILLING'}
-          </span>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="relative z-10">
         {/* Header */}

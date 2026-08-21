@@ -11,8 +11,8 @@ export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], t
   // Company theme color accent
   const themeColor = company.themeColor || '#f97316';
 
-  // Watermark logo (Custom watermark image or fallback company header logo)
-  const watermarkImage = company.watermarkLogo || company.logo;
+  // Watermark logo (Only custom watermark image)
+  const watermarkImage = company.watermarkLogo;
 
   // Orientation class: Portrait for Invoice (210mm x 297mm), Landscape for Voucher & Receipt (297mm x 210mm)
   const containerDimensions = isInvoice
@@ -87,20 +87,16 @@ export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], t
           className={`bg-white text-slate-900 font-sans border border-slate-200 shadow-lg mx-auto relative flex flex-col justify-between overflow-hidden select-none ${containerDimensions} ${pageIdx > 0 ? 'mt-8 print:mt-0' : ''}`}
           style={{ pageBreakAfter: pageIdx < pageChunks.length - 1 ? 'always' : 'auto' }}
         >
-          {/* BACKGROUND WATERMARK (CUSTOM WATERMARK IMAGE OR COMPANY LOGO) */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-            {watermarkImage ? (
+          {/* BACKGROUND WATERMARK */}
+          {watermarkImage && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
               <img
                 src={watermarkImage}
                 alt="Company Watermark"
                 className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
               />
-            ) : (
-              <span className="text-6xl font-black text-slate-900/5 tracking-widest uppercase rotate-[-30deg]">
-                {company.companyName || 'UNAI BILLING'}
-              </span>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* DOCUMENT CONTENT */}
           <div className="relative z-10 space-y-6">

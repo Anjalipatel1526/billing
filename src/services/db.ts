@@ -483,8 +483,8 @@ export async function getCompanyById(id: string) {
   return list.find(c => c.id === id) || null;
 }
 
-export async function getLocalCompanyIds() {
-  const ids = new Set();
+export async function getLocalCompanyIds(): Promise<string[]> {
+  const ids = new Set<string>();
   const db = await getDB();
   if (db) {
     try {

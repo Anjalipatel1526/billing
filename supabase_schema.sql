@@ -85,60 +85,25 @@ ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
 -- 1. COMPANIES POLICIES
--- SELECT: Anyone can read companies (needed for public preview of invoices and looking up companies by code to join).
-CREATE POLICY "Allow select for companies" 
-ON public.companies FOR SELECT 
-USING (true);
-
--- INSERT: Only authenticated users can create companies.
-CREATE POLICY "Allow insert for authenticated companies" 
-ON public.companies FOR INSERT 
-TO authenticated 
+-- Anyone (including anonymous/anon users) can select, insert, update, or delete companies.
+CREATE POLICY "Allow all for companies" 
+ON public.companies FOR ALL 
+USING (true)
 WITH CHECK (true);
-
--- UPDATE: Only authenticated users who are members of the company can update it.
-CREATE POLICY "Allow update for company members" 
-ON public.companies FOR UPDATE 
-TO authenticated 
-USING (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(id)
-)
-WITH CHECK (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(id)
-);
-
--- DELETE: Only authenticated users who are members of the company can delete it.
-CREATE POLICY "Allow delete for company members" 
-ON public.companies FOR DELETE 
-TO authenticated 
-USING (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(id)
-);
 
 
 -- 2. DOCUMENTS POLICIES
--- SELECT: Anyone can read documents (needed for public preview of invoices).
-CREATE POLICY "Allow select for documents" 
-ON public.documents FOR SELECT 
-USING (true);
-
--- ALL OTHER OPERATIONS (INSERT, UPDATE, DELETE): Only authenticated users who are members of the company can modify documents.
-CREATE POLICY "Allow write for company members on documents" 
+-- Anyone can select, insert, update, or delete documents.
+CREATE POLICY "Allow all for documents" 
 ON public.documents FOR ALL 
-TO authenticated 
-USING (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
-)
-WITH CHECK (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
-);
+USING (true)
+WITH CHECK (true);
 
 
 -- 3. SETTINGS POLICIES
--- Enforce that only authenticated users can read/write settings.
-CREATE POLICY "Allow all operations for authenticated users on settings" 
+-- Anyone can perform all operations on settings.
+CREATE POLICY "Allow all for settings" 
 ON public.settings FOR ALL 
-TO authenticated 
 USING (true)
 WITH CHECK (true);
 
@@ -209,37 +174,24 @@ ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recurring_reminders ENABLE ROW LEVEL SECURITY;
 
 -- 4. LEDGER ENTRIES POLICIES
-CREATE POLICY "Allow all operations for company members on ledger_entries" 
+CREATE POLICY "Allow all for ledger_entries" 
 ON public.ledger_entries FOR ALL 
-TO authenticated 
-USING (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
-)
-WITH CHECK (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
-);
+USING (true)
+WITH CHECK (true);
+
 
 -- 5. EXPENSES POLICIES
-CREATE POLICY "Allow all operations for company members on expenses" 
+CREATE POLICY "Allow all for expenses" 
 ON public.expenses FOR ALL 
-TO authenticated 
-USING (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
-)
-WITH CHECK (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
-);
+USING (true)
+WITH CHECK (true);
+
 
 -- 6. RECURRING REMINDERS POLICIES
-CREATE POLICY "Allow all operations for company members on recurring_reminders" 
+CREATE POLICY "Allow all for recurring_reminders" 
 ON public.recurring_reminders FOR ALL 
-TO authenticated 
-USING (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
-)
-WITH CHECK (
-  COALESCE(auth.jwt() -> 'user_metadata' -> 'company_ids', '[]'::jsonb) @> jsonb_build_array(company_id)
-);
+USING (true)
+WITH CHECK (true);
 
 -- Enable Realtime Replication
 ALTER PUBLICATION supabase_realtime ADD TABLE public.expenses;
