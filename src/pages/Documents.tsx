@@ -443,11 +443,11 @@ export const Documents = () => {
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" icon={Printer} onClick={() => handleDownload(previewDoc)}>
-                    Print
-                  </Button>
-                  <Button icon={Download} onClick={() => handleDownload(previewDoc)}>
-                    Download PDF
+                  <Button variant="outline" onClick={() => {
+                    setPreviewDoc(null);
+                    navigate('/documents');
+                  }}>
+                    Close Preview
                   </Button>
                 </div>
               </div>
@@ -467,12 +467,12 @@ export const Documents = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end">
-                <Button variant="outline" onClick={() => {
-                  setPreviewDoc(null);
-                  navigate('/documents');
-                }}>
-                  Close Preview
+              <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end gap-2">
+                <Button variant="outline" icon={Printer} onClick={() => handleDownload(previewDoc)}>
+                  Print
+                </Button>
+                <Button icon={Download} onClick={() => handleDownload(previewDoc)}>
+                  Download PDF
                 </Button>
               </div>
             </div>

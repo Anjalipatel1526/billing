@@ -14,7 +14,7 @@ import { numberToWords } from '../utils/numberToWords';
 import { generateNextDocNumber } from '../utils/documentNumber';
 import { downloadDocumentPDF } from '../services/pdfGenerator';
 import { validateEmail, validateGST } from '../utils/formatting';
-import { Save, Download, FileText, CreditCard, Receipt, Eye, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
+import { Save, Download, FileText, CreditCard, Receipt, Eye, ArrowLeft, Image as ImageIcon, X, Printer } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
 export const CreateDocument = () => {
@@ -79,7 +79,7 @@ export const CreateDocument = () => {
   const [paymentTerms, setPaymentTerms] = useState(activeCompany?.paymentTerms || '');
   const [signature, setSignature] = useState('');
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Scroll direction state for hiding/showing sticky header
   const [scrollDirection, setScrollDirection] = useState('up');
@@ -144,7 +144,7 @@ export const CreateDocument = () => {
     if (docType === 'invoice') {
       return calculateTotals(items, discount, taxType, activeCompany?.defaultTax || 18, applyRoundOff);
     } else {
-      const numAmt = parseFloat(amount) || 0;
+      const numAmt = typeof amount === 'string' ? (parseFloat(amount) || 0) : (amount || 0);
       return {
         subtotal: numAmt,
         discountAmount: 0,
@@ -163,7 +163,7 @@ export const CreateDocument = () => {
 
   // Validation
   const validateForm = () => {
-    const errs = {};
+    const errs: Record<string, string> = {};
     if (docType === 'invoice') {
       if (!customer.customerName.trim()) errs.customerName = 'Customer Name is required.';
       if (customer.email && !validateEmail(customer.email)) errs.customerEmail = 'Invalid email address.';
@@ -285,7 +285,11 @@ export const CreateDocument = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (evt) => setSignature(evt.target.result);
+    reader.onload = (evt) => {
+      if (typeof evt.target?.result === 'string') {
+        setSignature(evt.target.result);
+      }
+    };
     reader.readAsDataURL(file);
   };
 
@@ -717,16 +721,6 @@ export const CreateDocument = () => {
 
         {/* Right Column: Sticky Live Preview */}
           <div className="hidden lg:block lg:col-span-5 sticky top-20 max-h-[calc(100vh-120px)] overflow-y-auto bg-slate-100/60 border border-slate-200/80 rounded-3xl p-4 shadow-inner">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5 text-blue-600" />
-                Live Bill Preview
-              </span>
-              <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full uppercase">
-                {docType}
-              </span>
-            </div>
-            
             <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex justify-center items-start">
               <ResponsiveDocumentWrapper isInvoice={docType === 'invoice'}>
                 <TemplateWrapper
@@ -777,15 +771,9 @@ export const CreateDocument = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button icon={Download} onClick={handleDownload}>
-                    Download PDF
+                  <Button variant="outline" onClick={() => setShowPreviewModal(false)}>
+                    Close Preview
                   </Button>
-                  <button
-                    onClick={() => setShowPreviewModal(false)}
-                    className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200/60 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
 
@@ -805,9 +793,12 @@ export const CreateDocument = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end">
-                <Button variant="outline" onClick={() => setShowPreviewModal(false)}>
-                  Close Preview
+              <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end gap-2">
+                <Button variant="outline" icon={Printer} onClick={handleDownload}>
+                  Print
+                </Button>
+                <Button icon={Download} onClick={handleDownload}>
+                  Download PDF
                 </Button>
               </div>
             </div>

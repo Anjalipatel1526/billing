@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { useCompany } from '../contexts/CompanyContext';
 import { useToast } from '../components/ui/Toast';
@@ -29,7 +29,8 @@ import {
   Coins, 
   Filter,
   Download,
-  FileText
+  FileText,
+  ChevronDown
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/formatting';
 
@@ -62,7 +63,8 @@ export const Expenses = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [lastUsedProject, setLastUsedProject] = useState('');
-  const [isCustomProject, setIsCustomProject] = useState(false);
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const projectDropdownRef = useRef<HTMLDivElement>(null);
   const [customCategory, setCustomCategory] = useState('');
   const [newExpense, setNewExpense] = useState({
     particulars: '',
@@ -94,6 +96,19 @@ export const Expenses = () => {
     loadExpenses();
   }, [activeCompany?.id, loadExpenses]);
 
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target as Node)) {
+        setShowProjectDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // List of unique projects for filter panel
   const uniqueProjects = useMemo(() => {
     const projects = expenses
@@ -112,9 +127,16 @@ export const Expenses = () => {
     return Array.from(new Set(customCats));
   }, [expenses]);
 
+  // Filtered suggestions for Project/Event dropdown
+  const filteredProjectSuggestions = useMemo(() => {
+    const query = (newExpense.projectEvent || '').toLowerCase().trim();
+    if (!query) return uniqueProjects;
+    return uniqueProjects.filter(proj => proj.toLowerCase().includes(query));
+  }, [uniqueProjects, newExpense.projectEvent]);
+
   // Handle open modal
   const handleOpenModal = () => {
-    const initialProject = selectedProject !== 'all' ? selectedProject : lastUsedProject;
+    const initialProject = (selectedProject !== 'all' && selectedProject !== 'none') ? selectedProject : lastUsedProject;
     setNewExpense({
       particulars: '',
       amount: '',
@@ -125,7 +147,7 @@ export const Expenses = () => {
     });
     
     setCustomCategory('');
-    setIsCustomProject(initialProject !== '' && !uniqueProjects.includes(initialProject));
+    setShowProjectDropdown(false);
     setIsModalOpen(true);
   };
 
@@ -157,7 +179,12 @@ export const Expenses = () => {
       const matchesSearch = e.particulars.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (e.projectEvent && e.projectEvent.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesCategory = selectedCategory === 'all' || e.category === selectedCategory;
-      const matchesProject = selectedProject === 'all' || e.projectEvent === selectedProject;
+      const matchesProject = 
+        selectedProject === 'all' 
+          ? true 
+          : selectedProject === 'none' 
+            ? !e.projectEvent 
+            : e.projectEvent === selectedProject;
       return matchesSearch && matchesCategory && matchesProject;
     });
   }, [expenses, searchTerm, selectedCategory, selectedProject]);
@@ -481,6 +508,7 @@ export const Expenses = () => {
               className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
             >
               <option value="all">All Projects & Events</option>
+              <option value="none">Without Project / Event</option>
               {uniqueProjects.map(proj => (
                 <option key={proj} value={proj}>{proj}</option>
               ))}
@@ -501,6 +529,16 @@ export const Expenses = () => {
                   }`}
                 >
                   All Projects
+                </button>
+                <button
+                  onClick={() => setSelectedProject('none')}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer ${
+                    selectedProject === 'none' 
+                      ? 'bg-blue-600 text-white shadow-xs' 
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  Without Project
                 </button>
                 {uniqueProjects.map(proj => (
                   <button
@@ -648,46 +686,73 @@ export const Expenses = () => {
 
               <form onSubmit={handleAddExpense} className="p-6 space-y-4">
                 {/* Project / Event Name */}
-                <div className="space-y-1">
-                  <label htmlFor="modalProjectSelect" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Project / Event Name (Optional)</label>
-                  <select
-                    id="modalProjectSelect"
-                    name="modalProjectSelect"
-                    value={isCustomProject ? '__new__' : newExpense.projectEvent}
-                    onChange={(e) => {
-                      if (e.target.value === '__new__') {
-                        setIsCustomProject(true);
-                        setNewExpense(prev => ({ ...prev, projectEvent: '' }));
-                      } else {
-                        setIsCustomProject(false);
-                        setNewExpense(prev => ({ ...prev, projectEvent: e.target.value }));
-                      }
-                    }}
-                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
-                  >
-                    <option value="">Select an Option</option>
-                    {uniqueProjects.map(proj => (
-                      <option key={proj} value={proj}>{proj}</option>
-                    ))}
-                    <option value="__new__">+ Type a custom Project / Event...</option>
-                  </select>
-                  
-                  {isCustomProject && (
+                <div className="space-y-1 relative" ref={projectDropdownRef}>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Project / Event Name (Optional)</label>
+                  <div className="relative">
                     <input
-                      id="customProjectEvent"
-                      name="customProjectEvent"
                       type="text"
-                      required
-                      placeholder="Enter custom Project / Event name"
+                      placeholder="Select or type a Project/Event"
                       value={newExpense.projectEvent}
-                      onChange={(e) => setNewExpense(prev => ({ ...prev, projectEvent: e.target.value }))}
-                      className="w-full px-4 py-3 mt-2 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20 animate-fade-in"
+                      onChange={(e) => {
+                        setNewExpense(prev => ({ ...prev, projectEvent: e.target.value }));
+                        setShowProjectDropdown(true);
+                      }}
+                      onFocus={() => setShowProjectDropdown(true)}
+                      className="w-full px-4 py-3 pr-10 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
                     />
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 pointer-events-none" />
+                  </div>
+
+                  {showProjectDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-lg max-h-48 overflow-y-auto py-1">
+                      {filteredProjectSuggestions.length > 0 ? (
+                        filteredProjectSuggestions.map(proj => (
+                          <button
+                            key={proj}
+                            type="button"
+                            onClick={() => {
+                              setNewExpense(prev => ({ ...prev, projectEvent: proj }));
+                              setShowProjectDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                          >
+                            {proj}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-2 text-xs text-slate-400 font-semibold">No matching projects found</div>
+                      )}
+
+                      {/* Add new option */}
+                      {newExpense.projectEvent.trim() !== '' && !uniqueProjects.some(p => p.toLowerCase() === newExpense.projectEvent.trim().toLowerCase()) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProjectDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs font-bold text-blue-600 border-t border-slate-100 hover:bg-blue-50 transition-colors flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add &quot;{newExpense.projectEvent.trim()}&quot; as new Project/Event</span>
+                        </button>
+                      )}
+
+                      {newExpense.projectEvent !== '' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewExpense(prev => ({ ...prev, projectEvent: '' }));
+                            setShowProjectDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 border-t border-slate-100 hover:bg-rose-50 transition-colors"
+                        >
+                          Clear (Without Project/Event)
+                        </button>
+                      )}
+                    </div>
                   )}
                   <p className="text-[9px] text-slate-400">
-                    {isCustomProject 
-                      ? "Enter a custom name for the project or event." 
-                      : "Tag this expense to a specific project or event."}
+                    Search or type a new/existing project or event.
                   </p>
                 </div>
 

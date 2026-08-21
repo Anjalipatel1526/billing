@@ -349,12 +349,16 @@ export const CompanyEdit = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
+            <Select
               label="Default Tax Rate (%)"
-              type="number"
-              value={formData.defaultTax}
+              value={formData.defaultTax || 18}
               onChange={(e) => updateField('defaultTax', parseFloat(e.target.value) || 0)}
-            />
+            >
+              <option value="5">5%</option>
+              <option value="12">12%</option>
+              <option value="18">18%</option>
+              <option value="28">28%</option>
+            </Select>
             <Input
               label="Default Payment Terms"
               value={formData.paymentTerms}

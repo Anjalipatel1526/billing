@@ -49,6 +49,8 @@ export const Ledger = () => {
   // Modal and PDF export state
   const [previewDoc, setPreviewDoc] = useState(null);
   const [pdfRenderDoc, setPdfRenderDoc] = useState(null);
+  const [showLedgerPreviewModal, setShowLedgerPreviewModal] = useState(false);
+  const [ledgerReportType, setLedgerReportType] = useState<any>(null);
 
   // Scroll direction state for hiding/showing sticky header
   const [scrollDirection, setScrollDirection] = useState('up');
@@ -83,7 +85,7 @@ export const Ledger = () => {
 
   // Extract unique customer/party names from all documents and expenses
   const parties = useMemo(() => {
-    const names = new Set();
+    const names = new Set<string>();
     documents.forEach(d => {
       const companySpecific = !d.companyId || !activeCompany?.id || d.companyId === activeCompany.id;
       if (companySpecific) {
@@ -426,6 +428,477 @@ export const Ledger = () => {
 
   const watermarkImage = activeCompany?.watermarkLogo;
 
+  const renderStandardLedgerContent = () => {
+    return (
+      <>
+        {/* BACKGROUND WATERMARK */}
+        {watermarkImage && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+            <img
+              src={watermarkImage}
+              alt="Company Watermark"
+              className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
+            />
+          </div>
+        )}
+
+        {/* Report Header */}
+        <div className="flex justify-between items-start border-b border-slate-200 pb-4 relative z-10">
+          <div className="flex items-center gap-3">
+            {activeCompany?.logo ? (
+              <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain border p-1" />
+            ) : (
+              <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base">
+                {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
+              </div>
+            )}
+            <div>
+              <h1 className="text-sm font-extrabold text-slate-900 uppercase tracking-tight">{activeCompany?.companyName || 'General Ledger'}</h1>
+              <p className="text-[9px] text-slate-500">{activeCompany?.address}</p>
+              <p className="text-[9px] text-slate-500">Phone: {activeCompany?.phone} | Email: {activeCompany?.email}</p>
+              {activeCompany?.gstNumber && <p className="text-[9px] text-slate-500 font-mono">GSTIN: {activeCompany.gstNumber}</p>}
+            </div>
+          </div>
+          <div className="text-right">
+            <h2 className="text-base font-black text-blue-600 uppercase tracking-wider">Statement of Account</h2>
+            <p className="text-[9px] text-slate-500 font-bold mt-0.5">Report Type: Standard Statement</p>
+            <p className="text-[9px] text-slate-500 font-bold">Period: {formatDate(startDate)} to {formatDate(endDate)}</p>
+            <p className="text-[8px] text-slate-400">Statement for: {selectedParty === 'all' ? 'All Customers & Vendors' : selectedParty}</p>
+          </div>
+        </div>
+
+        {/* Account Metrics Overview */}
+        <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 relative z-10">
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase">Total Debits</p>
+            <p className="text-xs font-black text-blue-600 mt-0.5">{formatCurrency(ledgerData.totalDebit, currencySymbol)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase">Total Credits</p>
+            <p className="text-xs font-black text-emerald-600 mt-0.5">{formatCurrency(ledgerData.totalCredit, currencySymbol)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase">Closing Balance</p>
+            <p className="text-xs font-black text-slate-900 mt-0.5">{formatCurrency(ledgerData.finalBalance, currencySymbol)}</p>
+          </div>
+        </div>
+
+        {/* Print Table */}
+        <table className="w-full text-left border-collapse text-[10px] relative z-10">
+          <thead>
+            <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[8px]">
+              <th className="py-2 px-3">Date</th>
+              <th className="py-2 px-3">Particulars</th>
+              <th className="py-2 px-3">Doc #</th>
+              <th className="py-2 px-3 text-right">Debit (+)</th>
+              <th className="py-2 px-3 text-right">Credit (-)</th>
+              <th className="py-2 px-3 text-right">Balance</th>
+              <th className="py-2 px-3 text-center">Bill Link</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 font-medium">
+            {ledgerData.entries.map((row, idx) => (
+              <tr key={idx}>
+                <td className="py-2 px-3 text-slate-500">{formatDate(row.date)}</td>
+                <td className="py-2 px-3 text-slate-800 max-w-[180px] truncate">{row.particulars}</td>
+                <td className="py-2 px-3 font-mono text-slate-600 uppercase">{row.number}</td>
+                <td className="py-2 px-3 text-right text-blue-600 font-semibold">{row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}</td>
+                <td className="py-2 px-3 text-right text-emerald-600 font-semibold">{row.credit > 0 ? formatCurrency(row.credit, currencySymbol) : '-'}</td>
+                <td className="py-2 px-3 text-right text-slate-900 font-black">{formatCurrency(row.balance, currencySymbol)}</td>
+                <td className="py-2 px-3 text-center">
+                  <a 
+                    href={row.previewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[9px] font-bold text-blue-600 underline"
+                  >
+                    {row.isExpense ? 'Expenses Page' : 'Preview Bill'}
+                  </a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Footer Signatures */}
+        <div className="pt-12 flex justify-between relative z-10">
+          <div>
+            <p className="text-[8px] text-slate-400">Report generated dynamically on: {new Date().toLocaleDateString()}</p>
+          </div>
+          <div className="text-right border-t border-slate-300 pt-2 pr-6">
+            <p className="font-extrabold text-slate-900">{activeCompany?.companyName}</p>
+            <p className="text-[9px] text-slate-400 mt-0.5">Authorized Signatory</p>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderAdvanceLedgerContent = () => {
+    return (
+      <>
+        {/* PAGE 1: EXECUTIVE ANALYTICAL SUMMARY */}
+        <div className="p-8 min-h-[295mm] flex flex-col justify-between relative overflow-hidden bg-white text-xs" style={{ pageBreakAfter: 'always' }}>
+          {/* BACKGROUND WATERMARK */}
+          {watermarkImage && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+              <img
+                src={watermarkImage}
+                alt="Company Watermark"
+                className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
+              />
+            </div>
+          )}
+          <div className="space-y-6 relative z-10 text-left">
+            
+            {/* Bank Statement Style Header */}
+            <div className="flex justify-between items-start border-b border-slate-200 pb-4">
+              <div className="flex items-center gap-3">
+                {activeCompany?.logo ? (
+                  <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain border p-1" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base">
+                    {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-sm font-extrabold text-slate-900 uppercase tracking-tight">{activeCompany?.companyName || 'General Ledger'}</h1>
+                  <p className="text-[9px] text-slate-500">{activeCompany?.address}</p>
+                  <p className="text-[9px] text-slate-500">Phone: {activeCompany?.phone} | Email: {activeCompany?.email}</p>
+                  {activeCompany?.gstNumber && <p className="text-[9px] text-slate-500 font-mono">GSTIN: {activeCompany.gstNumber}</p>}
+                </div>
+              </div>
+              <div className="text-right">
+                <h2 className="text-base font-black text-blue-600 uppercase tracking-wider">Statement of Account</h2>
+                <p className="text-[9px] text-slate-500 font-bold mt-0.5">Report Type: Advanced Analytical Report</p>
+                <p className="text-[9px] text-slate-500">Date Generated: {new Date().toLocaleDateString()}</p>
+              </div>
+            </div>
+
+            {/* Account Details & Summary Table */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 space-y-2">
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Account Information</h3>
+                <div className="space-y-1 text-[9px] text-slate-600 font-medium">
+                  <p><span className="text-slate-400">Statement For:</span> <span className="font-bold text-slate-800">{selectedParty === 'all' ? 'All Customers & Vendors' : selectedParty}</span></p>
+                  <p><span className="text-slate-400">Statement Period:</span> <span className="font-bold text-slate-800">{formatDate(startDate)} to {formatDate(endDate)}</span></p>
+                  <p><span className="text-slate-400">Currency:</span> <span className="font-bold text-slate-800">{activeCompany?.currency || 'INR (₹)'}</span></p>
+                </div>
+              </div>
+              <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 space-y-2">
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Account Summary</h3>
+                <div className="grid grid-cols-2 gap-2 text-[9px] font-semibold text-slate-600">
+                  <div>
+                    <p className="text-slate-400">Opening Balance</p>
+                    <p className="text-slate-800 font-bold">{formatCurrency(0, currencySymbol)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400">Closing Balance</p>
+                    <p className="text-slate-800 font-bold">{formatCurrency(ledgerData.finalBalance, currencySymbol)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400">Total Outflow (Debits)</p>
+                    <p className="text-blue-600 font-bold">{formatCurrency(ledgerData.totalDebit, currencySymbol)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400">Total Inflow (Credits)</p>
+                    <p className="text-emerald-600 font-bold">{formatCurrency(ledgerData.totalCredit, currencySymbol)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Analytical Charts Block */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Pie Chart (Share of Document Types) */}
+              <div className="border border-slate-100 rounded-2xl p-4 bg-white space-y-3">
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Transaction Composition</h4>
+                  <p className="text-[8px] text-slate-400">Relative share of total volumes by document category.</p>
+                </div>
+                
+                <div className="flex items-center justify-around mt-1">
+                  <svg width="120" height="120" viewBox="0 0 120 120" className="-rotate-90">
+                    {advanceAnalytics.totalVolume > 0 ? (
+                      <>
+                        {/* Invoices */}
+                        {advanceAnalytics.invoiceVolume > 0 && (
+                          <circle 
+                            cx="60" 
+                            cy="60" 
+                            r="40" 
+                            fill="transparent" 
+                            stroke="#2563eb" 
+                            strokeWidth="12" 
+                            strokeDasharray={`${((advanceAnalytics.invoiceVolume / advanceAnalytics.totalVolume) * 251.3).toFixed(1)} 251.3`} 
+                          />
+                        )}
+                        {/* Vouchers */}
+                        {advanceAnalytics.voucherVolume > 0 && (
+                          <circle 
+                            cx="60" 
+                            cy="60" 
+                            r="40" 
+                            fill="transparent" 
+                            stroke="#f59e0b" 
+                            strokeWidth="12" 
+                            strokeDasharray={`${((advanceAnalytics.voucherVolume / advanceAnalytics.totalVolume) * 251.3).toFixed(1)} 251.3`} 
+                            strokeDashoffset={-((advanceAnalytics.invoiceVolume / advanceAnalytics.totalVolume) * 251.3)} 
+                          />
+                        )}
+                        {/* Receipts */}
+                        {advanceAnalytics.receiptVolume > 0 && (
+                          <circle 
+                            cx="60" 
+                            cy="60" 
+                            r="40" 
+                            fill="transparent" 
+                            stroke="#10b981" 
+                            strokeWidth="12" 
+                            strokeDasharray={`${((advanceAnalytics.receiptVolume / advanceAnalytics.totalVolume) * 251.3).toFixed(1)} 251.3`} 
+                            strokeDashoffset={-(((advanceAnalytics.invoiceVolume + advanceAnalytics.voucherVolume) / advanceAnalytics.totalVolume) * 251.3)} 
+                          />
+                        )}
+                        {/* Expenses */}
+                        {advanceAnalytics.expenseVolume > 0 && (
+                          <circle 
+                            cx="60" 
+                            cy="60" 
+                            r="40" 
+                            fill="transparent" 
+                            stroke="#f43f5e" 
+                            strokeWidth="12" 
+                            strokeDasharray={`${((advanceAnalytics.expenseVolume / advanceAnalytics.totalVolume) * 251.3).toFixed(1)} 251.3`} 
+                            strokeDashoffset={-(((advanceAnalytics.invoiceVolume + advanceAnalytics.voucherVolume + advanceAnalytics.receiptVolume) / advanceAnalytics.totalVolume) * 251.3)} 
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <circle cx="60" cy="60" r="40" fill="transparent" stroke="#cbd5e1" strokeWidth="12" />
+                    )}
+                    <g transform="translate(60,65)" textAnchor="middle">
+                      <text fontSize="7" fontWeight="bold" fill="#94a3b8" y="-12">TOTAL VOL</text>
+                      <text fontSize="8" fontWeight="black" fill="#1e293b" y="-2">
+                        {advanceAnalytics.totalVolume > 100000 
+                          ? `${currencySymbol}${(advanceAnalytics.totalVolume/100000).toFixed(1)}L` 
+                          : `${currencySymbol}${(advanceAnalytics.totalVolume/1000).toFixed(0)}K`}
+                      </text>
+                    </g>
+                  </svg>
+                  
+                  <div className="space-y-1 text-[8px] font-semibold text-slate-600">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded bg-blue-600 inline-block" />
+                      <span>Invoices: {advanceAnalytics.invoiceCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.invoiceVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded bg-amber-500 inline-block" />
+                      <span>Vouchers: {advanceAnalytics.voucherCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.voucherVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded bg-emerald-500 inline-block" />
+                      <span>Receipts: {advanceAnalytics.receiptCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.receiptVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded bg-rose-500 inline-block" />
+                      <span>Expenses: {advanceAnalytics.expenseCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.expenseVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bar Chart (Outflow vs Inflow) */}
+              <div className="border border-slate-100 rounded-2xl p-4 bg-white space-y-3">
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Debit vs Credit Flow</h4>
+                  <p className="text-[8px] text-slate-400">Periodic distribution of debits (blue) and credits (green).</p>
+                </div>
+                
+                <div className="w-full flex justify-center mt-1">
+                  <svg width="220" height="95" viewBox="0 0 240 120" className="overflow-visible">
+                    <g stroke="#f1f5f9" strokeWidth="1" strokeDasharray="2 2">
+                      <line x1="25" y1="20" x2="235" y2="20" />
+                      <line x1="25" y1="60" x2="235" y2="60" />
+                      <line x1="25" y1="100" x2="235" y2="100" />
+                    </g>
+
+                    <g fill="#94a3b8" fontSize="7" fontWeight="bold" textAnchor="end">
+                      <text x="20" y="23">HIGH</text>
+                      <text x="20" y="63">MID</text>
+                      <text x="20" y="103">0</text>
+                    </g>
+
+                    <line x1="25" y1="100" x2="235" y2="100" stroke="#cbd5e1" strokeWidth="1" />
+
+                    {advanceAnalytics.barData.map((d, idx) => {
+                      const spacing = 200 / (advanceAnalytics.barData.length || 1);
+                      const xCenter = 25 + idx * spacing + spacing / 2;
+                      
+                      const maxVal = Math.max(...advanceAnalytics.barData.map(item => Math.max(item.debit, item.credit)), 1000);
+                      const hDebit = (d.debit / maxVal) * 75;
+                      const hCredit = (d.credit / maxVal) * 75;
+
+                      return (
+                        <g key={idx}>
+                          {hDebit > 0 && (
+                            <rect x={xCenter - 7} y={100 - hDebit} width="6" height={hDebit} fill="#2563eb" rx="1.5" />
+                          )}
+                          {hCredit > 0 && (
+                            <rect x={xCenter + 1} y={100 - hCredit} width="6" height={hCredit} fill="#10b981" rx="1.5" />
+                          )}
+                          <text x={xCenter} y="114" fill="#64748b" fontSize="7" fontWeight="bold" textAnchor="middle">
+                            {d.label}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Entry Analysis Report Details */}
+            <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/30 space-y-3">
+              <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Entry Analysis & Metrics Report</h4>
+              <div className="grid grid-cols-3 gap-4 text-[9px] font-medium text-slate-600 text-left">
+                <div className="space-y-1 border-r border-slate-100 pr-2">
+                  <p className="text-slate-400 font-bold uppercase text-[7px] tracking-wide">Average Ticket Size</p>
+                  <p className="text-slate-800 font-black text-xs">{formatCurrency(advanceAnalytics.avgTransaction, currencySymbol)}</p>
+                  <p className="text-[8px] text-slate-400">Mean value of all ledger posts combined.</p>
+                </div>
+                <div className="space-y-1 border-r border-slate-100 pr-2">
+                  <p className="text-slate-400 font-bold uppercase text-[7px] tracking-wide">Max Outflow (Debit)</p>
+                  <p className="text-blue-600 font-black text-xs">{formatCurrency(advanceAnalytics.maxDebit, currencySymbol)}</p>
+                  <p className="text-[8px] text-slate-400">Highest individual debit entry recorded.</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-slate-400 font-bold uppercase text-[7px] tracking-wide">Max Inflow (Credit)</p>
+                  <p className="text-emerald-600 font-black text-xs">{formatCurrency(advanceAnalytics.maxCredit, currencySymbol)}</p>
+                  <p className="text-[8px] text-slate-400">Highest individual credit collection recorded.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Health Assessment */}
+            <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/30 space-y-1.5 text-[9px] text-slate-600 font-medium text-left">
+              <h4 className="font-black text-slate-800 uppercase tracking-wider text-[10px]">Executive Auditor Summary</h4>
+              <p>
+                This general ledger statement reports a total of <span className="font-bold text-slate-800">{ledgerData.entries.length} transactions</span> for the selected period from <span className="font-bold text-slate-800">{formatDate(startDate)}</span> to <span className="font-bold text-slate-800">{formatDate(endDate)}</span>. 
+                The account closed with a net balance of <span className="font-bold text-slate-800">{formatCurrency(ledgerData.finalBalance, currencySymbol)}</span>. 
+                {ledgerData.finalBalance > 0 ? (
+                  <span> Inward billing outperforms outward collections, suggesting positive receivables accumulation.</span>
+                ) : ledgerData.finalBalance < 0 ? (
+                  <span> Outflow collection beats inward billing, indicating collections exceeded billing entries during this period.</span>
+                ) : (
+                  <span> Balance is perfectly squared.</span>
+                )}
+              </p>
+            </div>
+
+          </div>
+
+          {/* Signatures at bottom of page 1 */}
+          <div className="flex justify-between items-end border-t border-slate-100 pt-6">
+            <div>
+              <p className="text-[8px] text-slate-400 uppercase tracking-wider">Report Authorization</p>
+              <p className="text-[8px] text-slate-400 mt-1">Report Generated Automatically | Non-Repudiable</p>
+            </div>
+            <div className="text-right">
+              <p className="font-extrabold text-[10px] text-slate-900">{activeCompany?.companyName}</p>
+              <p className="text-[8px] text-slate-400 mt-0.5">Authorised Signature</p>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 2: DETAILED TRANSACTION statement LOG */}
+        <div className="p-8 min-h-[295mm] flex flex-col justify-between relative overflow-hidden bg-white text-xs">
+          {/* BACKGROUND WATERMARK */}
+          {watermarkImage && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+              <img
+                src={watermarkImage}
+                alt="Company Watermark"
+                className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
+              />
+            </div>
+          )}
+          <div className="space-y-6 relative z-10 text-left">
+            
+            {/* Mini Header */}
+            <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+              <div>
+                <h2 className="text-[11px] font-black text-slate-800 uppercase tracking-wide">Statement Transaction Log (Cont.)</h2>
+                <p className="text-[8px] text-slate-400">Statement period: {formatDate(startDate)} to {formatDate(endDate)} | Account: {selectedParty === 'all' ? 'All Parties' : selectedParty}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] text-slate-500 font-bold">Page 2 of 2</p>
+              </div>
+            </div>
+
+            {/* Ledger entries table */}
+            <table className="w-full text-left border-collapse text-[9px] font-sans">
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold uppercase text-[7px]">
+                  <th className="py-2.5 px-3">Date</th>
+                  <th className="py-2.5 px-3">Transaction Particulars</th>
+                  <th className="py-2.5 px-3">Doc Ref</th>
+                  <th className="py-2.5 px-3 text-right">Debit (+)</th>
+                  <th className="py-2.5 px-3 text-right">Credit (-)</th>
+                  <th className="py-2.5 px-3 text-right">Balance</th>
+                  <th className="py-2.5 px-3 text-center">Bill Link</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {ledgerData.entries.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/50">
+                    <td className="py-2.5 px-3 text-slate-500">{formatDate(row.date)}</td>
+                    <td className="py-2.5 px-3 text-slate-800 max-w-[180px] truncate">{row.particulars}</td>
+                    <td className="py-2.5 px-3">
+                      <span className="font-mono text-slate-600 font-bold uppercase text-[8px]">{row.number}</span>
+                      <span className="ml-1 text-[7px] text-slate-400 capitalize">({row.type})</span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-blue-600 font-bold">
+                      {row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-emerald-600 font-bold">
+                      {row.credit > 0 ? formatCurrency(row.credit, currencySymbol) : '-'}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-slate-900 font-black">
+                      {formatCurrency(row.balance, currencySymbol)}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      <a 
+                        href={row.previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[8px] font-bold text-blue-600 underline"
+                      >
+                        {row.isExpense ? 'Expenses Page' : 'Preview Bill'}
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+          </div>
+
+          {/* Page 2 signatures */}
+          <div className="flex justify-between items-end border-t border-slate-100 pt-6">
+            <div>
+              <p className="text-[8px] text-slate-400 uppercase tracking-wider">End of Statement of Account</p>
+              <p className="text-[8px] text-slate-400 mt-1">Thank you for your business.</p>
+            </div>
+            <div className="text-right">
+              <p className="font-extrabold text-[10px] text-slate-900">{activeCompany?.companyName}</p>
+              <p className="text-[8px] text-slate-400 mt-0.5">Authorised Signature</p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   return (
     <MainLayout title="General Ledger">
       <div className="space-y-6">
@@ -440,13 +913,34 @@ export const Ledger = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" icon={Download} onClick={handleExportCSV}>
+            <Button variant="outline" icon={Download} onClick={() => {
+              if (ledgerData.entries.length === 0) {
+                showToast('No ledger data available to export.', 'warning');
+                return;
+              }
+              setLedgerReportType('excel');
+              setShowLedgerPreviewModal(true);
+            }}>
               Export Excel
             </Button>
-            <Button variant="outline" icon={Download} onClick={handleExportPDF}>
+            <Button variant="outline" icon={Download} onClick={() => {
+              if (ledgerData.entries.length === 0) {
+                showToast('No ledger data available to export.', 'warning');
+                return;
+              }
+              setLedgerReportType('pdf');
+              setShowLedgerPreviewModal(true);
+            }}>
               Download PDF
             </Button>
-            <Button icon={BookOpen} onClick={handleExportAdvancePDF}>
+            <Button icon={BookOpen} onClick={() => {
+              if (ledgerData.entries.length === 0) {
+                showToast('No ledger data available to export.', 'warning');
+                return;
+              }
+              setLedgerReportType('advance');
+              setShowLedgerPreviewModal(true);
+            }}>
               Advance Report
             </Button>
           </div>
@@ -660,11 +1154,8 @@ export const Ledger = () => {
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" icon={Printer} onClick={() => handleDownload(previewDoc)}>
-                    Print
-                  </Button>
-                  <Button icon={Download} onClick={() => handleDownload(previewDoc)}>
-                    Download PDF
+                  <Button variant="outline" onClick={() => setPreviewDoc(null)}>
+                    Close Preview
                   </Button>
                 </div>
               </div>
@@ -684,9 +1175,12 @@ export const Ledger = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end">
-                <Button variant="outline" onClick={() => setPreviewDoc(null)}>
-                  Close Preview
+              <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end gap-2">
+                <Button variant="outline" icon={Printer} onClick={() => handleDownload(previewDoc)}>
+                  Print
+                </Button>
+                <Button icon={Download} onClick={() => handleDownload(previewDoc)}>
+                  Download PDF
                 </Button>
               </div>
             </div>
@@ -696,481 +1190,117 @@ export const Ledger = () => {
         {/* Hidden PDF Printable Wrapper */}
         <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
           <div ref={printRef} className="p-8 w-[210mm] min-h-[295mm] bg-white font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden">
-            
-            {/* BACKGROUND WATERMARK */}
-            {watermarkImage && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                <img
-                  src={watermarkImage}
-                  alt="Company Watermark"
-                  className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
-                />
-              </div>
-            )}
-
-            {/* Report Header */}
-            <div className="flex justify-between items-start border-b border-slate-200 pb-4 relative z-10">
-              <div className="flex items-center gap-3">
-                {activeCompany?.logo ? (
-                  <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain border p-1" />
-                ) : (
-                  <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base">
-                    {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
-                  </div>
-                )}
-                <div>
-                  <h1 className="text-sm font-extrabold text-slate-900 uppercase tracking-tight">{activeCompany?.companyName || 'General Ledger'}</h1>
-                  <p className="text-[9px] text-slate-500">{activeCompany?.address}</p>
-                  <p className="text-[9px] text-slate-500">Phone: {activeCompany?.phone} | Email: {activeCompany?.email}</p>
-                  {activeCompany?.gstNumber && <p className="text-[9px] text-slate-500 font-mono">GSTIN: {activeCompany.gstNumber}</p>}
-                </div>
-              </div>
-              <div className="text-right">
-                <h2 className="text-base font-black text-blue-600 uppercase tracking-wider">Statement of Account</h2>
-                <p className="text-[9px] text-slate-500 font-bold mt-0.5">Report Type: Standard Statement</p>
-                <p className="text-[9px] text-slate-500 font-bold">Period: {formatDate(startDate)} to {formatDate(endDate)}</p>
-                <p className="text-[8px] text-slate-400">Statement for: {selectedParty === 'all' ? 'All Customers & Vendors' : selectedParty}</p>
-              </div>
-            </div>
-
-            {/* Account Metrics Overview */}
-            <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 relative z-10">
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase">Total Debits</p>
-                <p className="text-xs font-black text-blue-600 mt-0.5">{formatCurrency(ledgerData.totalDebit, currencySymbol)}</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase">Total Credits</p>
-                <p className="text-xs font-black text-emerald-600 mt-0.5">{formatCurrency(ledgerData.totalCredit, currencySymbol)}</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase">Closing Balance</p>
-                <p className="text-xs font-black text-slate-900 mt-0.5">{formatCurrency(ledgerData.finalBalance, currencySymbol)}</p>
-              </div>
-            </div>
-
-            {/* Print Table */}
-            <table className="w-full text-left border-collapse text-[10px] relative z-10">
-              <thead>
-                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[8px]">
-                  <th className="py-2 px-3">Date</th>
-                  <th className="py-2 px-3">Particulars</th>
-                  <th className="py-2 px-3">Doc #</th>
-                  <th className="py-2 px-3 text-right">Debit (+)</th>
-                  <th className="py-2 px-3 text-right">Credit (-)</th>
-                  <th className="py-2 px-3 text-right">Balance</th>
-                  <th className="py-2 px-3 text-center">Bill Link</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 font-medium">
-                {ledgerData.entries.map((row, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2 px-3 text-slate-500">{formatDate(row.date)}</td>
-                    <td className="py-2 px-3 text-slate-800 max-w-[180px] truncate">{row.particulars}</td>
-                    <td className="py-2 px-3 font-mono text-slate-600 uppercase">{row.number}</td>
-                    <td className="py-2 px-3 text-right text-blue-600 font-semibold">{row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}</td>
-                    <td className="py-2 px-3 text-right text-emerald-600 font-semibold">{row.credit > 0 ? formatCurrency(row.credit, currencySymbol) : '-'}</td>
-                    <td className="py-2 px-3 text-right text-slate-900 font-black">{formatCurrency(row.balance, currencySymbol)}</td>
-                    <td className="py-2 px-3 text-center">
-                      <a 
-                        href={row.previewUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[9px] font-bold text-blue-600 underline"
-                      >
-                        {row.isExpense ? 'Expenses Page' : 'Preview Bill'}
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Footer Signatures */}
-            <div className="pt-12 flex justify-between relative z-10">
-              <div>
-                <p className="text-[8px] text-slate-400">Report generated dynamically on: {new Date().toLocaleDateString()}</p>
-              </div>
-              <div className="text-right border-t border-slate-300 pt-2 pr-6">
-                <p className="font-extrabold text-slate-900">{activeCompany?.companyName}</p>
-                <p className="text-[9px] text-slate-400 mt-0.5">Authorized Signatory</p>
-              </div>
-            </div>
-
+            {renderStandardLedgerContent()}
           </div>
         </div>
 
         {/* Hidden Advance PDF Printable Wrapper */}
         <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
           <div ref={advancePrintRef} id="printable-document" className="w-[210mm] bg-white font-sans text-slate-800">
-            
-            {/* PAGE 1: EXECUTIVE ANALYTICAL SUMMARY */}
-            <div className="p-8 min-h-[295mm] flex flex-col justify-between relative overflow-hidden" style={{ pageBreakAfter: 'always' }}>
-              {/* BACKGROUND WATERMARK */}
-              {watermarkImage && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                  <img
-                    src={watermarkImage}
-                    alt="Company Watermark"
-                    className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
-                  />
-                </div>
-              )}
-              <div className="space-y-6 relative z-10">
-                
-                {/* Bank Statement Style Header */}
-                <div className="flex justify-between items-start border-b border-slate-200 pb-4">
-                  <div className="flex items-center gap-3">
-                    {activeCompany?.logo ? (
-                      <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain border p-1" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base">
-                        {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
-                      </div>
-                    )}
-                    <div>
-                      <h1 className="text-sm font-extrabold text-slate-900 uppercase tracking-tight">{activeCompany?.companyName || 'General Ledger'}</h1>
-                      <p className="text-[9px] text-slate-500">{activeCompany?.address}</p>
-                      <p className="text-[9px] text-slate-500">Phone: {activeCompany?.phone} | Email: {activeCompany?.email}</p>
-                      {activeCompany?.gstNumber && <p className="text-[9px] text-slate-500 font-mono">GSTIN: {activeCompany.gstNumber}</p>}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <h2 className="text-base font-black text-blue-600 uppercase tracking-wider">Statement of Account</h2>
-                    <p className="text-[9px] text-slate-500 font-bold mt-0.5">Report Type: Advanced Analytical Report</p>
-                    <p className="text-[9px] text-slate-500">Date Generated: {new Date().toLocaleDateString()}</p>
-                  </div>
-                </div>
-
-                {/* Account Details & Summary Table */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 space-y-2">
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Account Information</h3>
-                    <div className="space-y-1 text-[9px] text-slate-600 font-medium">
-                      <p><span className="text-slate-400">Statement For:</span> <span className="font-bold text-slate-800">{selectedParty === 'all' ? 'All Customers & Vendors' : selectedParty}</span></p>
-                      <p><span className="text-slate-400">Statement Period:</span> <span className="font-bold text-slate-800">{formatDate(startDate)} to {formatDate(endDate)}</span></p>
-                      <p><span className="text-slate-400">Currency:</span> <span className="font-bold text-slate-800">{activeCompany?.currency || 'INR (₹)'}</span></p>
-                    </div>
-                  </div>
-                  <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 space-y-2">
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Account Summary</h3>
-                    <div className="grid grid-cols-2 gap-2 text-[9px] font-semibold text-slate-600">
-                      <div>
-                        <p className="text-slate-400">Opening Balance</p>
-                        <p className="text-slate-800 font-bold">{formatCurrency(0, currencySymbol)}</p>
-                      </div>
-                      <div>
-                        <p className="text-slate-400">Total Deposits (-)</p>
-                        <p className="text-emerald-600 font-bold">{formatCurrency(ledgerData.totalCredit, currencySymbol)}</p>
-                      </div>
-                      <div>
-                        <p className="text-slate-400">Total Withdrawals (+)</p>
-                        <p className="text-blue-600 font-bold">{formatCurrency(ledgerData.totalDebit, currencySymbol)}</p>
-                      </div>
-                      <div>
-                        <p className="text-slate-400">Closing Balance</p>
-                        <p className="text-slate-900 font-bold">{formatCurrency(ledgerData.finalBalance, currencySymbol)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Analytical Charts Row */}
-                <div className="grid grid-cols-2 gap-4">
-                  
-                  {/* Pie / Donut Chart */}
-                  <div className="border border-slate-100 rounded-2xl p-4 bg-white space-y-3 flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Transaction Composition</h4>
-                      <p className="text-[8px] text-slate-400">Distribution of total volume by transaction category.</p>
-                    </div>
-                    <div className="flex items-center justify-around gap-2 my-1">
-                      <svg width="100" height="100" viewBox="0 0 120 120" className="overflow-visible">
-                        <circle cx="60" cy="60" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
-                        {advanceAnalytics.totalVolume > 0 ? (
-                          <>
-                            {/* Invoice slice */}
-                            {advanceAnalytics.invoiceVolume > 0 && (
-                              <circle 
-                                cx="60" 
-                                cy="60" 
-                                r="40" 
-                                fill="transparent" 
-                                stroke="#2563eb" 
-                                strokeWidth="12" 
-                                strokeDasharray={`${(advanceAnalytics.totalVolume > 0 ? (advanceAnalytics.invoiceVolume / advanceAnalytics.totalVolume) * 251.3 : 0).toFixed(1)} 251.3`} 
-                                strokeDashoffset="0" 
-                                transform="rotate(-90 60 60)" 
-                              />
-                            )}
-                            {/* Voucher slice */}
-                            {advanceAnalytics.voucherVolume > 0 && (
-                              <circle 
-                                cx="60" 
-                                cy="60" 
-                                r="40" 
-                                fill="transparent" 
-                                stroke="#f59e0b" 
-                                strokeWidth="12" 
-                                strokeDasharray={`${(advanceAnalytics.totalVolume > 0 ? (advanceAnalytics.voucherVolume / advanceAnalytics.totalVolume) * 251.3 : 0).toFixed(1)} 251.3`} 
-                                strokeDashoffset={-(advanceAnalytics.totalVolume > 0 ? (advanceAnalytics.invoiceVolume / advanceAnalytics.totalVolume) * 251.3 : 0)} 
-                                transform="rotate(-90 60 60)" 
-                              />
-                            )}
-                            {/* Receipt slice */}
-                            {advanceAnalytics.receiptVolume > 0 && (
-                              <circle 
-                                cx="60" 
-                                cy="60" 
-                                r="40" 
-                                fill="transparent" 
-                                stroke="#10b981" 
-                                strokeWidth="12" 
-                                strokeDasharray={`${(advanceAnalytics.totalVolume > 0 ? (advanceAnalytics.receiptVolume / advanceAnalytics.totalVolume) * 251.3 : 0).toFixed(1)} 251.3`} 
-                                strokeDashoffset={-(advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.invoiceVolume + advanceAnalytics.voucherVolume) / advanceAnalytics.totalVolume) * 251.3 : 0)} 
-                                transform="rotate(-90 60 60)" 
-                              />
-                            )}
-                            {/* Expense slice */}
-                            {advanceAnalytics.expenseVolume > 0 && (
-                              <circle 
-                                cx="60" 
-                                cy="60" 
-                                r="40" 
-                                fill="transparent" 
-                                stroke="#f43f5e" 
-                                strokeWidth="12" 
-                                strokeDasharray={`${(advanceAnalytics.totalVolume > 0 ? (advanceAnalytics.expenseVolume / advanceAnalytics.totalVolume) * 251.3 : 0).toFixed(1)} 251.3`} 
-                                strokeDashoffset={-(advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.invoiceVolume + advanceAnalytics.voucherVolume + advanceAnalytics.receiptVolume) / advanceAnalytics.totalVolume) * 251.3 : 0)} 
-                                transform="rotate(-90 60 60)" 
-                              />
-                            )}
-                          </>
-                        ) : (
-                          <circle cx="60" cy="60" r="40" fill="transparent" stroke="#cbd5e1" strokeWidth="12" />
-                        )}
-                        <g transform="translate(60,65)" textAnchor="middle">
-                          <text fontSize="7" fontWeight="bold" fill="#94a3b8" y="-12">TOTAL VOL</text>
-                          <text fontSize="8" fontWeight="black" fill="#1e293b" y="-2">
-                            {advanceAnalytics.totalVolume > 100000 
-                              ? `${currencySymbol}${(advanceAnalytics.totalVolume/100000).toFixed(1)}L` 
-                              : `${currencySymbol}${(advanceAnalytics.totalVolume/1000).toFixed(0)}K`}
-                          </text>
-                        </g>
-                      </svg>
-                      
-                      <div className="space-y-1 text-[8px] font-semibold text-slate-600">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded bg-blue-600 inline-block" />
-                          <span>Invoices: {advanceAnalytics.invoiceCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.invoiceVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded bg-amber-500 inline-block" />
-                          <span>Vouchers: {advanceAnalytics.voucherCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.voucherVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded bg-emerald-500 inline-block" />
-                          <span>Receipts: {advanceAnalytics.receiptCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.receiptVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded bg-rose-500 inline-block" />
-                          <span>Expenses: {advanceAnalytics.expenseCount} ({advanceAnalytics.totalVolume > 0 ? ((advanceAnalytics.expenseVolume / advanceAnalytics.totalVolume) * 100).toFixed(0) : 0}%)</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bar Chart (Outflow vs Inflow) */}
-                  <div className="border border-slate-100 rounded-2xl p-4 bg-white space-y-3">
-                    <div>
-                      <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Debit vs Credit Flow</h4>
-                      <p className="text-[8px] text-slate-400">Periodic distribution of debits (blue) and credits (green).</p>
-                    </div>
-                    
-                    <div className="w-full flex justify-center mt-1">
-                      <svg width="220" height="95" viewBox="0 0 240 120" className="overflow-visible">
-                        <g stroke="#f1f5f9" strokeWidth="1" strokeDasharray="2 2">
-                          <line x1="25" y1="20" x2="235" y2="20" />
-                          <line x1="25" y1="60" x2="235" y2="60" />
-                          <line x1="25" y1="100" x2="235" y2="100" />
-                        </g>
-
-                        <g fill="#94a3b8" fontSize="7" fontWeight="bold" textAnchor="end">
-                          <text x="20" y="23">HIGH</text>
-                          <text x="20" y="63">MID</text>
-                          <text x="20" y="103">0</text>
-                        </g>
-
-                        <line x1="25" y1="100" x2="235" y2="100" stroke="#cbd5e1" strokeWidth="1" />
-
-                        {advanceAnalytics.barData.map((d, idx) => {
-                          const spacing = 200 / (advanceAnalytics.barData.length || 1);
-                          const xCenter = 25 + idx * spacing + spacing / 2;
-                          
-                          const maxVal = Math.max(...advanceAnalytics.barData.map(item => Math.max(item.debit, item.credit)), 1000);
-                          const hDebit = (d.debit / maxVal) * 75;
-                          const hCredit = (d.credit / maxVal) * 75;
-
-                          return (
-                            <g key={idx}>
-                              {hDebit > 0 && (
-                                <rect x={xCenter - 7} y={100 - hDebit} width="6" height={hDebit} fill="#2563eb" rx="1.5" />
-                              )}
-                              {hCredit > 0 && (
-                                <rect x={xCenter + 1} y={100 - hCredit} width="6" height={hCredit} fill="#10b981" rx="1.5" />
-                              )}
-                              <text x={xCenter} y="114" fill="#64748b" fontSize="7" fontWeight="bold" textAnchor="middle">
-                                {d.label}
-                              </text>
-                            </g>
-                          );
-                        })}
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Entry Analysis Report Details */}
-                <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/30 space-y-3">
-                  <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Entry Analysis & Metrics Report</h4>
-                  <div className="grid grid-cols-3 gap-4 text-[9px] font-medium text-slate-600">
-                    <div className="space-y-1 border-r border-slate-100 pr-2">
-                      <p className="text-slate-400 font-bold uppercase text-[7px] tracking-wide">Average Ticket Size</p>
-                      <p className="text-slate-800 font-black text-xs">{formatCurrency(advanceAnalytics.avgTransaction, currencySymbol)}</p>
-                      <p className="text-[8px] text-slate-400">Mean value of all ledger posts combined.</p>
-                    </div>
-                    <div className="space-y-1 border-r border-slate-100 pr-2">
-                      <p className="text-slate-400 font-bold uppercase text-[7px] tracking-wide">Max Outflow (Debit)</p>
-                      <p className="text-blue-600 font-black text-xs">{formatCurrency(advanceAnalytics.maxDebit, currencySymbol)}</p>
-                      <p className="text-[8px] text-slate-400">Highest individual debit entry recorded.</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-slate-400 font-bold uppercase text-[7px] tracking-wide">Max Inflow (Credit)</p>
-                      <p className="text-emerald-600 font-black text-xs">{formatCurrency(advanceAnalytics.maxCredit, currencySymbol)}</p>
-                      <p className="text-[8px] text-slate-400">Highest individual credit collection recorded.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Financial Health Assessment */}
-                <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/30 space-y-1.5 text-[9px] text-slate-600 font-medium">
-                  <h4 className="font-black text-slate-800 uppercase tracking-wider text-[10px]">Executive Auditor Summary</h4>
-                  <p>
-                    This general ledger statement reports a total of <span className="font-bold text-slate-800">{ledgerData.entries.length} transactions</span> for the selected period from <span className="font-bold text-slate-800">{formatDate(startDate)}</span> to <span className="font-bold text-slate-800">{formatDate(endDate)}</span>. 
-                    The account closed with a net balance of <span className="font-bold text-slate-800">{formatCurrency(ledgerData.finalBalance, currencySymbol)}</span>. 
-                    {ledgerData.finalBalance > 0 ? (
-                      <span> Inward billing outperforms outward collections, suggesting positive receivables accumulation.</span>
-                    ) : ledgerData.finalBalance < 0 ? (
-                      <span> Outflow collection beats inward billing, indicating collections exceeded billing entries during this period.</span>
-                    ) : (
-                      <span> Balance is perfectly squared.</span>
-                    )}
-                  </p>
-                </div>
-
-              </div>
-
-              {/* Signatures at bottom of page 1 */}
-              <div className="flex justify-between items-end border-t border-slate-100 pt-6">
-                <div>
-                  <p className="text-[8px] text-slate-400 uppercase tracking-wider">Report Authorization</p>
-                  <p className="text-[8px] text-slate-400 mt-1">Report Generated Automatically | Non-Repudiable</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-extrabold text-[10px] text-slate-900">{activeCompany?.companyName}</p>
-                  <p className="text-[8px] text-slate-400 mt-0.5">Authorised Signature</p>
-                </div>
-              </div>
-            </div>
-
-            {/* PAGE 2: DETAILED TRANSACTION statement LOG */}
-            <div className="p-8 min-h-[295mm] flex flex-col justify-between relative overflow-hidden">
-              {/* BACKGROUND WATERMARK */}
-              {watermarkImage && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                  <img
-                    src={watermarkImage}
-                    alt="Company Watermark"
-                    className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
-                  />
-                </div>
-              )}
-              <div className="space-y-6 relative z-10">
-                
-                {/* Mini Header */}
-                <div className="flex justify-between items-center border-b border-slate-200 pb-3">
-                  <div>
-                    <h2 className="text-[11px] font-black text-slate-800 uppercase tracking-wide">Statement Transaction Log (Cont.)</h2>
-                    <p className="text-[8px] text-slate-400">Statement period: {formatDate(startDate)} to {formatDate(endDate)} | Account: {selectedParty === 'all' ? 'All Parties' : selectedParty}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] text-slate-500 font-bold">Page 2 of 2</p>
-                  </div>
-                </div>
-
-                {/* Ledger entries table */}
-                <table className="w-full text-left border-collapse text-[9px] font-sans">
-                  <thead>
-                    <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold uppercase text-[7px]">
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Transaction Particulars</th>
-                      <th className="py-2.5 px-3">Doc Ref</th>
-                      <th className="py-2.5 px-3 text-right">Debit (+)</th>
-                      <th className="py-2.5 px-3 text-right">Credit (-)</th>
-                      <th className="py-2.5 px-3 text-right">Balance</th>
-                      <th className="py-2.5 px-3 text-center">Bill Link</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {ledgerData.entries.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-3 text-slate-500">{formatDate(row.date)}</td>
-                        <td className="py-2.5 px-3 text-slate-800 max-w-[180px] truncate">{row.particulars}</td>
-                        <td className="py-2.5 px-3">
-                          <span className="font-mono text-slate-600 font-bold uppercase text-[8px]">{row.number}</span>
-                          <span className="ml-1 text-[7px] text-slate-400 capitalize">({row.type})</span>
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-blue-600 font-bold">
-                          {row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-emerald-600 font-bold">
-                          {row.credit > 0 ? formatCurrency(row.credit, currencySymbol) : '-'}
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-slate-900 font-black">
-                          {formatCurrency(row.balance, currencySymbol)}
-                        </td>
-                        <td className="py-2.5 px-3 text-center">
-                          <a 
-                            href={row.previewUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[8px] font-bold text-blue-600 underline"
-                          >
-                            {row.isExpense ? 'Expenses Page' : 'Preview Bill'}
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-              </div>
-
-              {/* Page 2 signatures */}
-              <div className="flex justify-between items-end border-t border-slate-100 pt-6">
-                <div>
-                  <p className="text-[8px] text-slate-400 uppercase tracking-wider">End of Statement of Account</p>
-                  <p className="text-[8px] text-slate-400 mt-1">Thank you for your business.</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-extrabold text-[10px] text-slate-900">{activeCompany?.companyName}</p>
-                  <p className="text-[8px] text-slate-400 mt-0.5">Authorised Signature</p>
-                </div>
-              </div>
-            </div>
-
+            {renderAdvanceLedgerContent()}
           </div>
         </div>
+
+        {/* Ledger Report Preview Modal */}
+        {showLedgerPreviewModal && ledgerReportType && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200 text-left">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-bold text-slate-800 text-sm">
+                    {ledgerReportType === 'pdf' && 'Ledger Statement Preview'}
+                    {ledgerReportType === 'advance' && 'Advance Analytical Report Preview'}
+                    {ledgerReportType === 'excel' && 'Excel Report Preview'}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => {
+                    setShowLedgerPreviewModal(false);
+                    setLedgerReportType(null);
+                  }}>
+                    Close Preview
+                  </Button>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 bg-slate-200/80 p-6 overflow-auto flex justify-center items-start">
+                {ledgerReportType === 'pdf' && (
+                  <div className="bg-white shadow-md rounded-xl p-2 max-w-[210mm] w-full text-xs">
+                    <div className="p-8 w-[210mm] min-h-[295mm] bg-white font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden">
+                      {renderStandardLedgerContent()}
+                    </div>
+                  </div>
+                )}
+                {ledgerReportType === 'advance' && (
+                  <div className="bg-white shadow-md rounded-xl p-2 max-w-[210mm] w-full">
+                    <div className="w-[210mm] bg-white font-sans text-slate-800">
+                      {renderAdvanceLedgerContent()}
+                    </div>
+                  </div>
+                )}
+                {ledgerReportType === 'excel' && (
+                  <div className="bg-white shadow-md rounded-xl p-6 w-full max-w-4xl overflow-x-auto">
+                    <h4 className="font-bold text-slate-800 text-sm mb-4">Export Preview (CSV Data Rows)</h4>
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
+                          <th className="py-2 px-3">Date</th>
+                          <th className="py-2 px-3">Type</th>
+                          <th className="py-2 px-3">Doc Number</th>
+                          <th className="py-2 px-3">Particulars</th>
+                          <th className="py-2 px-3 text-right">Debit ({currencySymbol})</th>
+                          <th className="py-2 px-3 text-right">Credit ({currencySymbol})</th>
+                          <th className="py-2 px-3 text-right">Balance ({currencySymbol})</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {ledgerData.entries.map((e, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="py-2 px-3 text-slate-500">{formatDate(e.date)}</td>
+                            <td className="py-2 px-3 text-slate-600 uppercase">{e.type}</td>
+                            <td className="py-2 px-3 font-mono font-semibold text-slate-800 uppercase">{e.number}</td>
+                            <td className="py-2 px-3 text-slate-700">{e.particulars}</td>
+                            <td className="py-2 px-3 text-right text-blue-600">{e.debit > 0 ? formatCurrency(e.debit, currencySymbol) : '-'}</td>
+                            <td className="py-2 px-3 text-right text-emerald-600">{e.credit > 0 ? formatCurrency(e.credit, currencySymbol) : '-'}</td>
+                            <td className="py-2 px-3 text-right text-slate-900 font-black">{formatCurrency(e.balance, currencySymbol)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-slate-50/80 font-bold border-t border-slate-200 text-slate-900">
+                          <td className="py-3 px-3 uppercase" colSpan={4}>TOTALS</td>
+                          <td className="py-3 px-3 text-right text-blue-600">{formatCurrency(ledgerData.totalDebit, currencySymbol)}</td>
+                          <td className="py-3 px-3 text-right text-emerald-600">{formatCurrency(ledgerData.totalCredit, currencySymbol)}</td>
+                          <td className="py-3 px-3 text-right font-black">{formatCurrency(ledgerData.finalBalance, currencySymbol)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end gap-2">
+                {ledgerReportType !== 'excel' && (
+                  <Button variant="outline" icon={Printer} onClick={() => {
+                    if (ledgerReportType === 'pdf') handleExportPDF();
+                    else if (ledgerReportType === 'advance') handleExportAdvancePDF();
+                  }}>
+                    Print
+                  </Button>
+                )}
+                <Button icon={Download} onClick={() => {
+                  if (ledgerReportType === 'pdf') handleExportPDF();
+                  else if (ledgerReportType === 'advance') handleExportAdvancePDF();
+                  else if (ledgerReportType === 'excel') handleExportCSV();
+                }}>
+                  {ledgerReportType === 'excel' ? 'Download Excel (CSV)' : 'Download PDF'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Hidden Render Container for PDF Download */}
         {pdfRenderDoc && (

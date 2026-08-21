@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, Trash2, Copy, ArrowUp, ArrowDown } from 'lucide-react';
 import { Input } from '../ui/Input';
+import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../../utils/formatting';
 
@@ -142,14 +143,16 @@ export const ItemTable = ({ items, onChange, defaultTax = 18, currencySymbol = '
                     value={item.rate}
                     onChange={(e) => updateItem(idx, 'rate', e.target.value)}
                   />
-                  <Input
+                  <Select
                     label="Tax (%)"
-                    type="number"
-                    min="0"
-                    max="100"
                     value={item.taxRate !== undefined ? item.taxRate : defaultTax}
-                    onChange={(e) => updateItem(idx, 'taxRate', e.target.value)}
-                  />
+                    onChange={(e) => updateItem(idx, 'taxRate', parseFloat(e.target.value) || 0)}
+                  >
+                    <option value="5">5%</option>
+                    <option value="12">12%</option>
+                    <option value="18">18%</option>
+                    <option value="28">28%</option>
+                  </Select>
                   <div className="text-right">
                     <span className="block text-[10px] text-slate-400 font-medium uppercase">Amount</span>
                     <span className="text-xs font-bold text-slate-900">

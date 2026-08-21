@@ -47,8 +47,10 @@ function ChartContainer({
   );
 }
 
-const ChartStyle = ({ id, config }) => {
-  const colorConfig = Object.entries(config).filter(([, config]) => config.theme || config.color);
+const ChartStyle = ({ id, config }: { id: string; config: any }) => {
+  const colorConfig = Object.entries(config || {}).filter(
+    ([, itemConfig]: [string, any]) => itemConfig.theme || itemConfig.color
+  );
 
   if (!colorConfig.length) {
     return null;
@@ -62,7 +64,7 @@ const ChartStyle = ({ id, config }) => {
             ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
-  .map(([key, itemConfig]) => {
+  .map(([key, itemConfig]: [string, any]) => {
     const color = itemConfig.theme?.[theme] || itemConfig.color;
     return color ? `  --color-${key}: ${color};` : null;
   })
@@ -165,7 +167,7 @@ function ChartTooltipContent({
                         style={{
                           '--color-bg': indicatorColor,
                           '--color-border': indicatorColor,
-                        }}
+                        } as React.CSSProperties}
                       />
                     )
                   )}
