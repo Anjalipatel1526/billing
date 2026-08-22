@@ -113,8 +113,8 @@ export const Ledger = () => {
       const companySpecific = !d.companyId || !activeCompany?.id || d.companyId === activeCompany.id;
       if (!companySpecific) return false;
 
-      // Filter out Expense Voucher/Bill documents to avoid duplication with the expenses store
-      if (d.documentType === 'voucher' && (d.voucherType === 'Expense Voucher' || d.voucherType === 'Expense Bill' || d.voucherType === 'Bill')) return false;
+      // Filter out all voucher documents
+      if (d.documentType === 'voucher') return false;
 
       // Date check
       const docDate = d.documentDate || d.createdAt?.slice(0, 10);
@@ -138,7 +138,8 @@ export const Ledger = () => {
       voucherType: d.voucherType,
       previewUrl: `${window.location.origin}/preview/${d.id}`,
       isExpense: false,
-      partyOrProject: d.customer?.customerName || d.paidTo || d.receivedFrom || 'N/A'
+      partyOrProject: d.customer?.customerName || d.paidTo || d.receivedFrom || 'N/A',
+      status: d.status
     }));
 
     // 2. Filter expenses
@@ -161,6 +162,7 @@ export const Ledger = () => {
       return true;
     }).map(e => ({
       id: e.id,
+      documentId: e.documentId,
       date: e.date || e.createdAt?.slice(0, 10),
       rawDate: e.date || e.createdAt,
       type: 'expense',
@@ -188,7 +190,11 @@ export const Ledger = () => {
         debit = item.amount;
       } else {
         if (item.type === 'invoice') {
-          debit = item.amount;
+          if (item.status === 'Paid') {
+            credit = item.amount;
+          } else {
+            debit = item.amount;
+          }
         } else if (item.type === 'voucher') {
           if (item.voucherType === 'Payment Voucher' || item.voucherType === 'Expense Voucher') {
             debit = item.amount;
@@ -204,6 +210,7 @@ export const Ledger = () => {
 
       return {
         id: item.id,
+        documentId: (item as any).documentId,
         date: item.date,
         number: item.number,
         type: item.type,
@@ -507,12 +514,12 @@ export const Ledger = () => {
                 <td className="py-2 px-3 text-right text-slate-900 font-black">{formatCurrency(row.balance, currencySymbol)}</td>
                 <td className="py-2 px-3 text-center">
                   <a 
-                    href={row.previewUrl}
+                    href={row.isExpense ? `${window.location.origin}/preview/${row.documentId || row.id}` : row.previewUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-[9px] font-bold text-blue-600 underline"
                   >
-                    {row.isExpense ? 'Expenses Page' : 'Preview Bill'}
+                    Preview Bill
                   </a>
                 </td>
               </tr>
@@ -868,12 +875,12 @@ export const Ledger = () => {
                     </td>
                     <td className="py-2.5 px-3 text-center">
                       <a 
-                        href={row.previewUrl}
+                        href={row.isExpense ? `${window.location.origin}/preview/${row.documentId || row.id}` : row.previewUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="text-[8px] font-bold text-blue-600 underline"
                       >
-                        {row.isExpense ? 'Expenses Page' : 'Preview Bill'}
+                        Preview Bill
                       </a>
                     </td>
                   </tr>
@@ -912,7 +919,7 @@ export const Ledger = () => {
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Track account statements, transaction flows, and running balances.</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" icon={Download} onClick={() => {
               if (ledgerData.entries.length === 0) {
                 showToast('No ledger data available to export.', 'warning');
@@ -1109,29 +1116,46 @@ export const Ledger = () => {
                         {formatCurrency(row.balance, currencySymbol)}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        {row.isExpense ? (
-                          <a
-                            href="/expenses"
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
-                          >
-                            Go to Expenses
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const doc = documents.find(d => d.id === row.id);
-                              if (doc) {
-                                setPreviewDoc(doc);
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                          >
-                            View Bill
-                            <Eye className="w-3 h-3" />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const targetId = row.isExpense ? row.documentId : row.id;
+                            const doc = documents.find(d => d.id === targetId);
+                            if (doc) {
+                              setPreviewDoc(doc);
+                            } else if (row.isExpense) {
+                              // Fallback for expenses without documentId
+                              const fallbackDoc = {
+                                id: row.id,
+                                documentNumber: row.number,
+                                documentType: 'voucher',
+                                voucherType: 'Expense Bill',
+                                documentDate: row.date,
+                                status: 'Paid',
+                                paidTo: row.partyOrProject || 'Office Expenses',
+                                paymentMethod: 'N/A',
+                                amount: row.debit || row.amount || 0,
+                                totals: { grandTotal: row.debit || row.amount || 0 },
+                                description: row.particulars,
+                                items: [
+                                  {
+                                    id: 'item_1',
+                                    description: row.particulars,
+                                    quantity: 1,
+                                    rate: row.debit || row.amount || 0,
+                                    amount: row.debit || row.amount || 0
+                                  }
+                                ],
+                                template: activeCompany.selectedTemplate || 'UNAI Billing'
+                              };
+                              setPreviewDoc(fallbackDoc as any);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                        >
+                          View Bill
+                          <Eye className="w-3 h-3" />
+                        </button>
                       </td>
                     </tr>
                   ))}

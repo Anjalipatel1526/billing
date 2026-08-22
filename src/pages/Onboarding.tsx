@@ -50,7 +50,7 @@ export const Onboarding = () => {
   // ==================
   const [step, setStep] = useState(1); // 1 = Details, 2 = Bank, 3 = Defaults, 4 = Password
   const [formData, setFormData] = useState(defaultCompanyState);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [companyPassword, setCompanyPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [createdCode, setCreatedCode] = useState('');
@@ -89,7 +89,7 @@ export const Onboarding = () => {
   };
 
   const validateStep1 = () => {
-    const errs = {};
+    const errs: Record<string, string | null> = {};
     if (!formData.companyName.trim()) errs.companyName = 'Company Name is required.';
     if (formData.email && !validateEmail(formData.email)) errs.email = 'Invalid email address.';
     if (formData.gstNumber && !validateGST(formData.gstNumber)) errs.gstNumber = 'Invalid GSTIN format.';
@@ -99,7 +99,7 @@ export const Onboarding = () => {
   };
 
   const validateStep4 = () => {
-    const errs = {};
+    const errs: Record<string, string | null> = {};
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     
     if (!companyPassword) {
@@ -561,12 +561,12 @@ export const Onboarding = () => {
   }
 
   return (
-    <div className="h-screen max-h-screen flex flex-col md:flex-row bg-[#080d27] font-sans overflow-hidden">
+    <div className="min-h-screen md:h-screen md:max-h-screen flex flex-col md:flex-row bg-[#080d27] font-sans overflow-y-auto md:overflow-hidden">
       
       {/* ==================================================== */}
       {/* LEFT COLUMN: BRANDING & 3D NEON VISUALS */}
       {/* ==================================================== */}
-      <div className="w-full md:w-[38%] h-full relative overflow-hidden bg-gradient-to-br from-[#060a22] via-[#091540] to-[#040817] flex flex-col justify-between p-6 md:p-8 text-white shrink-0">
+      <div className="w-full md:w-[38%] h-auto md:h-full relative overflow-hidden bg-gradient-to-br from-[#060a22] via-[#091540] to-[#040817] flex flex-col justify-between p-6 md:p-8 text-white shrink-0">
         
         {/* Decorative Wave Divider on Desktop */}
         <div className="absolute top-0 bottom-0 right-0 w-20 hidden md:block z-10 pointer-events-none">
@@ -671,7 +671,7 @@ export const Onboarding = () => {
       {/* ==================================================== */}
       {/* RIGHT COLUMN: DYNAMIC WORKSPACES & CONTROLS */}
       {/* ==================================================== */}
-      <div className="flex-1 h-full bg-[#f8fafc] flex flex-col justify-between p-4 md:p-6 relative overflow-hidden">
+      <div className="flex-1 h-auto md:h-full bg-[#f8fafc] flex flex-col justify-between p-4 md:p-6 relative overflow-y-auto md:overflow-hidden">
         
         {/* Center Dynamic Interface */}
         <div className="my-auto flex items-center justify-center w-full max-w-xl mx-auto py-2">

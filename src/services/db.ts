@@ -293,6 +293,14 @@ export function rowToCompany(r: any): any {
 }
 
 export function docToRow(d: any): any {
+  // Store extra fields in the JSONB customer object so they sync to Supabase without requiring schema migration
+  const customerWithMeta = {
+    ...(d.customer || {}),
+    _voucherType: d.voucherType,
+    _paymentMethod: d.paymentMethod,
+    _description: d.description
+  };
+
   return {
     id: d.id,
     company_id: d.companyId,
@@ -301,7 +309,7 @@ export function docToRow(d: any): any {
     document_date: d.documentDate,
     due_date: d.dueDate,
     status: d.status,
-    customer: d.customer || {},
+    customer: customerWithMeta,
     items: d.items || [],
     totals: d.totals || {},
     paid_to: d.paidTo,
@@ -317,6 +325,9 @@ export function docToRow(d: any): any {
 }
 
 export function rowToDoc(r: any): any {
+  const customerObj = r.customer || {};
+  const { _voucherType, _paymentMethod, _description, ...cleanCustomer } = customerObj;
+
   return {
     id: r.id,
     companyId: r.company_id || r.companyId,
@@ -325,7 +336,7 @@ export function rowToDoc(r: any): any {
     documentDate: r.document_date || r.documentDate,
     dueDate: r.due_date || r.dueDate,
     status: r.status,
-    customer: r.customer || {},
+    customer: cleanCustomer,
     items: r.items || [],
     totals: r.totals || {},
     paidTo: r.paid_to || r.paidTo,
@@ -336,7 +347,10 @@ export function rowToDoc(r: any): any {
     terms: r.terms,
     discount: typeof r.discount === 'number' ? { type: 'fixed', value: r.discount } : (r.discount || { type: 'percentage', value: 0 }),
     createdAt: r.created_at || r.createdAt,
-    updatedAt: r.updated_at || r.updatedAt
+    updatedAt: r.updated_at || r.updatedAt,
+    voucherType: _voucherType || r.voucher_type || r.voucherType,
+    paymentMethod: _paymentMethod || r.payment_method || r.paymentMethod,
+    description: _description || r.description
   };
 }
 

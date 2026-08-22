@@ -46,7 +46,7 @@ export const MainLayout = ({ children, title }) => {
 
       {/* Main Content Body */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="md:hidden">
+        <div className="md:hidden sticky top-0 z-30">
           <Header 
             onMenuToggle={() => setMobileMenuOpen(true)} 
             isSidebarOpen={false}

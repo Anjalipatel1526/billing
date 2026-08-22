@@ -3,6 +3,7 @@ import emailjs from '@emailjs/browser';
 import { useCompany } from '../../contexts/CompanyContext';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
+import { ConfirmModal } from '../ui/ConfirmModal';
 import { formatCurrency } from '../../utils/formatting';
 import { useToast } from '../ui/Toast';
 import { 
@@ -39,6 +40,8 @@ export const RecurringRemindersSection = () => {
   const [editingReminder, setEditingReminder] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
+  const [deleteReminderId, setDeleteReminderId] = useState<string | null>(null);
+  const [isClearLogsConfirmOpen, setIsClearLogsConfirmOpen] = useState(false);
 
   // Modal Form State
   const [formData, setFormData] = useState({
@@ -54,7 +57,7 @@ export const RecurringRemindersSection = () => {
 
   const [emailInput, setEmailInput] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [formErrors, setFormErrors] = useState({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const currencySymbol = useMemo(() => {
     return activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹';
@@ -194,19 +197,11 @@ export const RecurringRemindersSection = () => {
               recipients: [...reminder.emails],
               dueDate: reminder.nextDate,
               sentAt: new Date().toISOString(),
-              status: reminder.emails.length > 0 ? 'delivered' : 'failed_no_recipients'
+              status: 'simulated'
             };
 
             updatedLogs.unshift(newLog);
             logsUpdated = true;
-
-            // Trigger visual UI notification
-            if (reminder.emails.length > 0) {
-              showToast(`🔔 Email alert sent for "${reminder.title}" to ${reminder.emails[0]}`, 'info');
-              sendRealEmail(reminder);
-            } else {
-              showToast(`⚠️ Reminder due for "${reminder.title}" but no recipient emails configured!`, 'warning');
-            }
 
             // If the nextDate is already in the past, update the reminder's next date for its next cycle
             if (daysDiff < 0) {
@@ -269,7 +264,7 @@ export const RecurringRemindersSection = () => {
     activeReminders.forEach(r => {
       const nextDate = new Date(r.nextDate);
       nextDate.setHours(0, 0, 0, 0);
-      const days = Math.ceil((nextDate - today) / (1000 * 3600 * 24));
+      const days = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
       if (days >= 0 && days < minDays) {
         minDays = days;
         nextReminder = { ...r, daysRemaining: days };
@@ -441,23 +436,28 @@ export const RecurringRemindersSection = () => {
   };
 
   // Delete a reminder
-  const handleDeleteReminder = async (id) => {
-    if (window.confirm('Are you sure you want to delete this recurring reminder?')) {
-      try {
-        await deleteRecurringReminder(id);
-        showToast('Recurring reminder deleted', 'success');
-        loadData();
-      } catch (e) {
-        console.error('Failed to delete reminder', e);
-        showToast('Failed to delete reminder', 'error');
-      }
+  const handleDeleteReminder = (id) => {
+    setDeleteReminderId(id);
+  };
+
+  const handleConfirmDeleteReminder = async () => {
+    if (!deleteReminderId) return;
+    try {
+      await deleteRecurringReminder(deleteReminderId);
+      showToast('Recurring reminder deleted', 'success');
+      loadData();
+    } catch (e) {
+      console.error('Failed to delete reminder', e);
+      showToast('Failed to delete reminder', 'error');
+    } finally {
+      setDeleteReminderId(null);
     }
   };
 
   // Submit Modal Form
   const handleSubmitForm = async (e) => {
     e.preventDefault();
-    const errors = {};
+    const errors: Record<string, string> = {};
     if (!formData.title.trim()) errors.title = 'Title is required.';
     if (!formData.amount || parseFloat(formData.amount) <= 0) errors.amount = 'Valid amount is required.';
     if (!formData.nextDate) errors.nextDate = 'Next date is required.';
@@ -475,7 +475,7 @@ export const RecurringRemindersSection = () => {
       amount: parseFloat(formData.amount),
       frequency: formData.frequency,
       nextDate: formData.nextDate,
-      reminderDaysBefore: parseInt(formData.reminderDaysBefore) || 1,
+      reminderDaysBefore: formData.reminderDaysBefore,
       emails: [...formData.emails],
       status: formData.status
     };
@@ -493,11 +493,14 @@ export const RecurringRemindersSection = () => {
 
   // Clear simulated email history logs
   const handleClearLogs = () => {
-    if (window.confirm('Clear all simulated email notification logs?')) {
-      localStorage.removeItem(`simulated_email_logs_${activeCompany.id}`);
-      setEmailLogs([]);
-      showToast('Email logs cleared', 'success');
-    }
+    setIsClearLogsConfirmOpen(true);
+  };
+
+  const handleConfirmClearLogs = () => {
+    localStorage.removeItem(`simulated_email_logs_${activeCompany.id}`);
+    setEmailLogs([]);
+    showToast('Email logs cleared', 'success');
+    setIsClearLogsConfirmOpen(false);
   };
 
   return (
@@ -673,7 +676,7 @@ export const RecurringRemindersSection = () => {
                 </thead>
                 <tbody className="divide-y divide-[#f1f3f9] text-[11px]">
                   {reminders.map((rem) => {
-                    const daysLeft = Math.ceil((new Date(rem.nextDate) - new Date().setHours(0,0,0,0)) / (1000*3600*24));
+                    const daysLeft = Math.ceil((new Date(rem.nextDate).getTime() - new Date().setHours(0,0,0,0)) / (1000*3600*24));
                     const isOverdue = daysLeft < 0;
 
                     return (
@@ -1048,6 +1051,27 @@ export const RecurringRemindersSection = () => {
           </div>
         </div>
       )}
+
+      {/* Custom Confirmation Modals */}
+      <ConfirmModal
+        isOpen={!!deleteReminderId}
+        onClose={() => setDeleteReminderId(null)}
+        onConfirm={handleConfirmDeleteReminder}
+        title="Delete Recurring Reminder"
+        message="Are you sure you want to delete this recurring reminder? This action cannot be undone."
+        confirmText="Delete"
+        confirmVariant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={isClearLogsConfirmOpen}
+        onClose={() => setIsClearLogsConfirmOpen(false)}
+        onConfirm={handleConfirmClearLogs}
+        title="Clear Dispatch Logs"
+        message="Are you sure you want to clear all simulated email notification logs? This action cannot be undone."
+        confirmText="Clear Logs"
+        confirmVariant="danger"
+      />
 
     </div>
   );

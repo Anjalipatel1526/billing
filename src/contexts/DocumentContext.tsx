@@ -4,7 +4,9 @@ import {
   saveDocument as dbSaveDocument, 
   deleteDocument as dbDeleteDocument,
   getDocumentById,
-  rowToDoc
+  rowToDoc,
+  deleteExpense,
+  getAllExpenses
 } from '../services/db';
 import { useCompany } from './CompanyContext';
 import { generateNextDocNumber } from '../utils/documentNumber';
@@ -42,7 +44,8 @@ export const DocumentProvider = ({ children }) => {
   const saveDoc = async (docData) => {
     if (!activeCompany) throw new Error('No active company selected');
 
-    const isNew = !docData.id || !documents.some(d => d.id === docData.id);
+    const existingDoc = docData.id ? documents.find(d => d.id === docData.id) : null;
+    const isNew = !existingDoc;
     const now = new Date().toISOString();
     
     let docNumber = docData.documentNumber;
@@ -63,7 +66,7 @@ export const DocumentProvider = ({ children }) => {
       id: docData.id || `doc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       companyId: activeCompany.id,
       documentNumber: docNumber,
-      createdAt: docData.createdAt || now,
+      createdAt: docData.createdAt || existingDoc?.createdAt || now,
       updatedAt: now,
       status: docData.status || 'Pending'
     };
@@ -87,6 +90,20 @@ export const DocumentProvider = ({ children }) => {
 
   const removeDoc = async (id) => {
     await dbDeleteDocument(id);
+    
+    // Also delete any corresponding expense from the database
+    if (activeCompany?.id) {
+      try {
+        const allExpenses = await getAllExpenses(activeCompany.id);
+        const relatedExpense = allExpenses.find(e => e.documentId === id);
+        if (relatedExpense) {
+          await deleteExpense(relatedExpense.id);
+        }
+      } catch (err) {
+        console.error('Failed to delete related expense:', err);
+      }
+    }
+
     setDocuments(prev => prev.filter(d => d.id !== id));
   };
 

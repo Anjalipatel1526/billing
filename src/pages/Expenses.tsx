@@ -33,6 +33,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/formatting';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
 
 const CATEGORIES = [
   { value: 'Office Supplies', label: 'Office Supplies', color: 'blue', icon: Briefcase },
@@ -54,6 +55,7 @@ export const Expenses = () => {
   const printRef = useRef(null);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
 
   // Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,6 +64,7 @@ export const Expenses = () => {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [lastUsedProject, setLastUsedProject] = useState('');
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
@@ -192,10 +195,15 @@ export const Expenses = () => {
   // Add Expense
   const handleAddExpense = async (e) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!newExpense.particulars.trim() || !newExpense.amount) {
       showToast('Please fill in particulars and amount', 'warning');
       return;
     }
+
+    // Close the modal immediately so it disappears from the UI
+    setIsModalOpen(false);
+    setIsSaving(true);
 
     try {
       const expId = `exp_${Date.now()}`;
@@ -233,8 +241,6 @@ export const Expenses = () => {
       // Store as last used project
       setLastUsedProject(newExpense.projectEvent);
       
-      setIsModalOpen(false);
-      
       // Reset form (keeping project values ready for next time handleOpenModal is called)
       setNewExpense({
         particulars: '',
@@ -249,15 +255,23 @@ export const Expenses = () => {
     } catch (err) {
       console.error(err);
       showToast('Failed to save expense', 'error');
+      // Re-open modal so user doesn't lose their data
+      setIsModalOpen(true);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   // Delete Expense
-  const handleDeleteExpense = async (id) => {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
+  const handleDeleteExpense = (id) => {
+    setDeleteExpenseId(id);
+  };
+
+  const handleConfirmDeleteExpense = async () => {
+    if (!deleteExpenseId) return;
     try {
-      const expenseToDelete = expenses.find(e => e.id === id);
-      await deleteExpense(id);
+      const expenseToDelete = expenses.find(e => e.id === deleteExpenseId);
+      await deleteExpense(deleteExpenseId);
 
       // Attempt to delete corresponding document representation if it exists
       if (expenseToDelete && expenseToDelete.documentId) {
@@ -267,9 +281,9 @@ export const Expenses = () => {
           console.warn('Corresponding document could not be deleted:', err);
         }
       } else {
-        // Fallback to check if a legacy doc exists with id `doc_${id}`
+        // Fallback to check if a legacy doc exists with id `doc_${deleteExpenseId}`
         try {
-          await removeDoc(`doc_${id}`);
+          await removeDoc(`doc_${deleteExpenseId}`);
         } catch (e) {}
       }
 
@@ -278,6 +292,8 @@ export const Expenses = () => {
     } catch (err) {
       console.error(err);
       showToast('Failed to delete expense', 'error');
+    } finally {
+      setDeleteExpenseId(null);
     }
   };
 
@@ -377,7 +393,7 @@ export const Expenses = () => {
             <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Company Expenses</h1>
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Track, categorize, and assign expenses to projects or events.</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleExportCSV}
               className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-4 py-3 rounded-2xl shadow-xs transition-all cursor-pointer"
@@ -868,21 +884,41 @@ export const Expenses = () => {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 px-4 py-3 border border-slate-200 rounded-2xl text-xs font-bold text-slate-500 hover:bg-slate-50 transition-all cursor-pointer text-center"
+                    disabled={isSaving}
+                    className="flex-1 px-4 py-3 border border-slate-200 rounded-2xl text-xs font-bold text-slate-500 hover:bg-slate-50 transition-all cursor-pointer text-center disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition-all cursor-pointer text-center"
+                    disabled={isSaving}
+                    className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition-all cursor-pointer text-center disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                   >
-                    Save Expense
+                    {isSaving ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Save Expense</span>
+                    )}
                   </button>
                 </div>
               </form>
             </div>
           </div>
         )}
+
+        {/* Custom Confirmation Popup Modal */}
+        <ConfirmModal
+          isOpen={!!deleteExpenseId}
+          onClose={() => setDeleteExpenseId(null)}
+          onConfirm={handleConfirmDeleteExpense}
+          title="Delete Expense"
+          message="Are you sure you want to delete this expense? This action cannot be undone."
+          confirmText="Delete"
+          confirmVariant="danger"
+        />
 
         {/* Hidden PDF Printable Wrapper */}
         <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
