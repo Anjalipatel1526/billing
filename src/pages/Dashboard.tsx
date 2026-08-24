@@ -22,7 +22,13 @@ import {
   Megaphone,
   FolderOpen,
   Sparkles,
-  X
+  X,
+  LayoutDashboard,
+  BookOpen,
+  Wallet,
+  Bell,
+  Trash2,
+  Settings
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import GradientWaves from '../components/ui/GradientWaves';
@@ -198,6 +204,163 @@ export const Dashboard = () => {
     };
     loadDashboardData();
   }, [activeCompany?.id, documents]);
+
+  const renderQuickActions = (isMobile = false) => {
+    if (isMobile) {
+      return (
+        <div className="bg-white border border-[#f1f3f9] rounded-3xl p-4.5 shadow-xs flex flex-col gap-4 items-center">
+          {/* Row 1: Existing Quick Actions */}
+          <div className="flex flex-row flex-wrap justify-center items-center gap-3.5 w-full">
+            <button
+              onClick={() => navigate('/settings')}
+              className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-blue-100/30"
+              title="Create Admin"
+            >
+              <UserPlus className="w-5 h-5 stroke-[2.2]" />
+            </button>
+
+            <button
+              onClick={() => navigate('/documents/new?type=invoice')}
+              className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-emerald-100/30"
+              title="New Invoice"
+            >
+              <FileText className="w-5 h-5 stroke-[2.2]" />
+            </button>
+
+            <button
+              onClick={() => showToast('Announcement feature selected', 'info')}
+              className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-purple-100/30"
+              title="Add Announcement"
+            >
+              <Megaphone className="w-5 h-5 stroke-[2.2]" />
+            </button>
+
+            <button
+              onClick={() => navigate('/documents')}
+              className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-blue-100/30"
+              title="Manage Files"
+            >
+              <FolderOpen className="w-5 h-5 stroke-[2.2]" />
+            </button>
+
+            <button
+              onClick={() => navigate('/ledger')}
+              className="w-12 h-12 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-orange-100/30"
+              title="System Reports"
+            >
+              <TrendingUp className="w-5 h-5 stroke-[2.2]" />
+            </button>
+          </div>
+
+          {/* Divider line between quick actions and sidebar sections */}
+          <div className="border-t border-slate-100 w-full" />
+
+          {/* Row 2: Sidebar Navigation Sections */}
+          <div className="flex flex-row flex-wrap justify-center items-center gap-3.5 w-full">
+            <button
+              onClick={() => navigate('/ledger')}
+              className="w-12 h-12 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-orange-100/30"
+              title="Ledger"
+            >
+              <BookOpen className="w-5 h-5 stroke-[2.2]" />
+            </button>
+
+            <button
+              onClick={() => navigate('/expenses')}
+              className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-rose-100/30"
+              title="Expenses"
+            >
+              <Wallet className="w-5 h-5 stroke-[2.2]" />
+            </button>
+
+            <button
+              onClick={() => navigate('/recurring')}
+              className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-purple-100/30"
+              title="Recurring"
+            >
+              <Bell className="w-5 h-5 stroke-[2.2]" />
+            </button>
+
+            <button
+              onClick={() => navigate('/recycle-bin')}
+              className="w-12 h-12 rounded-full bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-red-100/30"
+              title="Recycle Bin"
+            >
+              <Trash2 className="w-5 h-5 stroke-[2.2]" />
+            </button>
+
+            <button
+              onClick={() => navigate('/settings')}
+              className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-blue-100/30"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5 stroke-[2.2]" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white border border-[#f1f3f9] rounded-3xl p-6 shadow-xs">
+        <h3 className="font-extrabold text-slate-900 text-[15px] tracking-tight pb-3 border-b border-slate-100">
+          Quick Actions
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+          <button
+            onClick={() => navigate('/settings')}
+            className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+          >
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <UserPlus className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold text-slate-700">Create Admin</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/documents/new?type=invoice')}
+            className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+          >
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <FileText className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold text-slate-700">New Invoice</span>
+          </button>
+
+          <button
+            onClick={() => showToast('Announcement feature selected', 'info')}
+            className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+          >
+            <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+              <Megaphone className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold text-slate-700">Add Announcement</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/documents')}
+            className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+          >
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <FolderOpen className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold text-slate-700">Manage Files</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/ledger')}
+            className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98] sm:col-span-2"
+          >
+            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold text-slate-700">System Reports</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   // Time based greeting
   const greeting = useMemo(() => {
@@ -511,14 +674,19 @@ export const Dashboard = () => {
           </div>
         </div>
 
+        {/* Quick Actions (Mobile-only: appears after the Create Invoice button on mobile) */}
+        <div className="block lg:hidden">
+          {renderQuickActions(true)}
+        </div>
+
         {/* Stat Cards (6 Cards Grid) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
           {/* Card 1: Recurring Income (Yearly) */}
           <div 
             onMouseEnter={() => setRecurringIncomeYearlyTrigger(prev => prev + 1)}
             onTouchStart={() => setRecurringIncomeYearlyTrigger(prev => prev + 1)}
             onClick={() => navigate('/recurring')}
-            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-2 sm:col-span-1"
           >
             <CircularProgress 
               percent={stats.recurringIncomeYearlyPercent}
@@ -544,7 +712,7 @@ export const Dashboard = () => {
             onMouseEnter={() => setInvoicedTrigger(prev => prev + 1)}
             onTouchStart={() => setInvoicedTrigger(prev => prev + 1)}
             onClick={() => navigate('/documents?type=invoice')}
-            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-1 sm:col-span-1"
           >
             <CircularProgress 
               percent={stats.totalInvoicedPercent}
@@ -570,7 +738,7 @@ export const Dashboard = () => {
             onMouseEnter={() => setOverdueTrigger(prev => prev + 1)}
             onTouchStart={() => setOverdueTrigger(prev => prev + 1)}
             onClick={() => navigate('/documents?status=Overdue')}
-            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-1 sm:col-span-1"
           >
             <CircularProgress 
               percent={stats.overduePercent}
@@ -596,7 +764,7 @@ export const Dashboard = () => {
             onMouseEnter={() => setRecurringIncomeTrigger(prev => prev + 1)}
             onTouchStart={() => setRecurringIncomeTrigger(prev => prev + 1)}
             onClick={() => navigate('/recurring')}
-            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-1 sm:col-span-1"
           >
             <CircularProgress 
               percent={stats.recurringIncomePercent}
@@ -622,7 +790,7 @@ export const Dashboard = () => {
             onMouseEnter={() => setRecurringOutcomeTrigger(prev => prev + 1)}
             onTouchStart={() => setRecurringOutcomeTrigger(prev => prev + 1)}
             onClick={() => navigate('/recurring')}
-            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-1 sm:col-span-1"
           >
             <CircularProgress 
               percent={stats.recurringOutcomePercent}
@@ -648,7 +816,7 @@ export const Dashboard = () => {
             onMouseEnter={() => setExpensesTrigger(prev => prev + 1)}
             onTouchStart={() => setExpensesTrigger(prev => prev + 1)}
             onClick={() => navigate('/expenses')}
-            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+            className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-2 sm:col-span-1"
           >
             <CircularProgress 
               percent={stats.expensesPercent}
@@ -830,63 +998,9 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white border border-[#f1f3f9] rounded-3xl p-6 shadow-xs">
-            <h3 className="font-extrabold text-slate-900 text-[15px] tracking-tight pb-3 border-b border-slate-100">
-              Quick Actions
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-              <button
-                onClick={() => navigate('/settings')}
-                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
-              >
-                <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                  <UserPlus className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-700">Create Admin</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/documents/new?type=invoice')}
-                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
-              >
-                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-700">New Invoice</span>
-              </button>
-
-              <button
-                onClick={() => showToast('Announcement feature selected', 'info')}
-                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
-              >
-                <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                  <Megaphone className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-700">Add Announcement</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/documents')}
-                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
-              >
-                <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                  <FolderOpen className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-700">Manage Files</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/ledger')}
-                className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98] sm:col-span-2"
-              >
-                <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-700">System Reports</span>
-              </button>
-            </div>
+          {/* Quick Actions (Desktop/Tablet-only: hidden on mobile) */}
+          <div className="hidden lg:block">
+            {renderQuickActions()}
           </div>
         </div>
 
