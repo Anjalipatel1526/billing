@@ -945,8 +945,22 @@ export async function getAllExpenses(companyId: string | null = null) {
     }
   }
   
-  // Sort by date descending
-  expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // Sort by date descending and createdAt/id descending to show new expenses first
+  expenses.sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    if (dateB !== dateA) {
+      return dateB - dateA;
+    }
+    
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    if (timeB !== timeA) {
+      return timeB - timeA;
+    }
+    
+    return String(b.id).localeCompare(String(a.id));
+  });
 
   queryCache.expenses[cacheKey] = {
     data: expenses,
