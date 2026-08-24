@@ -31,7 +31,9 @@ import {
   FileText,
   ChevronDown,
   TrendingUp,
-  Settings
+  Settings,
+  Eye,
+  Printer
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/formatting';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -57,6 +59,8 @@ export const Expenses = () => {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
+  const [showExpensePreviewModal, setShowExpensePreviewModal] = useState(false);
+  const [expenseReportType, setExpenseReportType] = useState<'pdf' | 'excel' | null>(null);
 
   // Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -482,6 +486,111 @@ export const Expenses = () => {
     return cat ? cat.icon : Coins;
   };
 
+  const renderExpenseReportContent = () => {
+    return (
+      <div className="space-y-6 text-left relative z-10">
+        {/* Watermark logo */}
+        {activeCompany?.watermarkLogo && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+            <img
+              src={activeCompany.watermarkLogo}
+              alt="Watermark"
+              className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
+            />
+          </div>
+        )}
+
+        {/* Report Header */}
+        <div className="flex justify-between items-start border-b border-slate-200 pb-4">
+          <div className="flex items-center gap-3">
+            {activeCompany?.logo ? (
+              <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain border p-1" />
+            ) : (
+              <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base">
+                {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
+              </div>
+            )}
+            <div>
+              <h1 className="text-sm font-extrabold text-slate-900 uppercase tracking-tight">{activeCompany?.companyName || 'Expenses Report'}</h1>
+              <p className="text-[9px] text-slate-500">{activeCompany?.address}</p>
+              <p className="text-[9px] text-slate-500">Phone: {activeCompany?.phone} | Email: {activeCompany?.email}</p>
+              {activeCompany?.gstNumber && <p className="text-[9px] text-slate-500 font-mono">GSTIN: {activeCompany.gstNumber}</p>}
+            </div>
+          </div>
+          <div className="text-right">
+            <h2 className="text-base font-black text-rose-600 uppercase tracking-wider">Expense Report</h2>
+            <p className="text-[9px] text-slate-500 font-bold mt-0.5">Project/Event: {selectedProject === 'all' ? 'All Projects & Events' : selectedProject}</p>
+            <p className="text-[9px] text-slate-500 font-bold">Category: {selectedCategory === 'all' ? 'All Categories' : selectedCategory}</p>
+            <p className="text-[8px] text-slate-400">Generated: {new Date().toLocaleDateString()}</p>
+          </div>
+        </div>
+
+        {/* Metrics */}
+        <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase font-mono">Total Expenses Amount</p>
+            <p className="text-xs font-black text-rose-600 mt-0.5">
+              {formatCurrency(filteredExpenses.reduce((sum, e) => sum + e.amount, 0), currencySymbol)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase font-mono">Total Item Count</p>
+            <p className="text-xs font-black text-slate-900 mt-0.5">{filteredExpenses.length} transactions</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase font-mono">Average Transaction Size</p>
+            <p className="text-xs font-black text-blue-600 mt-0.5">
+              {formatCurrency(
+                filteredExpenses.length > 0 
+                  ? filteredExpenses.reduce((sum, e) => sum + e.amount, 0) / filteredExpenses.length 
+                  : 0,
+                currencySymbol
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Table */}
+        <table className="w-full text-left border-collapse text-[10px]">
+          <thead>
+            <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[8px]">
+              <th className="py-2 px-3">Date</th>
+              <th className="py-2 px-3">Category</th>
+              <th className="py-2 px-3">Particulars / Description</th>
+              <th className="py-2 px-3">Project / Event</th>
+              <th className="py-2 px-3">Method</th>
+              <th className="py-2 px-3 text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 font-medium">
+            {filteredExpenses.map((row, idx) => (
+              <tr key={idx}>
+                <td className="py-2 px-3 text-slate-500">{formatDate(row.date)}</td>
+                <td className="py-2 px-3 text-slate-700 font-semibold">{row.category}</td>
+                <td className="py-2 px-3 text-slate-800">{row.particulars}</td>
+                <td className="py-2 px-3 text-slate-600 font-mono text-[9px]">{row.projectEvent || 'General Office'}</td>
+                <td className="py-2 px-3 text-slate-500 uppercase text-[9px]">{row.paidVia || 'Cash'}</td>
+                <td className="py-2 px-3 text-right text-rose-600 font-extrabold">{formatCurrency(row.amount, currencySymbol)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Signatures */}
+        <div className="pt-12 flex justify-between">
+          <div>
+            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Report Authorization</p>
+            <p className="text-[8px] text-slate-400 mt-1">Generated automatically | Verified ledger representation</p>
+          </div>
+          <div className="text-right border-t border-slate-300 pt-2 pr-6">
+            <p className="font-extrabold text-slate-900">{activeCompany?.companyName}</p>
+            <p className="text-[9px] text-slate-400 mt-0.5">Authorised Signatory</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <MainLayout title="Expenses">
       <div className="space-y-6">
@@ -494,7 +603,14 @@ export const Expenses = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={handleExportCSV}
+              onClick={() => {
+                if (filteredExpenses.length === 0) {
+                  showToast('No expenses found for the current filters to export.', 'warning');
+                  return;
+                }
+                setExpenseReportType('excel');
+                setShowExpensePreviewModal(true);
+              }}
               className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-4 py-3 rounded-2xl shadow-xs transition-all cursor-pointer"
               title="Export Current Expenses to Excel CSV"
             >
@@ -502,7 +618,14 @@ export const Expenses = () => {
               <span>Export Excel</span>
             </button>
             <button
-              onClick={handleExportPDF}
+              onClick={() => {
+                if (filteredExpenses.length === 0) {
+                  showToast('No expenses found for the current filters to export.', 'warning');
+                  return;
+                }
+                setExpenseReportType('pdf');
+                setShowExpensePreviewModal(true);
+              }}
               className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-4 py-3 rounded-2xl shadow-xs transition-all cursor-pointer"
               title="Download Current Expenses PDF Statement"
             >
@@ -1182,107 +1305,109 @@ export const Expenses = () => {
         {/* Hidden PDF Printable Wrapper */}
         <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>
           <div ref={printRef} className="p-8 w-[210mm] min-h-[295mm] bg-white font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden">
-            
-            {/* Watermark logo */}
-            {activeCompany?.watermarkLogo && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                <img
-                  src={activeCompany.watermarkLogo}
-                  alt="Watermark"
-                  className="w-96 h-96 object-contain opacity-[0.08] grayscale contrast-200"
-                />
-              </div>
-            )}
-
-            {/* Report Header */}
-            <div className="flex justify-between items-start border-b border-slate-200 pb-4 relative z-10">
-              <div className="flex items-center gap-3">
-                {activeCompany?.logo ? (
-                  <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain border p-1" />
-                ) : (
-                  <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base">
-                    {activeCompany?.companyName ? activeCompany.companyName.charAt(0).toUpperCase() : 'C'}
-                  </div>
-                )}
-                <div>
-                  <h1 className="text-sm font-extrabold text-slate-900 uppercase tracking-tight">{activeCompany?.companyName || 'Expenses Report'}</h1>
-                  <p className="text-[9px] text-slate-500">{activeCompany?.address}</p>
-                  <p className="text-[9px] text-slate-500">Phone: {activeCompany?.phone} | Email: {activeCompany?.email}</p>
-                  {activeCompany?.gstNumber && <p className="text-[9px] text-slate-500 font-mono">GSTIN: {activeCompany.gstNumber}</p>}
-                </div>
-              </div>
-              <div className="text-right">
-                <h2 className="text-base font-black text-rose-600 uppercase tracking-wider">Expense Report</h2>
-                <p className="text-[9px] text-slate-500 font-bold mt-0.5">Project/Event: {selectedProject === 'all' ? 'All Projects & Events' : selectedProject}</p>
-                <p className="text-[9px] text-slate-500 font-bold">Category: {selectedCategory === 'all' ? 'All Categories' : selectedCategory}</p>
-                <p className="text-[8px] text-slate-400">Generated: {new Date().toLocaleDateString()}</p>
-              </div>
-            </div>
-
-            {/* Metrics */}
-            <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 relative z-10">
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase font-mono">Total Expenses Amount</p>
-                <p className="text-xs font-black text-rose-600 mt-0.5">
-                  {formatCurrency(filteredExpenses.reduce((sum, e) => sum + e.amount, 0), currencySymbol)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase font-mono">Total Item Count</p>
-                <p className="text-xs font-black text-slate-900 mt-0.5">{filteredExpenses.length} transactions</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase font-mono">Average Transaction Size</p>
-                <p className="text-xs font-black text-blue-600 mt-0.5">
-                  {formatCurrency(
-                    filteredExpenses.length > 0 
-                      ? filteredExpenses.reduce((sum, e) => sum + e.amount, 0) / filteredExpenses.length 
-                      : 0,
-                    currencySymbol
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {/* Table */}
-            <table className="w-full text-left border-collapse text-[10px] relative z-10">
-              <thead>
-                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[8px]">
-                  <th className="py-2 px-3">Date</th>
-                  <th className="py-2 px-3">Category</th>
-                  <th className="py-2 px-3">Particulars / Description</th>
-                  <th className="py-2 px-3">Project / Event</th>
-                  <th className="py-2 px-3">Method</th>
-                  <th className="py-2 px-3 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 font-medium">
-                {filteredExpenses.map((row, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2 px-3 text-slate-500">{formatDate(row.date)}</td>
-                    <td className="py-2 px-3 text-slate-700 font-semibold">{row.category}</td>
-                    <td className="py-2 px-3 text-slate-800">{row.particulars}</td>
-                    <td className="py-2 px-3 text-slate-600 font-mono text-[9px]">{row.projectEvent || 'General Office'}</td>
-                    <td className="py-2 px-3 text-slate-500 uppercase text-[9px]">{row.paidVia || 'Cash'}</td>
-                    <td className="py-2 px-3 text-right text-rose-600 font-extrabold">{formatCurrency(row.amount, currencySymbol)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Signatures */}
-            <div className="pt-12 flex justify-between relative z-10">
-              <div>
-                <p className="text-[8px] text-slate-400">Generated automatically | Verified ledger representation</p>
-              </div>
-              <div className="text-right border-t border-slate-300 pt-2 pr-6">
-                <p className="font-extrabold text-slate-900">{activeCompany?.companyName}</p>
-                <p className="text-[9px] text-slate-400 mt-0.5">Authorised Signatory</p>
-              </div>
-            </div>
-
+            {renderExpenseReportContent()}
           </div>
         </div>
+
+        {/* Expense Report Preview Modal */}
+        {showExpensePreviewModal && expenseReportType && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200 text-left">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-bold text-slate-800 text-sm">
+                    {expenseReportType === 'pdf' && 'Expense Statement Preview'}
+                    {expenseReportType === 'excel' && 'Excel Report Preview'}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setShowExpensePreviewModal(false);
+                      setExpenseReportType(null);
+                    }}
+                    className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
+                  >
+                    Close Preview
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 bg-slate-200/80 p-6 overflow-auto flex justify-center items-start">
+                {expenseReportType === 'pdf' && (
+                  <div className="bg-white shadow-md rounded-xl p-2 max-w-[210mm] w-full text-xs">
+                    <div className="p-8 w-[210mm] min-h-[295mm] bg-white font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden">
+                      {renderExpenseReportContent()}
+                    </div>
+                  </div>
+                )}
+                {expenseReportType === 'excel' && (
+                  <div className="bg-white shadow-md rounded-xl p-6 w-full max-w-4xl overflow-x-auto">
+                    <h4 className="font-bold text-slate-800 text-sm mb-4">Export Preview (CSV Data Rows)</h4>
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
+                          <th className="py-2 px-3">Date</th>
+                          <th className="py-2 px-3">Category</th>
+                          <th className="py-2 px-3">Particulars / Description</th>
+                          <th className="py-2 px-3">Project / Event</th>
+                          <th className="py-2 px-3">Paid Via</th>
+                          <th className="py-2 px-3 text-right">Amount ({currencySymbol})</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {filteredExpenses.map((e, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="py-2 px-3 text-slate-500">{formatDate(e.date)}</td>
+                            <td className="py-2 px-3 text-slate-700 font-semibold">{e.category}</td>
+                            <td className="py-2 px-3 text-slate-800">{e.particulars}</td>
+                            <td className="py-2 px-3 text-slate-600 font-mono text-[9px]">{e.projectEvent || 'General Office'}</td>
+                            <td className="py-2 px-3 text-slate-500 uppercase text-[9px]">{e.paidVia || 'Cash'}</td>
+                            <td className="py-2 px-3 text-right text-rose-600 font-extrabold">{formatCurrency(e.amount, currencySymbol)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-slate-50/80 font-bold border-t border-slate-200 text-slate-900">
+                          <td className="py-3 px-3 uppercase" colSpan={5}>TOTAL EXPENSES</td>
+                          <td className="py-3 px-3 text-right text-rose-600 font-black">
+                            {formatCurrency(filteredExpenses.reduce((sum, e) => sum + e.amount, 0), currencySymbol)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end gap-2">
+                {expenseReportType !== 'excel' && (
+                  <button
+                    onClick={() => {
+                      handleExportPDF();
+                    }}
+                    className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4 text-slate-500" />
+                    Print
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (expenseReportType === 'pdf') handleExportPDF();
+                    else if (expenseReportType === 'excel') handleExportCSV();
+                  }}
+                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+                >
+                  <Download className="w-4 h-4" />
+                  {expenseReportType === 'excel' ? 'Download Excel (CSV)' : 'Download PDF'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </MainLayout>

@@ -340,7 +340,7 @@ export const CreateDocument = () => {
             <Button variant="outline" icon={Save} onClick={handleSave}>
               Save Document
             </Button>
-            <Button icon={Download} onClick={handleDownload}>
+            <Button icon={Download} onClick={() => setShowPreviewModal(true)}>
               Download PDF
             </Button>
           </div>

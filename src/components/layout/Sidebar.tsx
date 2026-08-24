@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, BookOpen, ChevronLeft, Wallet, Bell, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, BookOpen, ChevronLeft, Wallet, Bell, LogOut, Trash2 } from 'lucide-react';
 import { useCompany } from '../../contexts/CompanyContext';
 
 
@@ -37,6 +37,7 @@ export const Sidebar = ({ className = '', onCollapse }) => {
     { label: 'Ledger', path: '/ledger', icon: BookOpen },
     { label: 'Expenses', path: '/expenses', icon: Wallet },
     { label: 'Recurring', path: '/recurring', icon: Bell },
+    { label: 'Recycle Bin', path: '/recycle-bin', icon: Trash2 },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];
 

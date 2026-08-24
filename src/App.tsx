@@ -14,6 +14,7 @@ import { Ledger } from './pages/Ledger';
 import { PublicPreview } from './pages/PublicPreview';
 import { Expenses } from './pages/Expenses';
 import { Recurring } from './pages/Recurring';
+import { RecycleBin } from './pages/RecycleBin';
 
 import { 
   Shield, FileText, Receipt, CreditCard, BookOpen 
@@ -150,6 +151,7 @@ const AppRoutes = () => {
       <Route path="/ledger" element={hasCompany ? <Ledger /> : <Navigate to="/" replace />} />
       <Route path="/expenses" element={hasCompany ? <Expenses /> : <Navigate to="/" replace />} />
       <Route path="/recurring" element={hasCompany ? <Recurring /> : <Navigate to="/" replace />} />
+      <Route path="/recycle-bin" element={hasCompany ? <RecycleBin /> : <Navigate to="/" replace />} />
       <Route path="/settings" element={hasCompany ? <Settings /> : <Navigate to="/" replace />} />
       <Route path="/preview/:id" element={<PublicPreview />} />
       <Route path="*" element={<Navigate to="/" replace />} />

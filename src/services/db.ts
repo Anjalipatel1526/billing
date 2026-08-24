@@ -2,7 +2,7 @@ import { openDB } from 'idb';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DB_NAME = 'SaaSInvoiceDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 // --- IN-MEMORY CACHE FOR EGRESS OPTIMIZATION ---
 interface CacheEntry {
@@ -95,6 +95,11 @@ async function getDB() {
           const reminderStore = db.createObjectStore('recurring_reminders', { keyPath: 'id' });
           reminderStore.createIndex('companyId', 'companyId');
         }
+        if (!db.objectStoreNames.contains('recycle_bin')) {
+          const recycleStore = db.createObjectStore('recycle_bin', { keyPath: 'id' });
+          recycleStore.createIndex('companyId', 'companyId');
+          recycleStore.createIndex('deletedAt', 'deletedAt');
+        }
       },
     });
 
@@ -115,7 +120,8 @@ const LOCAL_STORAGE_KEYS = {
   COMPANIES: 'saas_billing_companies',
   DOCUMENTS: 'saas_billing_documents',
   EXPENSES: 'saas_billing_expenses',
-  ACTIVE_COMPANY: 'saas_billing_active_company_id'
+  ACTIVE_COMPANY: 'saas_billing_active_company_id',
+  RECYCLE_BIN: 'saas_billing_recycle_bin'
 };
 
 function getLocalJSON(key: string, defaultVal: any = []) {
@@ -705,6 +711,11 @@ export async function getDocumentById(id: string) {
 
 export async function deleteDocument(id: string, localOnly = false) {
   incrementDbVersion();
+  const doc = await getDocumentById(id);
+  if (doc) {
+    await moveToRecycleBin(id, 'document', doc, doc.companyId);
+  }
+
   if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('documents').delete().eq('id', id);
@@ -951,6 +962,24 @@ export async function saveExpense(expense: any, localOnly = false) {
 
 export async function deleteExpense(id: string, localOnly = false) {
   incrementDbVersion();
+  
+  let expense: any = null;
+  const db = await getDB();
+  if (db) {
+    try {
+      expense = await db.get('expenses', id);
+    } catch (e) {
+      console.error('IDB get expense error', e);
+    }
+  }
+  if (!expense) {
+    const list = getLocalJSON(LOCAL_STORAGE_KEYS.EXPENSES, []);
+    expense = list.find((e: any) => e.id === id) || null;
+  }
+  if (expense) {
+    await moveToRecycleBin(id, 'expense', expense, expense.companyId);
+  }
+
   if (isSupabaseConfigured() && !localOnly) {
     try {
       await supabase.from('expenses').delete().eq('id', id);
@@ -959,7 +988,6 @@ export async function deleteExpense(id: string, localOnly = false) {
     }
   }
 
-  const db = await getDB();
   if (db) {
     try {
       await db.delete('expenses', id);
@@ -1098,4 +1126,144 @@ export async function deleteRecurringReminder(id: string, localOnly = false) {
   const list = getLocalJSON('saas_billing_recurring_reminders', []);
   const filtered = list.filter(r => r.id !== id);
   setLocalJSON('saas_billing_recurring_reminders', filtered);
+}
+
+// ==========================================
+// Recycle Bin APIs
+// ==========================================
+
+export interface RecycleBinItem {
+  id: string;
+  type: 'document' | 'expense';
+  companyId: string;
+  deletedAt: string;
+  originalData: any;
+}
+
+export async function moveToRecycleBin(id: string, type: 'document' | 'expense', originalData: any, companyId: string) {
+  const item: RecycleBinItem = {
+    id,
+    type,
+    companyId,
+    deletedAt: new Date().toISOString(),
+    originalData
+  };
+
+  const db = await getDB();
+  if (db) {
+    try {
+      await db.put('recycle_bin', item);
+    } catch (e) {
+      console.error('IDB moveToRecycleBin error', e);
+    }
+  }
+
+  const list = getLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, []);
+  const idx = list.findIndex((i: any) => i.id === id);
+  if (idx >= 0) {
+    list[idx] = item;
+  } else {
+    list.push(item);
+  }
+  setLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, list);
+
+  return item;
+}
+
+export async function getRecycleBinItems(companyId: string) {
+  // First auto-clean old items
+  await autoCleanRecycleBin();
+
+  let items: RecycleBinItem[] = [];
+  const db = await getDB();
+  if (db) {
+    try {
+      items = await db.getAllFromIndex('recycle_bin', 'companyId', companyId);
+    } catch (e) {
+      console.error('IDB getRecycleBinItems error', e);
+    }
+  }
+
+  if (!items || items.length === 0) {
+    items = getLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, []);
+    items = items.filter((i: any) => i.companyId === companyId);
+  }
+
+  // Sort by deletedAt descending
+  return items.sort((a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime());
+}
+
+export async function restoreFromRecycleBin(id: string) {
+  // Find the item
+  let item: RecycleBinItem | null = null;
+  const db = await getDB();
+  if (db) {
+    try {
+      item = await db.get('recycle_bin', id);
+    } catch (e) {
+      console.error('IDB get from recycle_bin error', e);
+    }
+  }
+
+  if (!item) {
+    const list = getLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, []);
+    item = list.find((i: any) => i.id === id) || null;
+  }
+
+  if (!item) {
+    throw new Error('Item not found in Recycle Bin');
+  }
+
+  // Save back to original store
+  if (item.type === 'document') {
+    await saveDocument(item.originalData);
+  } else if (item.type === 'expense') {
+    await saveExpense(item.originalData);
+  }
+
+  // Delete from recycle bin
+  await deletePermanently(id);
+}
+
+export async function deletePermanently(id: string) {
+  const db = await getDB();
+  if (db) {
+    try {
+      await db.delete('recycle_bin', id);
+    } catch (e) {
+      console.error('IDB delete from recycle_bin error', e);
+    }
+  }
+
+  const list = getLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, []);
+  const filtered = list.filter((i: any) => i.id !== id);
+  setLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, filtered);
+}
+
+export async function autoCleanRecycleBin() {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const cutoffTime = thirtyDaysAgo.getTime();
+
+  const db = await getDB();
+  if (db) {
+    try {
+      const tx = db.transaction('recycle_bin', 'readwrite');
+      const store = tx.objectStore('recycle_bin');
+      const allItems = await store.getAll();
+      for (const item of allItems) {
+        if (new Date(item.deletedAt).getTime() < cutoffTime) {
+          await store.delete(item.id);
+        }
+      }
+      await tx.done;
+    } catch (e) {
+      console.error('IDB autoCleanRecycleBin error', e);
+    }
+  }
+
+  // Fallback / sync localStorage
+  const list = getLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, []);
+  const filtered = list.filter((item: any) => new Date(item.deletedAt).getTime() >= cutoffTime);
+  setLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, filtered);
 }

@@ -333,7 +333,7 @@ export const Documents = () => {
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDownload(doc)}
+                              onClick={() => setPreviewDoc(doc)}
                               className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
                               title="Download PDF"
                             >
