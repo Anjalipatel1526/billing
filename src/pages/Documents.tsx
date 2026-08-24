@@ -28,7 +28,10 @@ import {
   CreditCard,
   Receipt,
   Printer,
-  MoreVertical
+  MoreVertical,
+  Send,
+  Mail,
+  MessageSquare
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -40,6 +43,7 @@ export const Documents = () => {
 
   const { search } = useLocation();
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [shareDoc, setShareDoc] = useState<any>(null);
 
   useEffect(() => {
     const queryParams = new URLSearchParams(search);
@@ -361,9 +365,7 @@ export const Documents = () => {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setActiveMenuId(null);
-                                      const shareUrl = `${window.location.origin}/documents?preview=${doc.id}`;
-                                      navigator.clipboard.writeText(shareUrl);
-                                      showToast('Share link copied to clipboard!', 'success');
+                                      setShareDoc(doc);
                                     }}
                                     className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 cursor-pointer transition-colors"
                                   >
@@ -478,6 +480,106 @@ export const Documents = () => {
                 <Button icon={Download} onClick={() => handleDownload(previewDoc)}>
                   Download PDF
                 </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Social Media Share Modal */}
+        {shareDoc && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center mb-4.5">
+                <h3 className="font-bold text-slate-900 text-base">Share Document</h3>
+                <button
+                  onClick={() => setShareDoc(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+                Choose a platform to share document <span className="font-semibold text-slate-800">#{shareDoc.documentNumber}</span>:
+              </p>
+
+              {/* Grid of Social Media icons */}
+              <div className="grid grid-cols-4 gap-3 mb-5">
+                <button
+                  onClick={() => {
+                    const shareUrl = `${window.location.origin}/documents?preview=${shareDoc.id}`;
+                    const text = `Here is the document #${shareDoc.documentNumber}: ${shareUrl}`;
+                    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                  }}
+                  className="flex flex-col items-center gap-1.5 group cursor-pointer"
+                >
+                  <div className="w-11 h-11 rounded-full bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 flex items-center justify-center transition-colors shadow-xs border border-emerald-100/30">
+                    <MessageSquare className="w-4.5 h-4.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-slate-500">WhatsApp</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const shareUrl = `${window.location.origin}/documents?preview=${shareDoc.id}`;
+                    const text = `Document #${shareDoc.documentNumber}`;
+                    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`, '_blank');
+                  }}
+                  className="flex flex-col items-center gap-1.5 group cursor-pointer"
+                >
+                  <div className="w-11 h-11 rounded-full bg-sky-50 text-sky-600 group-hover:bg-sky-100 flex items-center justify-center transition-colors shadow-xs border border-sky-100/30">
+                    <Send className="w-4.5 h-4.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-slate-500">Telegram</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const shareUrl = `${window.location.origin}/documents?preview=${shareDoc.id}`;
+                    const subject = `Document #${shareDoc.documentNumber}`;
+                    const body = `Hi,\n\nPlease find the document #${shareDoc.documentNumber} here:\n${shareUrl}`;
+                    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+                  }}
+                  className="flex flex-col items-center gap-1.5 group cursor-pointer"
+                >
+                  <div className="w-11 h-11 rounded-full bg-rose-50 text-rose-600 group-hover:bg-rose-100 flex items-center justify-center transition-colors shadow-xs border border-rose-100/30">
+                    <Mail className="w-4.5 h-4.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-slate-500">Email</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const shareUrl = `${window.location.origin}/documents?preview=${shareDoc.id}`;
+                    const text = `Document #${shareDoc.documentNumber}`;
+                    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`, '_blank');
+                  }}
+                  className="flex flex-col items-center gap-1.5 group cursor-pointer"
+                >
+                  <div className="w-11 h-11 rounded-full bg-slate-900 text-white group-hover:bg-black flex items-center justify-center transition-colors shadow-xs">
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-semibold text-slate-500">Twitter / X</span>
+                </button>
+              </div>
+
+              {/* Direct link copy section */}
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-2.5 flex items-center justify-between gap-3">
+                <span className="text-[10px] text-slate-500 font-medium truncate select-all flex-1 pl-1">
+                  {`${window.location.origin}/documents?preview=${shareDoc.id}`}
+                </span>
+                <button
+                  onClick={() => {
+                    const shareUrl = `${window.location.origin}/documents?preview=${shareDoc.id}`;
+                    navigator.clipboard.writeText(shareUrl);
+                    showToast('Share link copied to clipboard!', 'success');
+                  }}
+                  className="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer active:scale-95 transition-all shrink-0 shadow-xs"
+                >
+                  Copy Link
+                </button>
               </div>
             </div>
           </div>
