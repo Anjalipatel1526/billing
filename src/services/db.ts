@@ -57,83 +57,8 @@ let dbFailed = false;
 let mockDataCleaned = false;
 
 async function checkAndCleanMockData(db: any) {
-  if (mockDataCleaned) return;
-  mockDataCleaned = true;
-  try {
-    const companies = await db.getAll('companies');
-    const mockCompanyIds = companies
-      .filter((c: any) => c && c.companyName && c.companyName.toLowerCase().includes('autobourn'))
-      .map((c: any) => c.id);
-
-    if (mockCompanyIds.length > 0) {
-      console.log('Detected mock company "Autobourn". Cleaning all mock data...');
-      
-      const tx = db.transaction(['companies', 'documents', 'expenses', 'recurring_reminders'], 'readwrite');
-      const companiesStore = tx.objectStore('companies');
-      const docsStore = tx.objectStore('documents');
-      const expensesStore = tx.objectStore('expenses');
-      const remindersStore = tx.objectStore('recurring_reminders');
-
-      for (const id of mockCompanyIds) {
-        await companiesStore.delete(id);
-      }
-      
-      const docs = await docsStore.getAll();
-      for (const d of docs) {
-        if (d && mockCompanyIds.includes(d.companyId)) {
-          await docsStore.delete(d.id);
-        }
-      }
-
-      const expenses = await expensesStore.getAll();
-      for (const e of expenses) {
-        if (e && mockCompanyIds.includes(e.companyId)) {
-          await expensesStore.delete(e.id);
-        }
-      }
-
-      const reminders = await remindersStore.getAll();
-      for (const r of reminders) {
-        if (r && mockCompanyIds.includes(r.companyId)) {
-          await remindersStore.delete(r.id);
-        }
-      }
-
-      await tx.done;
-
-      // Clean up localStorage
-      localStorage.removeItem('saas_billing_active_company_id');
-      
-      const localCompanies = localStorage.getItem('saas_billing_companies');
-      if (localCompanies) {
-        try {
-          const parsed = JSON.parse(localCompanies);
-          const filtered = parsed.filter((c: any) => c && c.companyName && !c.companyName.toLowerCase().includes('autobourn'));
-          localStorage.setItem('saas_billing_companies', JSON.stringify(filtered));
-        } catch (e) {}
-      }
-      
-      const localDocs = localStorage.getItem('saas_billing_documents');
-      if (localDocs) {
-        try {
-          const parsed = JSON.parse(localDocs);
-          const filtered = parsed.filter((d: any) => d && !mockCompanyIds.includes(d.companyId));
-          localStorage.setItem('saas_billing_documents', JSON.stringify(filtered));
-        } catch (e) {}
-      }
-
-      const localExpenses = localStorage.getItem('saas_billing_expenses');
-      if (localExpenses) {
-        try {
-          const parsed = JSON.parse(localExpenses);
-          const filtered = parsed.filter((e: any) => e && !mockCompanyIds.includes(e.companyId));
-          localStorage.setItem('saas_billing_expenses', JSON.stringify(filtered));
-        } catch (e) {}
-      }
-    }
-  } catch (err) {
-    console.warn('Error during silent mock data cleanup:', err);
-  }
+  // Disabled mock data cleanup to prevent active company session deletion on page refresh
+  return;
 }
 
 async function getDB() {

@@ -15,7 +15,6 @@ import {
   Search, 
   Trash2, 
   FolderKanban, 
-  DollarSign, 
   Calendar, 
   Tag, 
   X, 
@@ -526,7 +525,7 @@ export const Expenses = () => {
           <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
             <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <DollarSign className="w-6 h-6 stroke-[2.2]" />
+              <Coins className="w-6 h-6 stroke-[2.2]" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Total Expenses</p>
