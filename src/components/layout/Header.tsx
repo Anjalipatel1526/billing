@@ -40,19 +40,15 @@ export const Header = ({ onMenuToggle, isSidebarOpen, title }) => {
         <h2 className="font-bold text-slate-900 text-base md:text-lg tracking-tight">{title || 'Dashboard'}</h2>
       </div>
 
-      {/* Show active company logo and name on the right side if the sidebar is closed */}
       {!isSidebarOpen && activeCompany && (
-        <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200/60 rounded-xl pl-2 pr-3 py-1.5 animate-in fade-in slide-in-from-right duration-200">
+        <div className="flex items-center animate-in fade-in slide-in-from-right duration-200">
           {activeCompany.logo ? (
-            <img src={activeCompany.logo} alt="Logo" className="w-6 h-6 rounded-lg object-contain shrink-0 bg-white border border-slate-200 p-0.5" />
+            <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-xl object-contain shrink-0 bg-white shadow-sm border border-slate-100 p-0.5" />
           ) : (
-            <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
               {activeCompany.companyName?.charAt(0).toUpperCase() || 'C'}
             </div>
           )}
-          <span className="text-xs font-bold text-slate-800 tracking-tight" title={activeCompany.companyName}>
-            {getCleanCompanyName(activeCompany.companyName, activeCompany.businessType)}
-          </span>
         </div>
       )}
     </header>
