@@ -31,6 +31,11 @@ export const Ledger = () => {
   const { documents } = useDocument();
   const { showToast } = useToast();
   
+  const employeeJson = localStorage.getItem('activeEmployee');
+  const activeEmployee = employeeJson ? (() => {
+    try { return JSON.parse(employeeJson); } catch (e) { return null; }
+  })() : null;
+
   const printRef = useRef(null);
   const pdfRef = useRef(null);
   const advancePrintRef = useRef(null);
@@ -74,14 +79,17 @@ export const Ledger = () => {
     const loadExpensesData = async () => {
       if (!activeCompany?.id) return;
       try {
-        const data = await getAllExpenses(activeCompany.id);
+        let data = await getAllExpenses(activeCompany.id);
+        if (activeEmployee && !activeEmployee.isAdmin) {
+          data = data.filter(e => e.createdBy === activeEmployee.name);
+        }
         setExpenses(data);
       } catch (err) {
         console.error('Failed to load expenses for ledger:', err);
       }
     };
     loadExpensesData();
-  }, [activeCompany?.id]);
+  }, [activeCompany?.id, activeEmployee]);
 
   // Extract unique customer/party names from all documents and expenses
   const parties = useMemo(() => {
@@ -89,6 +97,7 @@ export const Ledger = () => {
     documents.forEach(d => {
       const companySpecific = !d.companyId || !activeCompany?.id || d.companyId === activeCompany.id;
       if (companySpecific) {
+        if (activeEmployee && !activeEmployee.isAdmin && d.createdBy !== activeEmployee.name) return;
         const name = d.customer?.customerName || d.paidTo || d.receivedFrom;
         if (name && name.trim()) {
           names.add(name.trim());
@@ -98,13 +107,14 @@ export const Ledger = () => {
     expenses.forEach(e => {
       const companySpecific = !e.companyId || !activeCompany?.id || e.companyId === activeCompany.id;
       if (companySpecific) {
+        if (activeEmployee && !activeEmployee.isAdmin && e.createdBy !== activeEmployee.name) return;
         if (e.projectEvent && e.projectEvent.trim()) {
           names.add(e.projectEvent.trim());
         }
       }
     });
     return Array.from(names).sort();
-  }, [documents, expenses, activeCompany]);
+  }, [documents, expenses, activeCompany, activeEmployee]);
 
   // Compute ledger entries
   const ledgerData = useMemo(() => {
@@ -112,6 +122,8 @@ export const Ledger = () => {
     const activeDocs = documents.filter(d => {
       const companySpecific = !d.companyId || !activeCompany?.id || d.companyId === activeCompany.id;
       if (!companySpecific) return false;
+
+      if (activeEmployee && !activeEmployee.isAdmin && d.createdBy !== activeEmployee.name) return false;
 
       // Filter out all voucher documents
       if (d.documentType === 'voucher') return false;
@@ -146,6 +158,8 @@ export const Ledger = () => {
     const activeExpenses = expenses.filter(e => {
       const companySpecific = !e.companyId || !activeCompany?.id || e.companyId === activeCompany.id;
       if (!companySpecific) return false;
+
+      if (activeEmployee && !activeEmployee.isAdmin && e.createdBy !== activeEmployee.name) return false;
 
       // Date check
       const expDate = e.date || e.createdAt?.slice(0, 10);
@@ -234,7 +248,7 @@ export const Ledger = () => {
       totalCredit,
       finalBalance: runningBalance
     };
-  }, [documents, expenses, activeCompany, selectedParty, startDate, endDate]);
+  }, [documents, expenses, activeCompany, selectedParty, startDate, endDate, activeEmployee]);
 
   const advanceAnalytics = useMemo(() => {
     const entries = ledgerData.entries;

@@ -41,7 +41,28 @@ export const Header = ({ onMenuToggle, isSidebarOpen, title }) => {
       </div>
 
       {!isSidebarOpen && activeCompany && (
-        <div className="flex items-center animate-in fade-in slide-in-from-right duration-200">
+        <div className="flex items-center gap-2.5 animate-in fade-in slide-in-from-right duration-200">
+          {(() => {
+            const employeeJson = localStorage.getItem('activeEmployee');
+            if (employeeJson) {
+              try {
+                const emp = JSON.parse(employeeJson);
+                return (
+                  <span className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${
+                    emp.isAdmin 
+                      ? 'bg-amber-50 border border-amber-150 text-amber-700' 
+                      : 'bg-slate-50 border border-slate-150 text-slate-500'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${emp.isAdmin ? 'bg-amber-500' : 'bg-indigo-500'}`}></span>
+                    {emp.name} {emp.isAdmin ? '(Admin)' : ''}
+                  </span>
+                );
+              } catch (e) {
+                return null;
+              }
+            }
+            return null;
+          })()}
           {activeCompany.logo ? (
             <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-xl object-contain shrink-0 bg-white shadow-sm border border-slate-100 p-0.5" />
           ) : (

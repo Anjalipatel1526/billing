@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, BookOpen, ChevronLeft, Wallet, Bell, LogOut, Trash2 } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, BookOpen, ChevronLeft, Wallet, Bell, LogOut, Trash2, Users } from 'lucide-react';
 import { useCompany } from '../../contexts/CompanyContext';
 
 
@@ -11,8 +11,14 @@ export const Sidebar = ({ className = '', onCollapse }) => {
 
   const handleSignOut = async () => {
     try {
+      const isEmployee = !!localStorage.getItem('activeEmployee');
+      localStorage.removeItem('activeEmployee');
       await switchCompany(null);
-      navigate('/');
+      if (isEmployee) {
+        navigate('/employeelogin');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       console.error('Failed to leave workspace', err);
     }
@@ -31,15 +37,28 @@ export const Sidebar = ({ className = '', onCollapse }) => {
     return name.replace(suffixRegex, '').trim() || name;
   };
 
+  const employeeJson = localStorage.getItem('activeEmployee');
+  const activeEmployee = employeeJson ? JSON.parse(employeeJson) : null;
+
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Documents', path: '/documents', icon: FileText },
-    { label: 'Ledger', path: '/ledger', icon: BookOpen },
-    { label: 'Expenses', path: '/expenses', icon: Wallet },
-    { label: 'Recurring', path: '/recurring', icon: Bell },
-    { label: 'Recycle Bin', path: '/recycle-bin', icon: Trash2 },
-    { label: 'Settings', path: '/settings', icon: Settings },
-  ];
+    { label: 'Employees', path: '/employees', icon: Users, permission: 'adminOnly' },
+    { label: 'Documents', path: '/documents', icon: FileText, permission: 'viewDocuments' },
+    { label: 'Ledger', path: '/ledger', icon: BookOpen, permission: 'viewLedger' },
+    { label: 'Expenses', path: '/expenses', icon: Wallet, permission: 'addExpense' },
+    { label: 'Recurring', path: '/recurring', icon: Bell, permission: 'accessRecurringPayments' },
+    { label: 'Recycle Bin', path: '/recycle-bin', icon: Trash2, permission: 'accessRecycleBin' },
+    { label: 'Settings', path: '/settings', icon: Settings, permission: 'adminOnly' },
+  ].filter(item => {
+    if (!activeEmployee || activeEmployee.isAdmin) {
+      return true; // Admin gets everything
+    }
+    if (item.permission === 'adminOnly') return false;
+    if (item.permission) {
+      return !!activeEmployee.permissions[item.permission];
+    }
+    return true;
+  });
 
   return (
     <aside className={`w-[260px] bg-white border-r border-[#f1f3f9] flex flex-col justify-between shrink-0 h-screen sticky top-0 font-sans z-40 ${className}`}>
@@ -115,7 +134,7 @@ export const Sidebar = ({ className = '', onCollapse }) => {
             className="w-full flex items-center justify-center gap-2.5 px-4.5 py-3 rounded-xl text-[13px] font-bold text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 cursor-pointer active:scale-[0.98] border border-transparent hover:border-red-100"
           >
             <LogOut className="w-4 h-4 shrink-0 stroke-[2.2]" />
-            <span>Leave Workspace</span>
+            <span>{activeEmployee ? 'Logout' : 'Leave Workspace'}</span>
           </button>
         )}
       </div>

@@ -136,6 +136,7 @@ export const CompanyProvider = ({ children }) => {
     if (!companyId) {
       setActiveCompany(null);
       await dbSetActiveCompanyId(null);
+      localStorage.removeItem('activeEmployee');
       return;
     }
     let found = companies.find(c => c.id === companyId);

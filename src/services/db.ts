@@ -229,7 +229,8 @@ export function docToRow(d: any): any {
     ...(d.customer || {}),
     _voucherType: d.voucherType,
     _paymentMethod: d.paymentMethod,
-    _description: d.description
+    _description: d.description,
+    _createdBy: d.createdBy
   };
 
   return {
@@ -257,7 +258,7 @@ export function docToRow(d: any): any {
 
 export function rowToDoc(r: any): any {
   const customerObj = r.customer || {};
-  const { _voucherType, _paymentMethod, _description, ...cleanCustomer } = customerObj;
+  const { _voucherType, _paymentMethod, _description, _createdBy, ...cleanCustomer } = customerObj;
 
   return {
     id: r.id,
@@ -281,7 +282,8 @@ export function rowToDoc(r: any): any {
     updatedAt: r.updated_at || r.updatedAt,
     voucherType: _voucherType || r.voucher_type || r.voucherType,
     paymentMethod: _paymentMethod || r.payment_method || r.paymentMethod,
-    description: _description || r.description
+    description: _description || r.description,
+    createdBy: _createdBy || r.created_by || r.createdBy || 'Admin'
   };
 }
 
@@ -1266,4 +1268,139 @@ export async function autoCleanRecycleBin() {
   const list = getLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, []);
   const filtered = list.filter((item: any) => new Date(item.deletedAt).getTime() >= cutoffTime);
   setLocalJSON(LOCAL_STORAGE_KEYS.RECYCLE_BIN, filtered);
+}
+
+/**
+ * Gets all employees for a specific company from settings table.
+ */
+export async function getCompanyEmployees(companyId: string): Promise<any[]> {
+  incrementDbVersion();
+  const key = `employees_${companyId}`;
+  
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', key);
+      if (data && data.length > 0 && data[0].value) {
+        return JSON.parse(data[0].value);
+      }
+    } catch (e) {
+      console.error('Supabase getCompanyEmployees error:', e);
+    }
+  }
+
+  const db = await getDB();
+  if (db) {
+    try {
+      const setting = await db.get('settings', key);
+      if (setting && setting.value) {
+        return JSON.parse(setting.value);
+      }
+    } catch (e) {
+      console.error('IDB getCompanyEmployees error:', e);
+    }
+  }
+
+  // Backup to localStorage
+  try {
+    const val = localStorage.getItem(key);
+    if (val) return JSON.parse(val);
+  } catch (e) {}
+
+  return [];
+}
+
+/**
+ * Saves all employees for a specific company to settings table.
+ */
+export async function saveCompanyEmployees(companyId: string, employees: any[]): Promise<void> {
+  incrementDbVersion();
+  const key = `employees_${companyId}`;
+  const value = JSON.stringify(employees);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('settings')
+        .upsert({ key, value, updated_at: new Date().toISOString() });
+    } catch (e) {
+      console.error('Supabase saveCompanyEmployees error:', e);
+    }
+  }
+
+  const db = await getDB();
+  if (db) {
+    try {
+      await db.put('settings', { key, value });
+    } catch (e) {
+      console.error('IDB saveCompanyEmployees error:', e);
+    }
+  }
+
+  // Backup to localStorage
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {}
+}
+
+/**
+ * Log in as an employee.
+ * Looks up company by code, then verifies employee credentials in the company's settings/employees list.
+ */
+export async function loginAsEmployee(companyCode: string, employeeLoginId: string, employeePassword: string) {
+  incrementDbVersion();
+  const sanitizedCode = companyCode.replace(/^#\s*/, '').trim().toUpperCase();
+
+  let companyData: any = null;
+
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('company_code', sanitizedCode)
+        .single();
+      if (data) {
+        companyData = rowToCompany(data);
+      }
+    } catch (e) {
+      console.error('Supabase fetch company in employee login:', e);
+    }
+  }
+
+  if (!companyData) {
+    // Check locally in IndexedDB
+    const db = await getDB();
+    if (db) {
+      const allComp = await db.getAll('companies');
+      companyData = allComp.find(c => c.companyCode === sanitizedCode);
+    }
+  }
+
+  if (!companyData) {
+    // Check localStorage
+    const list = getLocalJSON(LOCAL_STORAGE_KEYS.COMPANIES, []);
+    companyData = list.find(c => c.companyCode === sanitizedCode);
+  }
+
+  if (!companyData) {
+    throw new Error('Company not found. Please check the Company ID.');
+  }
+
+  // Now load the employees for this company
+  const employees = await getCompanyEmployees(companyData.id);
+  const foundEmp = employees.find(
+    emp => emp.loginId.toLowerCase() === employeeLoginId.trim().toLowerCase() && emp.password === employeePassword
+  );
+
+  if (!foundEmp) {
+    throw new Error('Invalid Employee ID or Password.');
+  }
+
+  return {
+    company: companyData,
+    employee: foundEmp
+  };
 }

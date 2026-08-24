@@ -55,6 +55,11 @@ export const Expenses = () => {
   const { activeCompany, updateActiveCompany } = useCompany();
   const { showToast } = useToast();
   const { saveDoc, removeDoc } = useDocument();
+
+  const employeeJson = localStorage.getItem('activeEmployee');
+  const activeEmployee = employeeJson ? JSON.parse(employeeJson) : null;
+  const canAddExpense = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.addExpense;
+
   const printRef = useRef(null);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +115,10 @@ export const Expenses = () => {
     if (!activeCompany) return;
     setLoading(true);
     try {
-      const data = await getAllExpenses(activeCompany.id);
+      let data = await getAllExpenses(activeCompany.id);
+      if (activeEmployee && !activeEmployee.isAdmin) {
+        data = data.filter(e => e.createdBy === activeEmployee.name);
+      }
       setExpenses(data);
     } catch (err) {
       console.error(err);
@@ -118,7 +126,7 @@ export const Expenses = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeCompany, showToast]);
+  }, [activeCompany, showToast, activeEmployee]);
 
   useEffect(() => {
     loadExpenses();
@@ -312,6 +320,10 @@ export const Expenses = () => {
       const expId = `exp_${Date.now()}`;
       const amountVal = parseFloat(newExpense.amount);
 
+      const employeeJson = localStorage.getItem('activeEmployee');
+      const activeEmployee = employeeJson ? JSON.parse(employeeJson) : null;
+      const creator = activeEmployee ? activeEmployee.name : 'Admin';
+
       // Save as document representation first (without pre-set ID, letting saveDoc assign a new one + number + counter update)
       const docPayload = {
         companyId: activeCompany.id,
@@ -324,7 +336,8 @@ export const Expenses = () => {
         amount: amountVal,
         totals: { grandTotal: amountVal },
         description: `${newExpense.particulars} (Category: ${newExpense.category})`,
-        template: activeCompany.selectedTemplate || 'UNAI Billing'
+        template: activeCompany.selectedTemplate || 'UNAI Billing',
+        createdBy: creator
       };
       
       const savedDoc = await saveDoc(docPayload);
@@ -335,7 +348,8 @@ export const Expenses = () => {
         id: expId,
         companyId: activeCompany.id,
         amount: amountVal,
-        documentId: savedDoc.id
+        documentId: savedDoc.id,
+        createdBy: creator
       };
 
       await saveExpense(payload);
@@ -632,116 +646,120 @@ export const Expenses = () => {
               <FileText className="w-4 h-4 text-slate-500" />
               <span>Download PDF</span>
             </button>
-            <button
-              onClick={handleOpenModal}
-              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Add New Expense</span>
-            </button>
+            {canAddExpense && (
+              <button
+                onClick={handleOpenModal}
+                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>Add New Expense</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Analytics Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Total Expenses */}
-          <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <Coins className="w-6 h-6 stroke-[2.2]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Total Expenses</p>
-              <h3 className="text-xl font-black text-slate-900 mt-0.5 truncate">{formatCurrency(stats.total, currencySymbol)}</h3>
-              <p className="text-[9px] text-slate-400 mt-0.5">Cumulative outflows recorded</p>
-            </div>
-          </div>
-
-          {/* Card 2: Monthly Budget Progress */}
-          <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex flex-col justify-between relative overflow-hidden">
-            <div className="flex items-center gap-3 relative z-10">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                <Calendar className="w-5 h-5 stroke-[2.2]" />
+        {(!activeEmployee || activeEmployee.isAdmin) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card 1: Total Expenses */}
+            <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Coins className="w-6 h-6 stroke-[2.2]" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Monthly Budget ({stats.activeMonthLabel})</p>
-                <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
-                  <span className="text-base font-black text-slate-900">{formatCurrency(stats.thisMonth, currencySymbol)}</span>
-                  <span className="text-[10px] text-slate-400 font-semibold truncate">/ {formatCurrency(stats.monthlyLimit, currencySymbol)}</span>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Total Expenses</p>
+                <h3 className="text-xl font-black text-slate-900 mt-0.5 truncate">{formatCurrency(stats.total, currencySymbol)}</h3>
+                <p className="text-[9px] text-slate-400 mt-0.5">Cumulative outflows recorded</p>
+              </div>
+            </div>
+
+            {/* Card 2: Monthly Budget Progress */}
+            <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex flex-col justify-between relative overflow-hidden">
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Monthly Budget ({stats.activeMonthLabel})</p>
+                  <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
+                    <span className="text-base font-black text-slate-900">{formatCurrency(stats.thisMonth, currencySymbol)}</span>
+                    <span className="text-[10px] text-slate-400 font-semibold truncate">/ {formatCurrency(stats.monthlyLimit, currencySymbol)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-3 relative z-10 w-full">
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      stats.monthlyPercent >= 100 ? 'bg-red-500' : stats.monthlyPercent >= 80 ? 'bg-amber-500' : 'bg-blue-600'
+                    }`}
+                    style={{ width: `${Math.min(100, stats.monthlyPercent)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1 font-semibold">
+                  <span>Spent {Math.round(stats.monthlyPercent)}%</span>
+                  <button 
+                    onClick={handleOpenBudgetModal}
+                    className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-0.5 cursor-pointer font-bold bg-transparent border-0 p-0"
+                  >
+                    <Settings className="w-3 h-3 inline" /> Customize
+                  </button>
                 </div>
               </div>
             </div>
-            
-            <div className="mt-3 relative z-10 w-full">
-              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    stats.monthlyPercent >= 100 ? 'bg-red-500' : stats.monthlyPercent >= 80 ? 'bg-amber-500' : 'bg-blue-600'
-                  }`}
-                  style={{ width: `${Math.min(100, stats.monthlyPercent)}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1 font-semibold">
-                <span>Spent {Math.round(stats.monthlyPercent)}%</span>
-                <button 
-                  onClick={handleOpenBudgetModal}
-                  className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-0.5 cursor-pointer font-bold bg-transparent border-0 p-0"
-                >
-                  <Settings className="w-3 h-3 inline" /> Customize
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Card 3: Yearly Budget Progress */}
-          <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex flex-col justify-between relative overflow-hidden">
-            <div className="flex items-center gap-3 relative z-10">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-5 h-5 stroke-[2.2]" />
+            {/* Card 3: Yearly Budget Progress */}
+            <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex flex-col justify-between relative overflow-hidden">
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Yearly Budget</p>
+                  <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
+                    <span className="text-base font-black text-slate-900">{formatCurrency(stats.thisYear, currencySymbol)}</span>
+                    <span className="text-[10px] text-slate-400 font-semibold truncate">/ {formatCurrency(stats.yearlyLimit, currencySymbol)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Yearly Budget</p>
-                <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
-                  <span className="text-base font-black text-slate-900">{formatCurrency(stats.thisYear, currencySymbol)}</span>
-                  <span className="text-[10px] text-slate-400 font-semibold truncate">/ {formatCurrency(stats.yearlyLimit, currencySymbol)}</span>
+              
+              <div className="mt-3 relative z-10 w-full">
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      stats.yearlyPercent >= 100 ? 'bg-red-500' : stats.yearlyPercent >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${Math.min(100, stats.yearlyPercent)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1 font-semibold">
+                  <span>Spent {Math.round(stats.yearlyPercent)}%</span>
+                  <button 
+                    onClick={handleOpenBudgetModal}
+                    className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-0.5 cursor-pointer font-bold bg-transparent border-0 p-0"
+                  >
+                    <Settings className="w-3 h-3 inline" /> Customize
+                  </button>
                 </div>
               </div>
             </div>
-            
-            <div className="mt-3 relative z-10 w-full">
-              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    stats.yearlyPercent >= 100 ? 'bg-red-500' : stats.yearlyPercent >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${Math.min(100, stats.yearlyPercent)}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1 font-semibold">
-                <span>Spent {Math.round(stats.yearlyPercent)}%</span>
-                <button 
-                  onClick={handleOpenBudgetModal}
-                  className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-0.5 cursor-pointer font-bold bg-transparent border-0 p-0"
-                >
-                  <Settings className="w-3 h-3 inline" /> Customize
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Card 4: Active Projects */}
-          <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <FolderKanban className="w-6 h-6 stroke-[2.2]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Active Projects / Events</p>
-              <h3 className="text-xl font-black text-slate-900 mt-0.5 truncate">{stats.projectCount}</h3>
-              <p className="text-[9px] text-slate-400 mt-0.5">Campaigns & projects tagged</p>
+            {/* Card 4: Active Projects */}
+            <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <FolderKanban className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Active Projects / Events</p>
+                <h3 className="text-xl font-black text-slate-900 mt-0.5 truncate">{stats.projectCount}</h3>
+                <p className="text-[9px] text-slate-400 mt-0.5">Campaigns & projects tagged</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Filter Panel */}
         <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs space-y-4">
@@ -929,7 +947,13 @@ export const Expenses = () => {
 
                         {/* Particulars */}
                         <td className="py-4.5 px-6 font-semibold text-slate-800">
-                          {row.particulars}
+                          <div>{row.particulars}</div>
+                          {row.createdBy && (
+                            <div className="text-[10px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
+                              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                              <span>by {row.createdBy}</span>
+                            </div>
+                          )}
                         </td>
 
                         {/* Category */}

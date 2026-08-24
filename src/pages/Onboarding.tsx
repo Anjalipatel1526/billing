@@ -7,11 +7,11 @@ import { Button } from '../components/ui/Button';
 import { LogoUploader } from '../components/company/LogoUploader';
 
 import { validateEmail, validateGST, validatePAN } from '../utils/formatting';
-import { joinCompanyByCode } from '../services/db';
+import { joinCompanyByCode, loginAsEmployee } from '../services/db';
 import { 
   Check, ArrowRight, ArrowLeft, Building2, Landmark, Sliders, 
   UserPlus, KeyRound, Copy, Lock, Hash, Shield, 
-  FileText, Receipt, CreditCard, BookOpen, Eye, EyeOff 
+  FileText, Receipt, CreditCard, BookOpen, Eye, EyeOff, User 
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -57,7 +57,6 @@ export const Onboarding = () => {
   const [showCompanyPassword, setShowCompanyPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showJoinPassword, setShowJoinPassword] = useState(false);
-
   // ==================
   // JOIN COMPANY STATE
   // ==================
@@ -148,9 +147,10 @@ export const Onboarding = () => {
     try {
       const company = await joinCompanyByCode(joinCode, joinPassword);
       await saveCompanyProfile(company);
+      localStorage.removeItem('activeEmployee');
       showToast(`Joined "${company.companyName}" successfully!`, 'success');
       navigate('/dashboard');
-    } catch (err) {
+    } catch (err: any) {
       setJoinError(err.message || 'Failed to join company.');
     } finally {
       setJoinLoading(false);
@@ -670,9 +670,17 @@ export const Onboarding = () => {
 
       {/* ==================================================== */}
       {/* RIGHT COLUMN: DYNAMIC WORKSPACES & CONTROLS */}
-      {/* ==================================================== */}
       <div className="flex-1 h-auto md:h-full bg-[#f8fafc] flex flex-col justify-between p-4 md:p-6 relative overflow-y-auto md:overflow-hidden">
         
+        {/* Login as Employee Link */}
+        <button
+          onClick={() => navigate('/employeelogin')}
+          className="absolute top-4 right-4 md:top-6 md:right-6 z-50 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-[11px] font-extrabold shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95 border-none"
+        >
+          <User className="w-3.5 h-3.5" strokeWidth={2.5} />
+          <span>Login as Employee</span>
+        </button>
+
         {/* Center Dynamic Interface */}
         <div className="my-auto flex items-center justify-center w-full max-w-xl mx-auto py-2">
           
@@ -737,13 +745,13 @@ export const Onboarding = () => {
                         <UserPlus className="w-4 h-4" />
                       </div>
                       <h4 className="font-bold text-slate-950 text-xs">Join Company</h4>
-                      <p className="text-[10px] text-slate-400 font-medium leading-normal">
+                      <p className="text-[10px] text-slate-400 font-semibold leading-normal">
                         Enter a company ID and password to access an existing profile and continue.
                       </p>
                     </div>
                     <button
                       onClick={() => navigate('/join')}
-                      className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] py-1.5 px-2.5 rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm"
+                      className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] py-1.5 px-2.5 rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
                     >
                       <span>Join Company</span>
                       <ArrowRight className="w-3 h-3" />
@@ -784,7 +792,7 @@ export const Onboarding = () => {
                     <UserPlus className="w-6 h-6 text-emerald-600" />
                   </div>
                   <h3 className="font-bold text-slate-900 text-lg">Join Existing Company</h3>
-                  <p className="text-xs text-slate-500">Enter the Company ID and password shared by the company owner.</p>
+                  <p className="text-xs text-slate-500 font-medium">Enter details to access the company workspace.</p>
                 </div>
 
                 <div className="space-y-4 max-w-sm mx-auto">
@@ -826,7 +834,7 @@ export const Onboarding = () => {
                           setJoinPassword(pastedText);
                         }}
                         placeholder="Enter company password"
-                        className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-350 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                         autoComplete="current-password"
                       />
                       <button

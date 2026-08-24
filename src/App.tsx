@@ -15,6 +15,9 @@ import { PublicPreview } from './pages/PublicPreview';
 import { Expenses } from './pages/Expenses';
 import { Recurring } from './pages/Recurring';
 import { RecycleBin } from './pages/RecycleBin';
+import { Employees } from './pages/Employees';
+import { EmployeeLogin } from './pages/EmployeeLogin';
+import { getCompanyEmployees } from './services/db';
 
 import { 
   Shield, FileText, Receipt, CreditCard, BookOpen 
@@ -24,6 +27,54 @@ import {
 const AppRoutes = () => {
   const { activeCompany, loading } = useCompany();
   const isPreviewRoute = window.location.pathname.startsWith('/preview/');
+
+  React.useEffect(() => {
+    if (!activeCompany?.id) return;
+    const employeeJson = localStorage.getItem('activeEmployee');
+    if (!employeeJson) return;
+    
+    let isMounted = true;
+    const syncEmployeeSession = async () => {
+      try {
+        const emp = JSON.parse(employeeJson);
+        const employees = await getCompanyEmployees(activeCompany.id);
+        const latestEmp = employees.find(e => e.id === emp.id || (e.loginId && e.loginId === emp.loginId));
+        if (isMounted) {
+          if (!latestEmp) {
+            localStorage.removeItem('activeEmployee');
+            window.location.reload();
+          } else {
+            const currentStr = JSON.stringify(emp);
+            const latestStr = JSON.stringify(latestEmp);
+            if (currentStr !== latestStr) {
+              localStorage.setItem('activeEmployee', latestStr);
+              window.location.reload();
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error syncing employee session:', err);
+      }
+    };
+
+    // Run initially
+    syncEmployeeSession();
+
+    // Run on tab focus
+    const handleFocus = () => {
+      syncEmployeeSession();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    // Run periodically every 4 seconds
+    const intervalId = setInterval(syncEmployeeSession, 4000);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
+    };
+  }, [activeCompany?.id]);
 
   if (loading && !isPreviewRoute) {
     return (
@@ -143,6 +194,7 @@ const AppRoutes = () => {
       <Route path="/" element={hasCompany ? <Navigate to="/dashboard" replace /> : <Onboarding />} />
       <Route path="/join" element={hasCompany ? <Navigate to="/dashboard" replace /> : <Onboarding />} />
       <Route path="/onboarding" element={hasCompany ? <Navigate to="/dashboard" replace /> : <Onboarding />} />
+      <Route path="/employeelogin" element={localStorage.getItem('activeEmployee') ? <Navigate to="/dashboard" replace /> : <EmployeeLogin />} />
       <Route path="/dashboard" element={hasCompany ? <Dashboard /> : <Navigate to="/" replace />} />
       <Route path="/documents" element={hasCompany ? <Documents /> : <Navigate to="/" replace />} />
       <Route path="/documents/new" element={hasCompany ? <CreateDocument /> : <Navigate to="/" replace />} />
@@ -152,6 +204,7 @@ const AppRoutes = () => {
       <Route path="/expenses" element={hasCompany ? <Expenses /> : <Navigate to="/" replace />} />
       <Route path="/recurring" element={hasCompany ? <Recurring /> : <Navigate to="/" replace />} />
       <Route path="/recycle-bin" element={hasCompany ? <RecycleBin /> : <Navigate to="/" replace />} />
+      <Route path="/employees" element={hasCompany ? <Employees /> : <Navigate to="/" replace />} />
       <Route path="/settings" element={hasCompany ? <Settings /> : <Navigate to="/" replace />} />
       <Route path="/preview/:id" element={<PublicPreview />} />
       <Route path="*" element={<Navigate to="/" replace />} />

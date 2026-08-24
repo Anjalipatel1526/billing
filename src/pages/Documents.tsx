@@ -41,6 +41,14 @@ export const Documents = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  const employeeJson = localStorage.getItem('activeEmployee');
+  const activeEmployee = employeeJson ? JSON.parse(employeeJson) : null;
+  const canCreate = !activeEmployee || activeEmployee.isAdmin || (
+    activeEmployee.permissions.addInvoice || 
+    activeEmployee.permissions.addVoucher || 
+    activeEmployee.permissions.addReceipt
+  );
+
   const { search } = useLocation();
   const [previewDoc, setPreviewDoc] = useState(null);
   const [shareDoc, setShareDoc] = useState<any>(null);
@@ -105,6 +113,10 @@ export const Documents = () => {
 
   const filteredDocs = useMemo(() => {
     let result = [...documents];
+
+    if (activeEmployee && !activeEmployee.isAdmin) {
+      result = result.filter(d => d.createdBy === activeEmployee.name);
+    }
 
     // Filter by type
     if (typeFilter !== 'all') {
@@ -203,9 +215,11 @@ export const Documents = () => {
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Manage, filter, duplicate, and export all invoices, vouchers, and receipts.</p>
           </div>
 
-          <Button icon={PlusCircle} onClick={() => navigate('/documents/new')}>
-            Create Document
-          </Button>
+          {canCreate && (
+            <Button icon={PlusCircle} onClick={() => navigate('/documents/new')}>
+              Create Document
+            </Button>
+          )}
         </div>
 
         {/* Filter and Search Bar */}
@@ -264,7 +278,7 @@ export const Documents = () => {
                   ? 'Create your first invoice, voucher or receipt to build your document history.'
                   : 'No documents match your selected filters. Try clearing your search.'}
               </p>
-              {documents.length === 0 && (
+              {documents.length === 0 && canCreate && (
                 <Button icon={PlusCircle} onClick={() => navigate('/documents/new')}>
                   Create First Document
                 </Button>
@@ -315,7 +329,15 @@ export const Documents = () => {
                             </Badge>
                           </button>
                         </td>
-                        <td className="py-3 px-4 font-medium text-slate-800">{partyName}</td>
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-slate-800">{partyName}</div>
+                          {doc.createdBy && (
+                            <div className="text-[10px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
+                              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                              <span>by {doc.createdBy}</span>
+                            </div>
+                          )}
+                        </td>
                         <td className="py-3 px-4 text-slate-500">{formatDate(doc.documentDate)}</td>
                         <td className={`py-3 px-4 text-right font-semibold ${
                           doc.status === 'Paid' ? 'text-emerald-600' : 'text-rose-600'

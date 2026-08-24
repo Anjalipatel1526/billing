@@ -30,11 +30,27 @@ export const CreateDocument = () => {
   // Document Type: invoice | voucher | receipt
   const typeParam = searchParams.get('type') || 'invoice';
 
+  const employeeJson = localStorage.getItem('activeEmployee');
+  const activeEmployee = employeeJson ? JSON.parse(employeeJson) : null;
+
+  const availableTypes = [
+    { id: 'invoice', label: 'Invoice', icon: FileText, permission: 'addInvoice' },
+    { id: 'voucher', label: 'Voucher', icon: CreditCard, permission: 'addVoucher' },
+    { id: 'receipt', label: 'Receipt', icon: Receipt, permission: 'addReceipt' }
+  ].filter(t => {
+    if (!activeEmployee || activeEmployee.isAdmin) return true;
+    return !!activeEmployee.permissions[t.permission];
+  });
+
+  const defaultDocType = typeParam && availableTypes.some(t => t.id === typeParam)
+    ? typeParam
+    : (availableTypes[0]?.id || 'invoice');
+
   // Preview Modal State
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Form State
-  const [docType, setDocType] = useState(typeParam);
+  const [docType, setDocType] = useState(defaultDocType);
   const [documentNumber, setDocumentNumber] = useState('');
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState(new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10));
@@ -193,6 +209,11 @@ export const CreateDocument = () => {
     }
 
     try {
+      const employeeJson = localStorage.getItem('activeEmployee');
+      const activeEmployee = employeeJson ? JSON.parse(employeeJson) : null;
+      const creator = activeEmployee ? activeEmployee.name : 'Admin';
+      const existingDoc = id ? documents.find(d => d.id === id) : null;
+
       const payload = {
         id,
         documentType: docType,
@@ -215,7 +236,8 @@ export const CreateDocument = () => {
         description,
         notes,
         paymentTerms,
-        signature
+        signature,
+        createdBy: existingDoc?.createdBy || creator
       };
 
       const saved = await saveDoc(payload);
@@ -234,6 +256,11 @@ export const CreateDocument = () => {
     }
 
     try {
+      const employeeJson = localStorage.getItem('activeEmployee');
+      const activeEmployee = employeeJson ? JSON.parse(employeeJson) : null;
+      const creator = activeEmployee ? activeEmployee.name : 'Admin';
+      const existingDoc = id ? documents.find(d => d.id === id) : null;
+
       // 1. Automatically save document first
       const payload = {
         id,
@@ -257,7 +284,8 @@ export const CreateDocument = () => {
         description,
         notes,
         paymentTerms,
-        signature
+        signature,
+        createdBy: existingDoc?.createdBy || creator
       };
 
       const saved = await saveDoc(payload);
@@ -364,12 +392,8 @@ export const CreateDocument = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 bg-[#f8fafc] border border-[#f1f3f9] p-1 rounded-2xl">
-              {[
-                { id: 'invoice', label: 'Invoice', icon: FileText },
-                { id: 'voucher', label: 'Voucher', icon: CreditCard },
-                { id: 'receipt', label: 'Receipt', icon: Receipt }
-              ].map((t) => {
+            <div className="grid gap-2 bg-[#f8fafc] border border-[#f1f3f9] p-1 rounded-2xl" style={{ gridTemplateColumns: `repeat(${availableTypes.length || 1}, minmax(0, 1fr))` }}>
+              {availableTypes.map((t) => {
                 const Icon = t.icon;
                 const isSel = docType === t.id;
                 return (
