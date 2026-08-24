@@ -20,7 +20,7 @@ import {
   Copy, 
   Download, 
   Trash2, 
-  Edit3, 
+  Share2, 
   Filter,
   ArrowUpDown,
   X,
@@ -313,7 +313,9 @@ export const Documents = () => {
                         </td>
                         <td className="py-3 px-4 font-medium text-slate-800">{partyName}</td>
                         <td className="py-3 px-4 text-slate-500">{formatDate(doc.documentDate)}</td>
-                        <td className="py-3 px-4 text-right font-semibold text-slate-900">
+                        <td className={`py-3 px-4 text-right font-semibold ${
+                          doc.status === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
+                        }`}>
                           {formatCurrency(amount, activeCompany?.currency?.split(' ')[1] || '₹')}
                         </td>
                         <td className="py-3 px-4">
@@ -359,12 +361,14 @@ export const Documents = () => {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setActiveMenuId(null);
-                                      navigate(`/documents/${doc.id}`);
+                                      const shareUrl = `${window.location.origin}/documents?preview=${doc.id}`;
+                                      navigator.clipboard.writeText(shareUrl);
+                                      showToast('Share link copied to clipboard!', 'success');
                                     }}
                                     className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 cursor-pointer transition-colors"
                                   >
-                                    <Edit3 className="w-3 h-3" />
-                                    <span>Edit</span>
+                                    <Share2 className="w-3 h-3" />
+                                    <span>Share</span>
                                   </button>
                                   <button
                                     onClick={(e) => {

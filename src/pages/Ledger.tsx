@@ -509,7 +509,9 @@ export const Ledger = () => {
                 <td className="py-2 px-3 text-slate-500">{formatDate(row.date)}</td>
                 <td className="py-2 px-3 text-slate-800 max-w-[180px] truncate">{row.particulars}</td>
                 <td className="py-2 px-3 font-mono text-slate-600 uppercase">{row.number}</td>
-                <td className="py-2 px-3 text-right text-blue-600 font-semibold">{row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}</td>
+                <td className={`py-2 px-3 text-right font-semibold ${
+                  row.type === 'invoice' ? 'text-rose-600' : 'text-blue-600'
+                }`}>{row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}</td>
                 <td className="py-2 px-3 text-right text-emerald-600 font-semibold">{row.credit > 0 ? formatCurrency(row.credit, currencySymbol) : '-'}</td>
                 <td className="py-2 px-3 text-right text-slate-900 font-black">{formatCurrency(row.balance, currencySymbol)}</td>
                 <td className="py-2 px-3 text-center">
@@ -864,7 +866,9 @@ export const Ledger = () => {
                       <span className="font-mono text-slate-600 font-bold uppercase text-[8px]">{row.number}</span>
                       <span className="ml-1 text-[7px] text-slate-400 capitalize">({row.type})</span>
                     </td>
-                    <td className="py-2.5 px-3 text-right text-blue-600 font-bold">
+                    <td className={`py-2.5 px-3 text-right font-bold ${
+                      row.type === 'invoice' ? 'text-rose-600' : 'text-blue-600'
+                    }`}>
                       {row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}
                     </td>
                     <td className="py-2.5 px-3 text-right text-emerald-600 font-bold">
@@ -1106,7 +1110,9 @@ export const Ledger = () => {
                           </Badge>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-right font-semibold text-blue-600">
+                      <td className={`py-3 px-4 text-right font-semibold ${
+                        row.type === 'invoice' ? 'text-rose-600' : 'text-blue-600'
+                      }`}>
                         {row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}
                       </td>
                       <td className="py-3 px-4 text-right font-semibold text-emerald-600">

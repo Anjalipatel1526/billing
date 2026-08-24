@@ -68,11 +68,11 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
   const chartConfig = {
     invoiceVal: {
       label: 'Invoice Amount',
-      color: '#10b981', // Emerald 500
+      color: '#ef4444', // Rose 500
     },
     paidVal: {
       label: 'Paid Amount',
-      color: '#ef4444', // Rose 500
+      color: '#10b981', // Emerald 500
     },
   };
 
@@ -119,11 +119,11 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
           {/* Legend */}
           <div className="flex items-center gap-4 text-[11px] font-bold">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block" />
+              <span className="w-2.5 h-2.5 rounded bg-rose-500 inline-block" />
               <span className="text-slate-500">Invoice Amount</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded bg-rose-500 inline-block" />
+              <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block" />
               <span className="text-slate-500">Paid Amount</span>
             </div>
           </div>
@@ -199,9 +199,9 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
             <Line
               dataKey="invoiceVal"
               type="monotone"
-              stroke="#10b981"
+              stroke="#ef4444"
               strokeWidth={2.5}
-              dot={{ r: 4, strokeWidth: 2, stroke: '#10b981', fill: '#fff' }}
+              dot={{ r: 4, strokeWidth: 2, stroke: '#ef4444', fill: '#fff' }}
               activeDot={{ r: 6 }}
             />
 
@@ -209,9 +209,9 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
             <Line
               dataKey="paidVal"
               type="monotone"
-              stroke="#ef4444"
+              stroke="#10b981"
               strokeWidth={2.5}
-              dot={{ r: 4, strokeWidth: 2, stroke: '#ef4444', fill: '#fff' }}
+              dot={{ r: 4, strokeWidth: 2, stroke: '#10b981', fill: '#fff' }}
               activeDot={{ r: 6 }}
             />
           </LineChart>

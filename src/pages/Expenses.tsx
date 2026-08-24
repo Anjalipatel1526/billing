@@ -30,7 +30,9 @@ import {
   Filter,
   Download,
   FileText,
-  ChevronDown
+  ChevronDown,
+  TrendingUp,
+  Settings
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/formatting';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -49,7 +51,7 @@ const CATEGORIES = [
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Card', 'UPI'];
 
 export const Expenses = () => {
-  const { activeCompany } = useCompany();
+  const { activeCompany, updateActiveCompany } = useCompany();
   const { showToast } = useToast();
   const { saveDoc, removeDoc } = useDocument();
   const printRef = useRef(null);
@@ -61,6 +63,7 @@ export const Expenses = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState('all');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,6 +80,25 @@ export const Expenses = () => {
     projectEvent: '',
     paidVia: 'Cash'
   });
+
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [configMonth, setConfigMonth] = useState('');
+  const [budgetMonthly, setBudgetMonthly] = useState('');
+  const [budgetYearly, setBudgetYearly] = useState('');
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
+
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const now = new Date();
+    // Past 12 months, current month, next 6 months
+    for (let i = -12; i <= 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      options.push({ val, label });
+    }
+    return options;
+  }, []);
 
   const currencySymbol = activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹';
 
@@ -158,23 +180,93 @@ export const Expenses = () => {
   const stats = useMemo(() => {
     let total = 0;
     let thisMonth = 0;
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+    let thisYear = 0;
+    
+    const now = new Date();
+    const activeMonthKey = selectedMonth === 'all'
+      ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      : selectedMonth;
+      
+    const [targetYear, targetMonth] = activeMonthKey.split('-').map(Number);
+    const currentYear = now.getFullYear();
 
     expenses.forEach(e => {
       total += e.amount;
       const d = new Date(e.date);
-      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+      if (d.getFullYear() === currentYear) {
+        thisYear += e.amount;
+      }
+      if (d.getFullYear() === targetYear && (d.getMonth() + 1) === targetMonth) {
         thisMonth += e.amount;
       }
     });
 
+    const budgetsMap = (activeCompany as any)?.monthlyBudgets || {};
+    const monthlyLimit = parseFloat(String(budgetsMap[activeMonthKey] !== undefined ? budgetsMap[activeMonthKey] : ((activeCompany as any)?.monthlyBudget || 50000))) || 50000;
+    const yearlyLimit = parseFloat(String(activeCompany?.yearlyBudget || '')) || 600000;
+    const monthlyPercent = monthlyLimit > 0 ? (thisMonth / monthlyLimit) * 100 : 0;
+    const yearlyPercent = yearlyLimit > 0 ? (thisYear / yearlyLimit) * 100 : 0;
+
+    const activeMonthLabel = new Date(targetYear, targetMonth - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
     return {
       total,
       thisMonth,
-      projectCount: uniqueProjects.length
+      thisYear,
+      monthlyLimit,
+      yearlyLimit,
+      monthlyPercent,
+      yearlyPercent,
+      projectCount: uniqueProjects.length,
+      activeMonthLabel
     };
-  }, [expenses, uniqueProjects]);
+  }, [expenses, uniqueProjects, activeCompany?.monthlyBudget, activeCompany?.yearlyBudget, (activeCompany as any)?.monthlyBudgets, selectedMonth]);
+
+  const handleOpenBudgetModal = () => {
+    const now = new Date();
+    const activeMonthKey = selectedMonth === 'all'
+      ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      : selectedMonth;
+
+    setConfigMonth(activeMonthKey);
+    const budgetsMap = (activeCompany as any)?.monthlyBudgets || {};
+    const limit = budgetsMap[activeMonthKey] !== undefined ? budgetsMap[activeMonthKey] : ((activeCompany as any)?.monthlyBudget || 50000);
+    
+    setBudgetMonthly(limit.toString());
+    setBudgetYearly((activeCompany?.yearlyBudget || 600000).toString());
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleConfigMonthChange = (newMonth) => {
+    setConfigMonth(newMonth);
+    const budgetsMap = (activeCompany as any)?.monthlyBudgets || {};
+    const limit = budgetsMap[newMonth] !== undefined ? budgetsMap[newMonth] : ((activeCompany as any)?.monthlyBudget || 50000);
+    setBudgetMonthly(limit.toString());
+  };
+
+  const handleSaveBudget = async (e) => {
+    e.preventDefault();
+    if (!activeCompany) return;
+    setIsSavingBudget(true);
+    try {
+      const currentBudgets = (activeCompany as any).monthlyBudgets || {};
+      const updatedBudgets = {
+        ...currentBudgets,
+        [configMonth]: parseFloat(budgetMonthly) || 0
+      };
+      await updateActiveCompany({
+        monthlyBudgets: updatedBudgets,
+        yearlyBudget: parseFloat(budgetYearly) || 0
+      });
+      showToast('Budget limits updated successfully!', 'success');
+      setIsBudgetModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to update budget limits.', 'error');
+    } finally {
+      setIsSavingBudget(false);
+    }
+  };
 
   // Filtered Expenses
   const filteredExpenses = useMemo(() => {
@@ -188,9 +280,17 @@ export const Expenses = () => {
           : selectedProject === 'none' 
             ? !e.projectEvent 
             : e.projectEvent === selectedProject;
-      return matchesSearch && matchesCategory && matchesProject;
+            
+      let matchesMonth = true;
+      if (selectedMonth !== 'all') {
+        const d = new Date(e.date);
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        matchesMonth = monthKey === selectedMonth;
+      }
+      
+      return matchesSearch && matchesCategory && matchesProject && matchesMonth;
     });
-  }, [expenses, searchTerm, selectedCategory, selectedProject]);
+  }, [expenses, searchTerm, selectedCategory, selectedProject, selectedMonth]);
 
   // Add Expense
   const handleAddExpense = async (e) => {
@@ -421,39 +521,101 @@ export const Expenses = () => {
         </div>
 
         {/* Analytics Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Total Expenses */}
           <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
             <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
               <DollarSign className="w-6 h-6 stroke-[2.2]" />
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Total Expenses</p>
-              <h3 className="text-xl font-black text-slate-900 mt-0.5">{formatCurrency(stats.total, currencySymbol)}</h3>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Total Expenses</p>
+              <h3 className="text-xl font-black text-slate-900 mt-0.5 truncate">{formatCurrency(stats.total, currencySymbol)}</h3>
               <p className="text-[9px] text-slate-400 mt-0.5">Cumulative outflows recorded</p>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <Calendar className="w-6 h-6 stroke-[2.2]" />
+          {/* Card 2: Monthly Budget Progress */}
+          <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex flex-col justify-between relative overflow-hidden">
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Calendar className="w-5 h-5 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Monthly Budget ({stats.activeMonthLabel})</p>
+                <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
+                  <span className="text-base font-black text-slate-900">{formatCurrency(stats.thisMonth, currencySymbol)}</span>
+                  <span className="text-[10px] text-slate-400 font-semibold truncate">/ {formatCurrency(stats.monthlyLimit, currencySymbol)}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">This Month</p>
-              <h3 className="text-xl font-black text-slate-900 mt-0.5">{formatCurrency(stats.thisMonth, currencySymbol)}</h3>
-              <p className="text-[9px] text-slate-400 mt-0.5">Outflow during current month</p>
+            
+            <div className="mt-3 relative z-10 w-full">
+              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    stats.monthlyPercent >= 100 ? 'bg-red-500' : stats.monthlyPercent >= 80 ? 'bg-amber-500' : 'bg-blue-600'
+                  }`}
+                  style={{ width: `${Math.min(100, stats.monthlyPercent)}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1 font-semibold">
+                <span>Spent {Math.round(stats.monthlyPercent)}%</span>
+                <button 
+                  onClick={handleOpenBudgetModal}
+                  className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-0.5 cursor-pointer font-bold bg-transparent border-0 p-0"
+                >
+                  <Settings className="w-3 h-3 inline" /> Customize
+                </button>
+              </div>
             </div>
           </div>
 
+          {/* Card 3: Yearly Budget Progress */}
+          <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex flex-col justify-between relative overflow-hidden">
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-5 h-5 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Yearly Budget</p>
+                <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
+                  <span className="text-base font-black text-slate-900">{formatCurrency(stats.thisYear, currencySymbol)}</span>
+                  <span className="text-[10px] text-slate-400 font-semibold truncate">/ {formatCurrency(stats.yearlyLimit, currencySymbol)}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-3 relative z-10 w-full">
+              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    stats.yearlyPercent >= 100 ? 'bg-red-500' : stats.yearlyPercent >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${Math.min(100, stats.yearlyPercent)}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1 font-semibold">
+                <span>Spent {Math.round(stats.yearlyPercent)}%</span>
+                <button 
+                  onClick={handleOpenBudgetModal}
+                  className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-0.5 cursor-pointer font-bold bg-transparent border-0 p-0"
+                >
+                  <Settings className="w-3 h-3 inline" /> Customize
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Active Projects */}
           <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
               <FolderKanban className="w-6 h-6 stroke-[2.2]" />
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Active Projects / Events</p>
-              <h3 className="text-xl font-black text-slate-900 mt-0.5">{stats.projectCount}</h3>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Active Projects / Events</p>
+              <h3 className="text-xl font-black text-slate-900 mt-0.5 truncate">{stats.projectCount}</h3>
               <p className="text-[9px] text-slate-400 mt-0.5">Campaigns & projects tagged</p>
             </div>
           </div>
@@ -468,12 +630,13 @@ export const Expenses = () => {
             </div>
             
             {/* Clear Filters */}
-            {(searchTerm || selectedCategory !== 'all' || selectedProject !== 'all') && (
+            {(searchTerm || selectedCategory !== 'all' || selectedProject !== 'all' || selectedMonth !== 'all') && (
               <button 
                 onClick={() => {
                   setSearchTerm('');
                   setSelectedCategory('all');
                   setSelectedProject('all');
+                  setSelectedMonth('all');
                 }}
                 className="flex items-center gap-1.5 text-[10px] font-extrabold text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 px-3 py-1.5 rounded-xl transition-all cursor-pointer w-fit"
               >
@@ -483,7 +646,7 @@ export const Expenses = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -527,6 +690,20 @@ export const Expenses = () => {
               <option value="none">Without Project / Event</option>
               {uniqueProjects.map(proj => (
                 <option key={proj} value={proj}>{proj}</option>
+              ))}
+            </select>
+
+            {/* Month Filter Dropdown */}
+            <select
+              id="selectedMonth"
+              name="selectedMonth"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
+            >
+              <option value="all">All Months</option>
+              {monthOptions.map(opt => (
+                <option key={opt.val} value={opt.val}>{opt.label}</option>
               ))}
             </select>
           </div>
@@ -919,6 +1096,89 @@ export const Expenses = () => {
           confirmText="Delete"
           confirmVariant="danger"
         />
+
+        {/* Budget Customize Modal */}
+        {isBudgetModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 max-w-sm w-full overflow-hidden">
+              <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="font-extrabold text-slate-900 text-sm">Customize Budget Limits</h3>
+                <button 
+                  onClick={() => setIsBudgetModalOpen(false)}
+                  className="p-1.5 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveBudget} className="p-6 space-y-4">
+                <div className="space-y-1">
+                  <label htmlFor="configMonth" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Select Month to Configure</label>
+                  <select
+                    id="configMonth"
+                    name="configMonth"
+                    value={configMonth}
+                    onChange={(e) => handleConfigMonthChange(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
+                  >
+                    {monthOptions.map(opt => (
+                      <option key={opt.val} value={opt.val}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="budgetMonthly" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                    Budget for {configMonth ? new Date(configMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''} ({currencySymbol})
+                  </label>
+                  <input
+                    id="budgetMonthly"
+                    name="budgetMonthly"
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 50000"
+                    value={budgetMonthly}
+                    onChange={(e) => setBudgetMonthly(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="budgetYearly" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Yearly Budget Limit ({currencySymbol})</label>
+                  <input
+                    id="budgetYearly"
+                    name="budgetYearly"
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 600000"
+                    value={budgetYearly}
+                    onChange={(e) => setBudgetYearly(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
+                    required
+                  />
+                </div>
+
+                <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsBudgetModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 font-extrabold text-xs transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingBudget}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingBudget ? 'Saving...' : 'Save Settings'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Hidden PDF Printable Wrapper */}
         <div style={{ position: 'fixed', left: '-20000px', top: 0, opacity: 1, visibility: 'visible', pointerEvents: 'none', zIndex: -99999 }}>

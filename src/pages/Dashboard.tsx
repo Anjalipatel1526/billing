@@ -20,7 +20,9 @@ import {
   ChevronDown,
   UserPlus,
   Megaphone,
-  FolderOpen
+  FolderOpen,
+  Sparkles,
+  X
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import GradientWaves from '../components/ui/GradientWaves';
@@ -85,7 +87,7 @@ const CircularProgress = ({
     setCurrentPercent(0); // Reset immediately on trigger
     let startTimestamp = null;
     const startVal = 0;
-    const endVal = Math.min(Math.max(parseFloat(percent) || 0, 0), 100);
+    const endVal = Math.max(parseFloat(percent) || 0, 0);
     let animationFrameId = null;
 
     const step = (timestamp) => {
@@ -111,7 +113,7 @@ const CircularProgress = ({
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (currentPercent / 100) * circumference;
+  const strokeDashoffset = circumference - Math.min(currentPercent / 100, 1) * circumference;
 
   return (
     <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
@@ -166,9 +168,10 @@ export const Dashboard = () => {
 
   const [isWelcomeHovered, setIsWelcomeHovered] = useState(false);
   const [showSpotlight, setShowSpotlight] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   // Animation triggers for hover / touch events
-  const [documentsTrigger, setDocumentsTrigger] = useState(0);
+  const [recurringIncomeYearlyTrigger, setRecurringIncomeYearlyTrigger] = useState(0);
   const [invoicedTrigger, setInvoicedTrigger] = useState(0);
   const [overdueTrigger, setOverdueTrigger] = useState(0);
   const [recurringIncomeTrigger, setRecurringIncomeTrigger] = useState(0);
@@ -265,8 +268,20 @@ export const Dashboard = () => {
       }
     });
 
-    // Expenses total
-    const totalExp = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+    // Expenses stats matched to Expenses page analytics
+    const now = new Date();
+    const activeMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    // Calculate current month's expenses:
+    const thisMonthExp = expenses.reduce((sum, exp) => {
+      const d = new Date(exp.date);
+      const isCurrentMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      return isCurrentMonth ? sum + (parseFloat(exp.amount) || 0) : sum;
+    }, 0);
+
+    const budgetsMap = (activeCompany as any)?.monthlyBudgets || {};
+    const monthlyLimit = parseFloat(String(budgetsMap[activeMonthKey] !== undefined ? budgetsMap[activeMonthKey] : ((activeCompany as any)?.monthlyBudget || 50000))) || 50000;
+    const expensesPercent = monthlyLimit > 0 ? Math.round((thisMonthExp / monthlyLimit) * 100) : 0;
 
     // Dynamic targets scaling
     const getDynamicTarget = (val, base) => {
@@ -278,29 +293,31 @@ export const Dashboard = () => {
       return target;
     };
 
-    const targetDocs = getDynamicTarget(totalDocsCount, 10);
+    const projectedIncomeYearly = projectedIncome * 12;
+    const targetRecIncomeYearly = getDynamicTarget(projectedIncomeYearly, 3600000);
+
     const targetInvoiced = getDynamicTarget(totalInv, 500000);
     const targetOverdue = getDynamicTarget(overdueAmt, 50000);
     const targetRecIncome = getDynamicTarget(projectedIncome, 300000);
     const targetRecOutcome = getDynamicTarget(projectedOutcome, 100000);
-    const targetExpenses = getDynamicTarget(totalExp, 100000);
 
     return {
-      totalDocsVal: totalDocsCount,
       totalInvoicedVal: totalInv,
       overdueVal: overdueAmt,
       recurringIncomeVal: projectedIncome,
       recurringOutcomeVal: projectedOutcome,
-      expensesVal: totalExp,
+      expensesVal: thisMonthExp,
+      expensesLimit: monthlyLimit,
+      recurringIncomeYearlyVal: projectedIncomeYearly,
       
-      totalDocsPercent: targetDocs > 0 ? Math.round((totalDocsCount / targetDocs) * 100) : 0,
       totalInvoicedPercent: targetInvoiced > 0 ? Math.round((totalInv / targetInvoiced) * 100) : 0,
       overduePercent: targetOverdue > 0 ? Math.round((overdueAmt / targetOverdue) * 100) : 0,
       recurringIncomePercent: targetRecIncome > 0 ? Math.round((projectedIncome / targetRecIncome) * 100) : 0,
       recurringOutcomePercent: targetRecOutcome > 0 ? Math.round((projectedOutcome / targetRecOutcome) * 100) : 0,
-      expensesPercent: targetExpenses > 0 ? Math.round((totalExp / targetExpenses) * 100) : 0,
+      expensesPercent,
+      recurringIncomeYearlyPercent: targetRecIncomeYearly > 0 ? Math.round((projectedIncomeYearly / targetRecIncomeYearly) * 100) : 0,
     };
-  }, [documents, expenses, recurringReminders]);
+  }, [documents, expenses, recurringReminders, activeCompany]);
 
   const activities = useMemo(() => {
     const docActivities = documents.map(doc => {
@@ -311,6 +328,7 @@ export const Dashboard = () => {
       
       return {
         id: `act_${doc.id}`,
+        targetId: doc.id,
         title: `New ${typeLabel} created`,
         detail: `${doc.documentNumber} for ${party}`,
         date: doc.createdAt || doc.documentDate,
@@ -321,6 +339,7 @@ export const Dashboard = () => {
     const expenseActivities = expenses.map(exp => {
       return {
         id: `act_${exp.id}`,
+        targetId: exp.id,
         title: `Expense recorded`,
         detail: `${exp.particulars} - ${exp.category}`,
         date: exp.createdAt || exp.date,
@@ -494,28 +513,28 @@ export const Dashboard = () => {
 
         {/* Stat Cards (6 Cards Grid) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {/* Card 1: Total Documents */}
+          {/* Card 1: Recurring Income (Yearly) */}
           <div 
-            onMouseEnter={() => setDocumentsTrigger(prev => prev + 1)}
-            onTouchStart={() => setDocumentsTrigger(prev => prev + 1)}
-            onClick={() => navigate('/documents')}
+            onMouseEnter={() => setRecurringIncomeYearlyTrigger(prev => prev + 1)}
+            onTouchStart={() => setRecurringIncomeYearlyTrigger(prev => prev + 1)}
+            onClick={() => navigate('/recurring')}
             className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer"
           >
             <CircularProgress 
-              percent={stats.totalDocsPercent}
+              percent={stats.recurringIncomeYearlyPercent}
               gradientId="blueProgress"
               gradientStart="#0ea5e9"
               gradientEnd="#2563eb"
               trackColor="#f0f9ff"
-              triggerKey={documentsTrigger}
+              triggerKey={recurringIncomeYearlyTrigger}
             />
             <div className="flex flex-col justify-center min-w-0">
-              <span className="text-[10px] xl:text-[11px] font-bold text-slate-500 truncate">Total Documents</span>
+              <span className="text-[10px] xl:text-[11px] font-bold text-slate-500 truncate">Recurring Income (Yearly)</span>
               <p className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight mt-0.5 whitespace-nowrap">
-                <AnimatedCardValue targetValue={stats.totalDocsVal} isCurrency={false} currencySymbol={currencySymbol} triggerKey={documentsTrigger} />
+                <AnimatedCardValue targetValue={stats.recurringIncomeYearlyVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={recurringIncomeYearlyTrigger} />
               </p>
-              <p className="text-[9px] xl:text-[10px] font-bold text-emerald-600 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                <span className="font-semibold">Projected annual income</span>
               </p>
             </div>
           </div>
@@ -540,8 +559,8 @@ export const Dashboard = () => {
               <p className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight mt-0.5 whitespace-nowrap">
                 <AnimatedCardValue targetValue={stats.totalInvoicedVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={invoicedTrigger} />
               </p>
-              <p className="text-[9px] xl:text-[10px] font-bold text-emerald-600 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                <span className="font-semibold">Cumulative invoices generated</span>
               </p>
             </div>
           </div>
@@ -566,8 +585,8 @@ export const Dashboard = () => {
               <p className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight mt-0.5 whitespace-nowrap">
                 <AnimatedCardValue targetValue={stats.overdueVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={overdueTrigger} />
               </p>
-              <p className="text-[9px] xl:text-[10px] font-bold text-rose-600 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                <span className="font-semibold">Awaiting payment</span>
               </p>
             </div>
           </div>
@@ -592,8 +611,8 @@ export const Dashboard = () => {
               <p className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight mt-0.5 whitespace-nowrap">
                 <AnimatedCardValue targetValue={stats.recurringIncomeVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={recurringIncomeTrigger} />
               </p>
-              <p className="text-[9px] xl:text-[10px] font-bold text-emerald-600 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                <span className="font-semibold">Projected monthly income</span>
               </p>
             </div>
           </div>
@@ -618,8 +637,8 @@ export const Dashboard = () => {
               <p className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight mt-0.5 whitespace-nowrap">
                 <AnimatedCardValue targetValue={stats.recurringOutcomeVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={recurringOutcomeTrigger} />
               </p>
-              <p className="text-[9px] xl:text-[10px] font-bold text-emerald-600 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                <span className="font-semibold">Projected monthly outcome</span>
               </p>
             </div>
           </div>
@@ -640,12 +659,22 @@ export const Dashboard = () => {
               triggerKey={expensesTrigger}
             />
             <div className="flex flex-col justify-center min-w-0">
-              <span className="text-[10px] xl:text-[11px] font-bold text-slate-500 truncate">Expenses</span>
-              <p className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight mt-0.5 whitespace-nowrap">
-                <AnimatedCardValue targetValue={stats.expensesVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={expensesTrigger} />
-              </p>
-              <p className="text-[9px] xl:text-[10px] font-bold text-emerald-600 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                <span>↑ 0%</span> <span className="text-slate-400 font-semibold">from last month</span>
+              <span className="text-[10px] xl:text-[11px] font-bold text-slate-500 truncate">Expenses (This Month)</span>
+              <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
+                <span className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight">
+                  <AnimatedCardValue targetValue={stats.expensesVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={expensesTrigger} />
+                </span>
+                <span className="text-[10px] text-slate-400 font-semibold truncate">
+                  / {formatCurrency(stats.expensesLimit, currencySymbol)}
+                </span>
+              </div>
+              <p className={`text-[9px] xl:text-[10px] font-bold mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap ${
+                stats.expensesVal > stats.expensesLimit ? 'text-rose-600' : 'text-emerald-600'
+              }`}>
+                <span>{stats.expensesVal > stats.expensesLimit ? '⚠' : '✓'}</span>
+                <span className="font-semibold">
+                  {stats.expensesVal > stats.expensesLimit ? 'Over monthly budget!' : 'Within monthly budget'}
+                </span>
               </p>
             </div>
           </div>
@@ -711,7 +740,9 @@ export const Dashboard = () => {
                         </div>
 
                         <div className="text-right shrink-0">
-                          <p className="font-extrabold text-xs text-slate-900 group-hover:text-blue-600 transition-colors">
+                          <p className={`font-extrabold text-xs group-hover:text-blue-600 transition-colors ${
+                            doc.status === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
+                          }`}>
                             {formatCurrency(amount, currencySymbol)}
                           </p>
                           <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
@@ -770,13 +801,24 @@ export const Dashboard = () => {
                         : TrendingUp;
 
                   return (
-                    <div key={act.id} className="flex items-center justify-between gap-3">
+                    <div 
+                      key={act.id} 
+                      onClick={() => {
+                        if (act.type === 'expense') {
+                          navigate('/expenses');
+                        } else {
+                          navigate(`/documents?preview=${act.targetId}`);
+                        }
+                      }}
+                      className="py-2 px-2.5 -mx-2.5 flex items-center justify-between gap-3 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl transition-all cursor-pointer group active:scale-[0.99]"
+                      title="Click to view details"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${iconBg}`}>
                           <Icon className="w-4.5 h-4.5" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-slate-900 truncate">{act.title}</p>
+                          <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">{act.title}</p>
                           <p className="text-[10px] text-slate-400 font-semibold truncate mt-0.5">{act.detail}</p>
                         </div>
                       </div>
@@ -855,12 +897,86 @@ export const Dashboard = () => {
           </div>
           <div className="flex items-center gap-6">
             <span>Version 1.0.0</span>
-            <a href="#whats-new" className="text-blue-600 hover:underline flex items-center gap-1.5">
+            <button
+              onClick={() => setShowWhatsNew(true)}
+              className="text-blue-600 hover:underline flex items-center gap-1.5 bg-transparent border-none cursor-pointer outline-none font-bold"
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               What's New
-            </a>
+            </button>
           </div>
         </div>
+
+        {showWhatsNew && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 max-w-sm w-full relative transform scale-100 transition-all duration-300">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500 animate-pulse" />
+                  <h3 className="font-extrabold text-slate-900 text-base tracking-tight">What's New in UNAI Billing</h3>
+                </div>
+                <button 
+                  onClick={() => setShowWhatsNew(false)}
+                  className="w-7 h-7 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer border-none bg-transparent"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Feature list */}
+              <div className="my-4 space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                <div className="flex gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold">1</span>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-slate-900">Month-Wise Budget Limits</h4>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Customize individual monthly limits for precise expense control directly in Settings.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold">2</span>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-slate-900">Smart Status Color-Coding</h4>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Enforced emerald green for paid receipts/vouchers and rose red for unpaid invoices.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold">3</span>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-slate-900">Dynamic Yearly Projections</h4>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Quickly view projected annual recurring income right on your dashboard metrics card.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold">4</span>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-slate-900">Interactive Activity Feeds</h4>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Click any recent activity row to open its document preview modal or expense logs instantly.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action */}
+              <button
+                onClick={() => setShowWhatsNew(false)}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-2xl transition-all cursor-pointer shadow-xs active:scale-[0.98] border-none"
+              >
+                Awesome, Got It!
+              </button>
+            </div>
+          </div>
+        )}
 
 
       </div>
