@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { ChevronRight, X, Lock, Key, Phone, Mail, Shield, Users, AlertCircle } from 'lucide-react';
+import { ChevronRight, X, Lock, Key, Phone, Mail, Shield, Users, AlertCircle, Banknote } from 'lucide-react';
 import { useCompany } from '../../contexts/CompanyContext';
 import { useDocument } from '../../contexts/DocumentContext';
 import { getAllExpenses } from '../../services/db';
@@ -268,6 +268,18 @@ export const MainLayout = ({ children, title }) => {
                               <p className="text-[10px] text-slate-400 font-semibold">Email Address</p>
                               <p className="font-semibold text-slate-800 truncate max-w-[200px]" title={activeEmployee.email}>
                                 {activeEmployee.email || 'Not provided'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs">
+                            <Banknote className="w-4 h-4 text-slate-400" />
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-semibold">Salary</p>
+                              <p className="font-bold text-emerald-700">
+                                {activeEmployee.salary !== undefined && activeEmployee.salary !== ''
+                                  ? formatCurrency(Number(activeEmployee.salary), currencySymbol)
+                                  : 'Not provided'}
                               </p>
                             </div>
                           </div>

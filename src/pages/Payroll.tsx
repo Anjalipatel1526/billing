@@ -1,0 +1,916 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { MainLayout } from '../components/layout/MainLayout';
+import { useCompany } from '../contexts/CompanyContext';
+import { useToast } from '../components/ui/Toast';
+import { Button } from '../components/ui/Button';
+import { getCompanyEmployees, getCompanyPayroll, saveCompanyPayroll } from '../services/db';
+import { formatCurrency, formatDate } from '../utils/formatting';
+import { 
+  Users, 
+  Search, 
+  Check, 
+  AlertCircle, 
+  Banknote, 
+  Calendar, 
+  Download, 
+  Printer, 
+  Wallet, 
+  X,
+  BadgeCheck,
+  Pause,
+  Coins
+} from 'lucide-react';
+
+interface Employee {
+  id: string;
+  name: string;
+  loginId: string;
+  phone?: string;
+  email?: string;
+  designation?: string;
+  salary?: number | string;
+  isAdmin?: boolean;
+  photo?: string;
+}
+
+interface PayrollRecord {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  salary: number;
+  month: string; // "YYYY-MM" format
+  status: 'Paid' | 'Hold';
+  paymentDate?: string;
+  paymentMethod?: string;
+  notes?: string;
+  updatedAt: string;
+}
+
+export const Payroll = () => {
+  const { activeCompany } = useCompany();
+  const { showToast } = useToast();
+
+  // Guard: if employee is logged in, redirect or block access
+  const employeeJson = localStorage.getItem('activeEmployee');
+  const activeEmployee = employeeJson ? JSON.parse(employeeJson) : null;
+
+  // State
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}`;
+  });
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Paid' | 'Hold'>('All');
+
+  // Modal State for recording payment details
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+  const [paymentDate, setPaymentDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [paymentMethod, setPaymentMethod] = useState<string>('Bank Transfer');
+  const [paymentNotes, setPaymentNotes] = useState<string>('');
+
+  // Load employees and payroll history
+  const loadData = useCallback(async () => {
+    if (!activeCompany?.id) return;
+    setLoading(true);
+    try {
+      const emps = await getCompanyEmployees(activeCompany.id);
+      const payroll = await getCompanyPayroll(activeCompany.id);
+      setEmployees(emps);
+      setPayrollRecords(payroll);
+    } catch (err) {
+      console.error('Error loading payroll data:', err);
+      showToast('Failed to load payroll data.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeCompany?.id, showToast]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Deny access to non-admin employees
+  if (activeEmployee && !activeEmployee.isAdmin) {
+    return (
+      <MainLayout title="Access Control">
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6 bg-white border border-slate-100 rounded-2xl">
+          <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-4 border border-rose-100/30">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900">Access Denied</h3>
+          <p className="text-slate-500 text-sm max-w-sm mt-1 leading-relaxed">
+            Only the Workspace Owner or Administrator can access the Salary Payroll section.
+          </p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Get current month's payroll mappings
+  const mappedPayroll = useMemo(() => {
+    return employees.map(emp => {
+      const record = payrollRecords.find(
+        r => r.employeeId === emp.id && r.month === selectedMonth
+      );
+      
+      const salaryVal = emp.salary !== undefined && emp.salary !== '' && !isNaN(Number(emp.salary))
+        ? Number(emp.salary)
+        : 0;
+
+      return {
+        employee: emp,
+        record: record || null,
+        status: record ? record.status : ('Pending' as const),
+        salary: record ? record.salary : salaryVal,
+        paymentDate: record?.paymentDate,
+        paymentMethod: record?.paymentMethod,
+        notes: record?.notes
+      };
+    });
+  }, [employees, payrollRecords, selectedMonth]);
+
+  // Filtered list based on Search & Status filters
+  const filteredPayroll = useMemo(() => {
+    return mappedPayroll.filter(item => {
+      const matchesSearch = 
+        item.employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.employee.designation && item.employee.designation.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesStatus = 
+        statusFilter === 'All' || 
+        item.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [mappedPayroll, searchTerm, statusFilter]);
+
+  // Calculations for stats widgets
+  const stats = useMemo(() => {
+    let totalBudget = 0;
+    let totalPaid = 0;
+    let totalHold = 0;
+    let paidCount = 0;
+    let holdCount = 0;
+    let pendingCount = 0;
+
+    mappedPayroll.forEach(item => {
+      const sal = item.salary;
+      totalBudget += sal;
+      if (item.status === 'Paid') {
+        totalPaid += sal;
+        paidCount++;
+      } else if (item.status === 'Hold') {
+        totalHold += sal;
+        holdCount++;
+      } else {
+        pendingCount++;
+      }
+    });
+
+    const progressPercent = mappedPayroll.length > 0 
+      ? Math.round((paidCount / mappedPayroll.length) * 100) 
+      : 0;
+
+    return {
+      totalBudget,
+      totalPaid,
+      totalHold,
+      paidCount,
+      holdCount,
+      pendingCount,
+      totalCount: mappedPayroll.length,
+      progressPercent
+    };
+  }, [mappedPayroll]);
+
+  // Format month label for presentation (e.g. "2026-08" -> "August 2026")
+  const formattedMonthLabel = useMemo(() => {
+    if (!selectedMonth) return '';
+    const [year, month] = selectedMonth.split('-');
+    const date = new Date(Number(year), Number(month) - 1, 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }, [selectedMonth]);
+
+  // Quick mark as Hold action
+  const handleMarkAsHold = async (emp: Employee) => {
+    if (!activeCompany?.id) return;
+    
+    const isAlreadyHold = payrollRecords.some(
+      r => r.employeeId === emp.id && r.month === selectedMonth && r.status === 'Hold'
+    );
+
+    try {
+      let updatedRecords;
+      if (isAlreadyHold) {
+        // Toggle back to Pending (remove the record)
+        updatedRecords = payrollRecords.filter(
+          r => !(r.employeeId === emp.id && r.month === selectedMonth)
+        );
+        await saveCompanyPayroll(activeCompany.id, updatedRecords);
+        setPayrollRecords(updatedRecords);
+        showToast(`Salary for "${emp.name}" is reset to Pending.`, 'info');
+      } else {
+        // Find and remove any existing record, then insert a hold record
+        updatedRecords = payrollRecords.filter(
+          r => !(r.employeeId === emp.id && r.month === selectedMonth)
+        );
+
+        const holdRecord: PayrollRecord = {
+          id: `pay_${Date.now()}_${emp.id}`,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          salary: emp.salary !== undefined && emp.salary !== '' && !isNaN(Number(emp.salary)) ? Number(emp.salary) : 0,
+          month: selectedMonth,
+          status: 'Hold',
+          updatedAt: new Date().toISOString()
+        };
+        
+        updatedRecords.push(holdRecord);
+
+        await saveCompanyPayroll(activeCompany.id, updatedRecords);
+        setPayrollRecords(updatedRecords);
+        showToast(`Salary for "${emp.name}" set to Hold.`, 'info');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to update payroll status.', 'error');
+    }
+  };
+
+  // Open modal to record payment details
+  const handleOpenPaymentModal = (emp: Employee) => {
+    setSelectedEmployee(emp);
+    const defaultSalary = emp.salary !== undefined && emp.salary !== '' && !isNaN(Number(emp.salary))
+      ? String(emp.salary)
+      : '0';
+    
+    // Check if there is an existing record to prefill
+    const existing = payrollRecords.find(
+      r => r.employeeId === emp.id && r.month === selectedMonth
+    );
+
+    setPaymentAmount(existing ? String(existing.salary) : defaultSalary);
+    setPaymentDate(existing?.paymentDate || new Date().toISOString().split('T')[0]);
+    setPaymentMethod(existing?.paymentMethod || 'Bank Transfer');
+    setPaymentNotes(existing?.notes || '');
+    setPaymentModalOpen(true);
+  };
+
+  // Submit payment modal
+  const handleSavePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeCompany?.id || !selectedEmployee) return;
+
+    const amountNum = parseFloat(paymentAmount);
+    if (isNaN(amountNum) || amountNum < 0) {
+      showToast('Please enter a valid payment amount.', 'error');
+      return;
+    }
+
+    try {
+      // Remove any existing record for this employee and month
+      let updatedRecords = payrollRecords.filter(
+        r => !(r.employeeId === selectedEmployee.id && r.month === selectedMonth)
+      );
+
+      // Add new Paid record
+      const paidRecord: PayrollRecord = {
+        id: `pay_${Date.now()}_${selectedEmployee.id}`,
+        employeeId: selectedEmployee.id,
+        employeeName: selectedEmployee.name,
+        salary: amountNum,
+        month: selectedMonth,
+        status: 'Paid',
+        paymentDate: paymentDate,
+        paymentMethod: paymentMethod,
+        notes: paymentNotes.trim() || undefined,
+        updatedAt: new Date().toISOString()
+      };
+
+      updatedRecords.push(paidRecord);
+
+      await saveCompanyPayroll(activeCompany.id, updatedRecords);
+      setPayrollRecords(updatedRecords);
+      setPaymentModalOpen(false);
+      setSelectedEmployee(null);
+      showToast(`Salary of ${formatCurrency(amountNum, activeCompany.currency?.split(' ')[1] || '₹')} paid to "${selectedEmployee.name}".`, 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to save payment details.', 'error');
+    }
+  };
+
+  // Export payroll list as CSV
+  const handleExportCSV = () => {
+    if (filteredPayroll.length === 0) {
+      showToast('No payroll data to export.', 'error');
+      return;
+    }
+
+    const headers = ['Employee ID', 'Employee Name', 'Designation', 'Base Salary', 'Status', 'Paid Amount', 'Payment Date', 'Payment Method', 'Notes'];
+    const rows = filteredPayroll.map(item => [
+      item.employee.loginId,
+      item.employee.name,
+      item.employee.designation || 'N/A',
+      item.employee.salary || 0,
+      item.status,
+      item.status === 'Paid' ? item.salary : 0,
+      item.paymentDate || 'N/A',
+      item.paymentMethod || 'N/A',
+      item.notes || 'N/A'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `payroll_${selectedMonth}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Payroll records exported successfully.', 'success');
+  };
+
+  // Trigger browser print dialog for the current page
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const currencySymbol = activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹';
+
+  return (
+    <MainLayout title="Salary Payroll">
+      <div className="space-y-6 font-sans no-print">
+        
+        {/* Top Header & Month Selector */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900 leading-tight">
+              Payroll Processing
+            </h2>
+            <p className="text-slate-400 text-xs font-semibold mt-1">
+              Manage salary records and payment status for <span className="text-indigo-600 font-bold">{formattedMonthLabel}</span>
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Month Input Styled */}
+            <div className="relative">
+              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 pointer-events-none" />
+              <input
+                type="month"
+                id="payroll-month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-2xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-xs font-bold text-slate-700 transition-all cursor-pointer"
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              icon={Printer}
+              onClick={handlePrint}
+              className="border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl px-4 py-2.5 text-xs font-bold cursor-pointer"
+              id="btn-print-payroll"
+            >
+              Print
+            </Button>
+
+            <Button
+              variant="outline"
+              icon={Download}
+              onClick={handleExportCSV}
+              className="border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl px-4 py-2.5 text-xs font-bold cursor-pointer"
+              id="btn-export-payroll"
+            >
+              Export
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Card 1: Total Budget */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[110px]">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/20 rounded-full filter blur-xl pointer-events-none"></div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Payroll Budget</span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <Banknote className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <h3 className="text-xl font-extrabold text-slate-900 leading-none">
+                {formatCurrency(stats.totalBudget, currencySymbol)}
+              </h3>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1">Based on active employee profiles</p>
+            </div>
+          </div>
+
+          {/* Card 2: Total Paid */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[110px]">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50/20 rounded-full filter blur-xl pointer-events-none"></div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Paid Amount</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <Coins className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <h3 className="text-xl font-extrabold text-slate-900 leading-none text-emerald-650">
+                {formatCurrency(stats.totalPaid, currencySymbol)}
+              </h3>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1">Transferred or settled successfully</p>
+            </div>
+          </div>
+
+          {/* Card 3: Total Hold */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[110px]">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50/20 rounded-full filter blur-xl pointer-events-none"></div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Hold Salary</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                <Wallet className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <h3 className="text-xl font-extrabold text-slate-900 leading-none text-amber-650">
+                {formatCurrency(stats.totalHold, currencySymbol)}
+              </h3>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1">Salaries explicitly marked on hold</p>
+            </div>
+          </div>
+
+          {/* Card 4: Progress */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[110px]">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Payout Completion</span>
+              <span className="text-xs font-extrabold text-indigo-600">{stats.progressPercent}%</span>
+            </div>
+            <div className="mt-3 space-y-1.5">
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-indigo-600 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${stats.progressPercent}%` }}
+                />
+              </div>
+              <div className="flex justify-between items-center text-[10px] text-slate-400 font-semibold">
+                <span>{stats.paidCount} Paid</span>
+                <span>{stats.holdCount} Hold • {stats.pendingCount} Pending</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Controls & Search */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/65 shadow-xs">
+          {/* Status filters */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-50 border border-slate-200/50 rounded-2xl w-fit shrink-0">
+            {(['All', 'Pending', 'Paid', 'Hold'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  statusFilter === f
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/40'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {f} ({
+                  f === 'All' 
+                    ? stats.totalCount 
+                    : f === 'Pending' 
+                      ? stats.pendingCount 
+                      : f === 'Paid' 
+                        ? stats.paidCount 
+                        : stats.holdCount
+                })
+              </button>
+            ))}
+          </div>
+
+          {/* Search bar */}
+          <div className="relative max-w-sm w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by employee name or role..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-xs transition-all"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+
+        {/* Main Payroll List */}
+        {loading ? (
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-8 space-y-4 animate-pulse">
+            {[1, 2, 3].map(n => (
+              <div key={n} className="flex items-center justify-between py-2 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-100 rounded-full" />
+                  <div className="space-y-1">
+                    <div className="h-3.5 bg-slate-100 rounded w-24" />
+                    <div className="h-2.5 bg-slate-100 rounded w-16" />
+                  </div>
+                </div>
+                <div className="h-8 bg-slate-100 rounded w-28" />
+              </div>
+            ))}
+          </div>
+        ) : filteredPayroll.length === 0 ? (
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-16 text-center shadow-xs">
+            <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mx-auto mb-4 border border-slate-100">
+              <Users className="w-8 h-8" />
+            </div>
+            <h4 className="text-slate-900 font-bold text-sm">No Payroll Records Found</h4>
+            <p className="text-slate-400 text-xs mt-1 max-w-xs mx-auto leading-relaxed">
+              No employees matched the current filters. Ensure employees are created and have salaries configured.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white border border-slate-200/60 rounded-3xl overflow-hidden shadow-xs border-collapse">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    <th className="py-4.5 px-6">Employee Info</th>
+                    <th className="py-4.5 px-6">Designation</th>
+                    <th className="py-4.5 px-6">Base Salary</th>
+                    <th className="py-4.5 px-6">Payment Status</th>
+                    <th className="py-4.5 px-6">Payment Details</th>
+                    <th className="py-4.5 px-6 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredPayroll.map(({ employee, status, salary, paymentDate, paymentMethod, notes }) => {
+                    const hasSalary = employee.salary !== undefined && employee.salary !== '' && Number(employee.salary) > 0;
+
+                    return (
+                      <tr key={employee.id} className="hover:bg-slate-50/50 transition-colors group">
+                        {/* Employee Info */}
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            {employee.photo ? (
+                              <img 
+                                src={employee.photo} 
+                                alt={employee.name} 
+                                className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-200" 
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0 font-bold text-xs text-indigo-600 uppercase">
+                                {employee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                              </div>
+                            )}
+                            <div>
+                              <h4 className="font-bold text-slate-900 text-sm leading-tight">{employee.name}</h4>
+                              <p className="text-[10px] text-slate-400 font-semibold mt-0.5">ID: {employee.loginId}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Designation */}
+                        <td className="py-4 px-6 text-xs text-slate-600 font-medium">
+                          {employee.designation || <span className="text-slate-400 italic">Not Specified</span>}
+                        </td>
+
+                        {/* Base Salary */}
+                        <td className="py-4 px-6 text-xs font-bold text-slate-800">
+                          {hasSalary ? (
+                            formatCurrency(Number(employee.salary), currencySymbol)
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-rose-500 font-semibold">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              Salary Not Set
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Payment Status Badges */}
+                        <td className="py-4 px-6">
+                          {status === 'Paid' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-bold">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Paid
+                            </span>
+                          ) : status === 'Hold' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              Hold
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 text-slate-500 text-[10px] font-bold">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                              Pending
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Payment Details */}
+                        <td className="py-4 px-6">
+                          {status === 'Paid' ? (
+                            <div className="space-y-0.5 text-[10px] text-slate-400 font-semibold leading-tight">
+                              <p className="text-slate-600">Settled: <span className="font-bold">{formatCurrency(salary, currencySymbol)}</span></p>
+                              <p>Date: {paymentDate ? formatDate(paymentDate) : 'N/A'}</p>
+                              <p>Via: {paymentMethod}</p>
+                              {notes && <p className="italic truncate max-w-[150px]" title={notes}>Note: "{notes}"</p>}
+                            </div>
+                          ) : status === 'Hold' ? (
+                            <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">Withheld</span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium italic">Pending release</span>
+                          )}
+                        </td>
+
+                        {/* Actions (Paid & Hold options toggle) */}
+                        <td className="py-4 px-6 text-right">
+                          <div className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/50 p-1 rounded-2xl w-fit">
+                            {/* Paid Option */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPaymentModal(employee)}
+                              className={`px-3.5 py-2 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                                status === 'Paid'
+                                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100'
+                                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
+                              }`}
+                              title={`Record Payment for ${employee.name}`}
+                              id={`btn-paid-${employee.id}`}
+                            >
+                              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                              Paid
+                            </button>
+
+                            {/* Hold Option */}
+                            <button
+                              type="button"
+                              onClick={() => handleMarkAsHold(employee)}
+                              className={`px-3.5 py-2 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                                status === 'Hold'
+                                  ? 'bg-amber-500 text-white shadow-md shadow-amber-100'
+                                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
+                              }`}
+                              title={`Hold Payment for ${employee.name}`}
+                              id={`btn-hold-${employee.id}`}
+                            >
+                              <Pause className="w-3.5 h-3.5 stroke-[2.5]" />
+                              Hold
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Release Payment Dialog Modal */}
+      {paymentModalOpen && selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto font-sans">
+          <div 
+            className="absolute inset-0 cursor-pointer" 
+            onClick={() => setPaymentModalOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 pb-4 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <BadgeCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base leading-none">Record Payment</h3>
+                  <p className="text-[10px] text-slate-400 font-semibold mt-1">Release monthly salary to employee</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setPaymentModalOpen(false)}
+                className="w-7 h-7 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSavePayment} className="p-5 space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Employee</label>
+                <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-2xl">
+                  {selectedEmployee.photo ? (
+                    <img src={selectedEmployee.photo} alt={selectedEmployee.name} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0 font-bold text-xs text-indigo-600 uppercase">
+                      {selectedEmployee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-sm leading-none">{selectedEmployee.name}</h4>
+                    <p className="text-[10px] text-slate-400 font-bold mt-1">ID: {selectedEmployee.loginId} {selectedEmployee.designation ? `• ${selectedEmployee.designation}` : ''}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Amount to pay */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Paid Amount ({currencySymbol})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-sm font-bold text-slate-800 transition-all"
+                />
+              </div>
+
+              {/* Date of payment */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Payment Date</label>
+                <input
+                  type="date"
+                  required
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                />
+              </div>
+
+              {/* Method of payment */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Payment Method</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                >
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Cash">Cash</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Cheque">Cheque</option>
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Notes (Optional)</label>
+                <textarea
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="e.g. Transaction ID, Bonus details, adjustments..."
+                  rows={2}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-xs font-semibold text-slate-700 transition-all resize-none"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-150">
+                <div>
+                  {selectedEmployee && payrollRecords.some(r => r.employeeId === selectedEmployee.id && r.month === selectedMonth && r.status === 'Paid') && (
+                    <Button
+                      variant="danger"
+                      onClick={async () => {
+                        if (!activeCompany?.id || !selectedEmployee) return;
+                        try {
+                          const updatedRecords = payrollRecords.filter(
+                            r => !(r.employeeId === selectedEmployee.id && r.month === selectedMonth)
+                          );
+                          await saveCompanyPayroll(activeCompany.id, updatedRecords);
+                          setPayrollRecords(updatedRecords);
+                          setPaymentModalOpen(false);
+                          setSelectedEmployee(null);
+                          showToast(`Salary payment for "${selectedEmployee.name}" reset to Pending.`, 'info');
+                        } catch (err) {
+                          console.error(err);
+                          showToast('Failed to reset payment.', 'error');
+                        }
+                      }}
+                      className="rounded-2xl px-4 py-2.5 text-xs font-bold cursor-pointer"
+                    >
+                      Reset to Pending
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Button
+                    variant="outline"
+                    onClick={() => setPaymentModalOpen(false)}
+                    className="border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl px-4 py-2.5 text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-5 py-2.5 text-xs font-bold shadow-md shadow-emerald-100 cursor-pointer"
+                    id="btn-confirm-payment"
+                  >
+                    Confirm Payment
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Print-Only Layout */}
+      <div className="hidden print-only font-sans p-6 text-slate-900 bg-white min-h-screen">
+        <div className="flex justify-between items-start border-b border-slate-300 pb-4 mb-6">
+          <div>
+            <h1 className="text-xl font-extrabold text-slate-900">{activeCompany?.companyName || 'Company'}</h1>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Salary Payroll Summary Report</p>
+            <p className="text-[11px] text-slate-700 font-medium mt-1">Month: <span className="font-bold">{formattedMonthLabel}</span></p>
+          </div>
+          <div className="text-right text-[10px] text-slate-500 font-semibold">
+            <p>Generated: {new Date().toLocaleString()}</p>
+            <p className="mt-1">Currency: {activeCompany?.currency || 'INR ₹'}</p>
+          </div>
+        </div>
+
+        {/* Stats Printout */}
+        <div className="grid grid-cols-3 gap-4 border border-slate-200 rounded-xl p-4 mb-6">
+          <div>
+            <p className="text-[9px] uppercase font-bold text-slate-400">Total Payroll Budget</p>
+            <p className="text-base font-extrabold text-slate-950 mt-0.5">{formatCurrency(stats.totalBudget, currencySymbol)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase font-bold text-slate-400">Total Release Amount</p>
+            <p className="text-base font-extrabold text-emerald-800 mt-0.5">{formatCurrency(stats.totalPaid, currencySymbol)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase font-bold text-slate-400">Withheld / Pending</p>
+            <p className="text-base font-extrabold text-amber-800 mt-0.5">{formatCurrency(stats.totalHold, currencySymbol)}</p>
+          </div>
+        </div>
+
+        {/* Print Table */}
+        <table className="w-full text-left border-collapse border border-slate-200">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-600">
+              <th className="py-2.5 px-3 border border-slate-200">Employee ID</th>
+              <th className="py-2.5 px-3 border border-slate-200">Employee Name</th>
+              <th className="py-2.5 px-3 border border-slate-200">Designation</th>
+              <th className="py-2.5 px-3 border border-slate-200">Base Salary</th>
+              <th className="py-2.5 px-3 border border-slate-200">Status</th>
+              <th className="py-2.5 px-3 border border-slate-200">Paid Amount</th>
+              <th className="py-2.5 px-3 border border-slate-200">Payment Date / Via</th>
+              <th className="py-2.5 px-3 border border-slate-200">Notes</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 text-[11px]">
+            {mappedPayroll.map(({ employee, status, salary, paymentDate, paymentMethod, notes }) => (
+              <tr key={employee.id}>
+                <td className="py-2 px-3 border border-slate-200 font-bold">{employee.loginId}</td>
+                <td className="py-2 px-3 border border-slate-200 font-extrabold">{employee.name}</td>
+                <td className="py-2 px-3 border border-slate-200">{employee.designation || '-'}</td>
+                <td className="py-2 px-3 border border-slate-200 font-bold">{formatCurrency(Number(employee.salary || 0), currencySymbol)}</td>
+                <td className="py-2 px-3 border border-slate-200 font-bold">{status}</td>
+                <td className="py-2 px-3 border border-slate-200 font-bold">
+                  {status === 'Paid' ? formatCurrency(salary, currencySymbol) : '-'}
+                </td>
+                <td className="py-2 px-3 border border-slate-200">
+                  {status === 'Paid' ? `${paymentDate ? formatDate(paymentDate) : ''} (${paymentMethod})` : '-'}
+                </td>
+                <td className="py-2 px-3 border border-slate-200 text-slate-500 italic">{notes || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Footer Signature line for prints */}
+        <div className="mt-16 flex justify-between text-[11px] font-semibold text-slate-500">
+          <div>
+            <div className="w-40 border-b border-slate-400 mb-1"></div>
+            <p>Prepared By</p>
+          </div>
+          <div className="text-right">
+            <div className="w-40 border-b border-slate-400 mb-1"></div>
+            <p>Authorized Signature</p>
+          </div>
+        </div>
+      </div>
+    </MainLayout>
+  );
+};
+
+export default Payroll;

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.employees (
   designation TEXT,
   phone TEXT,
   email TEXT,
+  salary NUMERIC,
   is_admin BOOLEAN DEFAULT false,
   permissions JSONB DEFAULT '{
     "viewDocuments": true,

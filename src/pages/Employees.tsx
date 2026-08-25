@@ -24,7 +24,8 @@ import {
   AlertCircle,
   Phone,
   Mail,
-  Briefcase
+  Briefcase,
+  Banknote
 } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 
@@ -47,6 +48,7 @@ interface Employee {
   phone?: string;
   email?: string;
   designation?: string;
+  salary?: number | string;
   permissions: EmployeePermissions;
   isAdmin?: boolean;
   createdAt: string;
@@ -88,6 +90,7 @@ export const Employees = () => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [designation, setDesignation] = useState('');
+  const [salary, setSalary] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [permissions, setPermissions] = useState<EmployeePermissions>({ ...defaultPermissions });
   const [isAdmin, setIsAdmin] = useState(false);
@@ -165,6 +168,7 @@ export const Employees = () => {
     setPhone('');
     setEmail('');
     setDesignation('');
+    setSalary('');
     setPermissions({ ...defaultPermissions });
     setIsAdmin(false);
     setPhoto('');
@@ -181,6 +185,7 @@ export const Employees = () => {
     setPhone(emp.phone || '');
     setEmail(emp.email || '');
     setDesignation(emp.designation || '');
+    setSalary(emp.salary !== undefined && emp.salary !== null ? String(emp.salary) : '');
     setPermissions(emp.permissions || { ...defaultPermissions });
     setIsAdmin(!!emp.isAdmin);
     setPhoto(emp.photo || '');
@@ -274,6 +279,7 @@ export const Employees = () => {
           phone: phone.trim(),
           email: email.trim().toLowerCase(),
           designation: designation.trim(),
+          salary: salary.trim() ? (isNaN(Number(salary.trim())) ? salary.trim() : Number(salary.trim())) : '',
           permissions,
           isAdmin,
           createdAt: new Date().toISOString(),
@@ -292,6 +298,7 @@ export const Employees = () => {
               phone: phone.trim(),
               email: email.trim().toLowerCase(),
               designation: designation.trim(),
+              salary: salary.trim() ? (isNaN(Number(salary.trim())) ? salary.trim() : Number(salary.trim())) : '',
               permissions,
               isAdmin,
               photo: photo
@@ -444,7 +451,8 @@ export const Employees = () => {
   const filteredEmployees = employees.filter(emp => 
     emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     emp.loginId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (emp.designation && emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+    (emp.designation && emp.designation.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (emp.salary !== undefined && emp.salary !== null && String(emp.salary).includes(searchTerm))
   );
 
   return (
@@ -553,9 +561,17 @@ export const Employees = () => {
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                          {emp.designation ? `${emp.designation} • ` : ''}Joined {new Date(emp.createdAt).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-center justify-between gap-1 mt-0.5">
+                          <p className="text-[10px] text-slate-400 font-semibold truncate">
+                            {emp.designation ? `${emp.designation} • ` : ''}Joined {new Date(emp.createdAt).toLocaleDateString()}
+                          </p>
+                          {emp.salary !== undefined && emp.salary !== '' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-bold shrink-0">
+                              <Banknote className="w-3 h-3 text-emerald-600" />
+                              {formatCurrency(Number(emp.salary), activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹')}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -817,6 +833,23 @@ export const Employees = () => {
                             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-sm transition-all"
                             autoComplete="new-email"
                             name="employee-email"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Salary */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800 mb-1.5">Salary</label>
+                        <div className="relative">
+                          <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="number"
+                            value={salary}
+                            onChange={(e) => setSalary(e.target.value)}
+                            placeholder="e.g. 50000"
+                            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-sm transition-all"
+                            autoComplete="new-salary"
+                            name="employee-salary"
                           />
                         </div>
                       </div>
@@ -1301,6 +1334,18 @@ export const Employees = () => {
                               <p className="text-[10px] text-slate-400 font-semibold">Email Address</p>
                               <p className="font-semibold text-slate-800 truncate max-w-[200px]" title={activeEmployeeDetail.email}>
                                 {activeEmployeeDetail.email || 'Not provided'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs">
+                            <Banknote className="w-4 h-4 text-slate-400" />
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-semibold">Salary</p>
+                              <p className="font-bold text-emerald-700">
+                                {activeEmployeeDetail.salary !== undefined && activeEmployeeDetail.salary !== ''
+                                  ? formatCurrency(Number(activeEmployeeDetail.salary), activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹')
+                                  : 'Not provided'}
                               </p>
                             </div>
                           </div>

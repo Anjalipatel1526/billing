@@ -28,7 +28,8 @@ import {
   Wallet,
   Bell,
   Trash2,
-  Settings
+  Settings,
+  Banknote
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import GradientWaves from '../components/ui/GradientWaves';
@@ -207,6 +208,13 @@ export const Dashboard = () => {
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
 
+  // Show salary reminder red dot if current date is between 29th and 2nd inclusive
+  const showSalaryReminderDot = useMemo(() => {
+    const today = new Date();
+    const day = today.getDate();
+    return day >= 29 || day <= 2;
+  }, []);
+
   // Animation triggers for hover / touch events
   const [recurringIncomeYearlyTrigger, setRecurringIncomeYearlyTrigger] = useState(0);
   const [invoicedTrigger, setInvoicedTrigger] = useState(0);
@@ -238,24 +246,25 @@ export const Dashboard = () => {
 
   const renderQuickActions = (isMobile = false) => {
     const canSettings = !activeEmployee || activeEmployee.isAdmin;
+    const canEmployees = !activeEmployee || activeEmployee.isAdmin;
     const canInvoice = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.addInvoice;
     const canDocs = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.viewDocuments;
     const canLedger = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.viewLedger;
     const canExpenses = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.addExpense;
     const canRecurring = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.accessRecurringPayments;
     const canRecycle = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.accessRecycleBin;
-    const canAnnouncement = !activeEmployee || activeEmployee.isAdmin;
+    const canPayroll = !activeEmployee || activeEmployee.isAdmin;
 
     if (isMobile) {
       return (
         <div className="bg-white border border-[#f1f3f9] rounded-3xl p-4.5 shadow-xs flex flex-col gap-4 items-center">
           {/* Row 1: Existing Quick Actions */}
           <div className="flex flex-row flex-wrap justify-center items-center gap-3.5 w-full">
-            {canSettings && (
+            {canEmployees && (
               <button
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate('/employees')}
                 className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-blue-100/30"
-                title="Create Admin"
+                title="Employees"
               >
                 <UserPlus className="w-5 h-5 stroke-[2.2]" />
               </button>
@@ -271,13 +280,19 @@ export const Dashboard = () => {
               </button>
             )}
 
-            {canAnnouncement && (
+            {canPayroll && (
               <button
-                onClick={() => showToast('Announcement feature selected', 'info')}
-                className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-purple-100/30"
-                title="Add Announcement"
+                onClick={() => navigate('/payroll')}
+                className="relative w-12 h-12 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-purple-100/30"
+                title="Salary Payroll"
               >
-                <Megaphone className="w-5 h-5 stroke-[2.2]" />
+                <Banknote className="w-5 h-5 stroke-[2.2]" />
+                {showSalaryReminderDot && (
+                  <span className="absolute top-1 right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  </span>
+                )}
               </button>
             )}
 
@@ -291,15 +306,13 @@ export const Dashboard = () => {
               </button>
             )}
 
-            {canLedger && (
-              <button
-                onClick={() => navigate('/ledger')}
-                className="w-12 h-12 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-orange-100/30"
-                title="System Reports"
-              >
-                <TrendingUp className="w-5 h-5 stroke-[2.2]" />
-              </button>
-            )}
+            <button
+              onClick={() => setShowWhatsNew(true)}
+              className="w-12 h-12 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-orange-100/30"
+              title="What's New"
+            >
+              <Sparkles className="w-5 h-5 stroke-[2.2] text-amber-500 fill-amber-500 animate-pulse" />
+            </button>
           </div>
 
           {/* Divider line between quick actions and sidebar sections */}
@@ -368,15 +381,15 @@ export const Dashboard = () => {
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-          {canSettings && (
+          {canEmployees && (
             <button
-              onClick={() => navigate('/settings')}
+              onClick={() => navigate('/employees')}
               className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
             >
               <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                 <UserPlus className="w-4 h-4" />
               </div>
-              <span className="text-xs font-bold text-slate-700">Create Admin</span>
+              <span className="text-xs font-bold text-slate-700">Employees</span>
             </button>
           )}
 
@@ -392,15 +405,28 @@ export const Dashboard = () => {
             </button>
           )}
 
-          {canAnnouncement && (
+          {canPayroll && (
             <button
-              onClick={() => showToast('Announcement feature selected', 'info')}
-              className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+              onClick={() => navigate('/payroll')}
+              className="relative flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
             >
-              <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                <Megaphone className="w-4 h-4" />
+              <div className="relative w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                <Banknote className="w-4 h-4" />
+                {showSalaryReminderDot && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                )}
               </div>
-              <span className="text-xs font-bold text-slate-700">Add Announcement</span>
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-2">
+                Salary Payroll
+                {showSalaryReminderDot && (
+                  <span className="text-[10px] text-red-650 bg-red-50 px-1.5 py-0.5 rounded-md font-bold animate-pulse">
+                    Salary Due
+                  </span>
+                )}
+              </span>
             </button>
           )}
 
@@ -416,17 +442,15 @@ export const Dashboard = () => {
             </button>
           )}
 
-          {canLedger && (
-            <button
-              onClick={() => navigate('/ledger')}
-              className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
-            >
-              <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-700">System Reports</span>
-            </button>
-          )}
+          <button
+            onClick={() => setShowWhatsNew(true)}
+            className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+          >
+            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500 animate-pulse" />
+            </div>
+            <span className="text-xs font-bold text-slate-700">What's New</span>
+          </button>
         </div>
       </div>
     );

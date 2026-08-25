@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, BookOpen, ChevronLeft, Wallet, Bell, LogOut, Trash2, Users } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, BookOpen, ChevronLeft, Wallet, Bell, LogOut, Trash2, Users, Banknote } from 'lucide-react';
 import { useCompany } from '../../contexts/CompanyContext';
 
 
@@ -43,6 +43,7 @@ export const Sidebar = ({ className = '', onCollapse }) => {
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Employees', path: '/employees', icon: Users, permission: 'adminOnly' },
+    { label: 'Salary Payroll', path: '/payroll', icon: Banknote, permission: 'adminOnly' },
     { label: 'Documents', path: '/documents', icon: FileText, permission: 'viewDocuments' },
     { label: 'Ledger', path: '/ledger', icon: BookOpen, permission: 'viewLedger' },
     { label: 'Expenses', path: '/expenses', icon: Wallet, permission: 'addExpense' },

@@ -1404,3 +1404,79 @@ export async function loginAsEmployee(companyCode: string, employeeLoginId: stri
     employee: foundEmp
   };
 }
+
+/**
+ * Gets payroll records for a specific company from the settings table.
+ */
+export async function getCompanyPayroll(companyId: string): Promise<any[]> {
+  incrementDbVersion();
+  const key = `payroll_${companyId}`;
+  
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', key);
+      if (data && data.length > 0 && data[0].value) {
+        return JSON.parse(data[0].value);
+      }
+    } catch (e) {
+      console.error('Supabase getCompanyPayroll error:', e);
+    }
+  }
+
+  const db = await getDB();
+  if (db) {
+    try {
+      const setting = await db.get('settings', key);
+      if (setting && setting.value) {
+        return JSON.parse(setting.value);
+      }
+    } catch (e) {
+      console.error('IDB getCompanyPayroll error:', e);
+    }
+  }
+
+  // Backup to localStorage
+  try {
+    const val = localStorage.getItem(key);
+    if (val) return JSON.parse(val);
+  } catch (e) {}
+
+  return [];
+}
+
+/**
+ * Saves all payroll records for a specific company to settings table.
+ */
+export async function saveCompanyPayroll(companyId: string, payroll: any[]): Promise<void> {
+  incrementDbVersion();
+  const key = `payroll_${companyId}`;
+  const value = JSON.stringify(payroll);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase
+        .from('settings')
+        .upsert({ key, value, updated_at: new Date().toISOString() });
+    } catch (e) {
+      console.error('Supabase saveCompanyPayroll error:', e);
+    }
+  }
+
+  const db = await getDB();
+  if (db) {
+    try {
+      await db.put('settings', { key, value });
+    } catch (e) {
+      console.error('IDB saveCompanyPayroll error:', e);
+    }
+  }
+
+  // Backup to localStorage
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {}
+}
+

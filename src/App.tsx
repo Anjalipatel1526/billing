@@ -16,6 +16,7 @@ import { Expenses } from './pages/Expenses';
 import { Recurring } from './pages/Recurring';
 import { RecycleBin } from './pages/RecycleBin';
 import { Employees } from './pages/Employees';
+import { Payroll } from './pages/Payroll';
 import { EmployeeLogin } from './pages/EmployeeLogin';
 import { getCompanyEmployees } from './services/db';
 
@@ -205,6 +206,7 @@ const AppRoutes = () => {
       <Route path="/recurring" element={hasCompany ? <Recurring /> : <Navigate to="/" replace />} />
       <Route path="/recycle-bin" element={hasCompany ? <RecycleBin /> : <Navigate to="/" replace />} />
       <Route path="/employees" element={hasCompany ? <Employees /> : <Navigate to="/" replace />} />
+      <Route path="/payroll" element={hasCompany ? <Payroll /> : <Navigate to="/" replace />} />
       <Route path="/settings" element={hasCompany ? <Settings /> : <Navigate to="/" replace />} />
       <Route path="/preview/:id" element={<PublicPreview />} />
       <Route path="*" element={<Navigate to="/" replace />} />
