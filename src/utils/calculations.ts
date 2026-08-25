@@ -18,7 +18,7 @@ export function calculateTotals(items = [], discount = { type: 'percentage', val
 
   // Discount calculation
   let discountAmount = 0;
-  const discValue = parseFloat(discount.value) || 0;
+  const discValue = parseFloat(discount.value as any) || 0;
   if (discount.type === 'percentage') {
     discountAmount = (subtotal * Math.min(100, Math.max(0, discValue))) / 100;
   } else {
@@ -47,7 +47,7 @@ export function calculateTotals(items = [], discount = { type: 'percentage', val
       const itemTaxable = Math.max(0, itemSub - itemDisc);
       const taxRate = item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '' 
         ? parseFloat(item.taxRate) || 0 
-        : parseFloat(defaultTaxRate) || 0;
+        : parseFloat(defaultTaxRate as any) || 0;
       
       return acc + (itemTaxable * taxRate) / 100;
     }, 0);

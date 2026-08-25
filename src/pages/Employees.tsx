@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { useCompany } from '../contexts/CompanyContext';
 import { useToast } from '../components/ui/Toast';
 import { Button } from '../components/ui/Button';
-import { getCompanyEmployees, saveCompanyEmployees } from '../services/db';
+import { getCompanyEmployees, saveCompanyEmployees, getAllExpenses } from '../services/db';
+import { useDocument } from '../contexts/DocumentContext';
+import { formatCurrency } from '../utils/formatting';
 import { 
   Users, 
   UserPlus, 
@@ -48,6 +50,7 @@ interface Employee {
   permissions: EmployeePermissions;
   isAdmin?: boolean;
   createdAt: string;
+  photo?: string;
 }
 
 const defaultPermissions: EmployeePermissions = {
@@ -88,10 +91,52 @@ export const Employees = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [permissions, setPermissions] = useState<EmployeePermissions>({ ...defaultPermissions });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [photo, setPhoto] = useState('');
   const [formError, setFormError] = useState('');
 
   // Delete confirmation state
   const [deleteEmployeeId, setDeleteEmployeeId] = useState<string | null>(null);
+
+  // Verify password modal state for promoting to admin
+  const [verifyAdminEmp, setVerifyAdminEmp] = useState<Employee | null>(null);
+  const [verifyPasswordInput, setVerifyPasswordInput] = useState('');
+  const [verifyError, setVerifyError] = useState('');
+  const [showVerifyPassword, setShowVerifyPassword] = useState(false);
+
+  // Detailed profile state
+  const [activeEmployeeDetail, setActiveEmployeeDetail] = useState<Employee | null>(null);
+  const [activeTab, setActiveTab] = useState<'info' | 'invoices' | 'documents' | 'expenses'>('info');
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const { documents } = useDocument();
+
+  useEffect(() => {
+    const loadExpenses = async () => {
+      if (!activeCompany?.id) return;
+      try {
+        const data = await getAllExpenses(activeCompany.id);
+        setExpenses(data);
+      } catch (err) {
+        console.error('Error loading expenses:', err);
+      }
+    };
+    loadExpenses();
+  }, [activeCompany?.id]);
+
+  const employeeDocsList = useMemo(() => {
+    if (!activeEmployeeDetail) return [];
+    return documents.filter(d => 
+      (!d.companyId || !activeCompany?.id || d.companyId === activeCompany.id) &&
+      d.createdBy === activeEmployeeDetail.name
+    );
+  }, [documents, activeEmployeeDetail, activeCompany?.id]);
+
+  const employeeExpensesList = useMemo(() => {
+    if (!activeEmployeeDetail) return [];
+    return expenses.filter(e => 
+      (!e.companyId || !activeCompany?.id || e.companyId === activeCompany.id) &&
+      e.createdBy === activeEmployeeDetail.name
+    );
+  }, [expenses, activeEmployeeDetail, activeCompany?.id]);
 
   const loadEmployees = useCallback(async () => {
     if (!activeCompany) return;
@@ -122,6 +167,7 @@ export const Employees = () => {
     setDesignation('');
     setPermissions({ ...defaultPermissions });
     setIsAdmin(false);
+    setPhoto('');
     setFormError('');
     setIsModalOpen(true);
   };
@@ -137,8 +183,58 @@ export const Employees = () => {
     setDesignation(emp.designation || '');
     setPermissions(emp.permissions || { ...defaultPermissions });
     setIsAdmin(!!emp.isAdmin);
+    setPhoto(emp.photo || '');
     setFormError('');
     setIsModalOpen(true);
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetEmpId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Check file size (e.g. limit to 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Image size should be less than 2MB.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const base64String = evt.target?.result as string;
+      if (!base64String) return;
+
+      try {
+        const updatedList = employees.map(emp => {
+          if (emp.id === targetEmpId) {
+            const updated = { ...emp, photo: base64String };
+            // If editing the active detailed view, update that state too
+            if (activeEmployeeDetail && activeEmployeeDetail.id === targetEmpId) {
+              setActiveEmployeeDetail(updated);
+            }
+            // Sync current logged-in employee session if updated
+            const activeEmpJson = localStorage.getItem('activeEmployee');
+            if (activeEmpJson) {
+              const activeEmpObj = JSON.parse(activeEmpJson);
+              if (activeEmpObj.id === emp.id) {
+                localStorage.setItem('activeEmployee', JSON.stringify(updated));
+              }
+            }
+            return updated;
+          }
+          return emp;
+        });
+
+        if (activeCompany) {
+          await saveCompanyEmployees(activeCompany.id, updatedList);
+          setEmployees(updatedList);
+          showToast('Employee photo updated successfully.', 'success');
+        }
+      } catch (err) {
+        console.error('Error saving photo:', err);
+        showToast('Failed to save photo.', 'error');
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const validateForm = () => {
@@ -180,7 +276,8 @@ export const Employees = () => {
           designation: designation.trim(),
           permissions,
           isAdmin,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          photo: photo
         };
         updatedList.push(newEmployee);
         showToast(`Employee "${newEmployee.name}" created successfully!`, 'success');
@@ -196,7 +293,8 @@ export const Employees = () => {
               email: email.trim().toLowerCase(),
               designation: designation.trim(),
               permissions,
-              isAdmin
+              isAdmin,
+              photo: photo
             };
             // Sync current logged-in employee session if updated
             const activeEmpJson = localStorage.getItem('activeEmployee');
@@ -238,12 +336,23 @@ export const Employees = () => {
 
   const handleToggleAdmin = async (emp: Employee) => {
     if (!activeCompany) return;
+    
+    // If making admin (promoting), require password verification
+    if (!emp.isAdmin) {
+      setVerifyAdminEmp(emp);
+      setVerifyPasswordInput('');
+      setVerifyError('');
+      setShowVerifyPassword(false);
+      return;
+    }
+
+    // If revoking admin, do it immediately
     try {
       const updatedList = employees.map(e => {
         if (e.id === emp.id) {
           return {
             ...e,
-            isAdmin: !e.isAdmin
+            isAdmin: false
           };
         }
         return e;
@@ -252,11 +361,7 @@ export const Employees = () => {
       setEmployees(updatedList);
       
       const updatedEmp = updatedList.find(e => e.id === emp.id);
-      if (updatedEmp?.isAdmin) {
-        showToast(`Employee "${emp.name}" is now an Admin with full access.`, 'success');
-      } else {
-        showToast(`Admin privileges revoked for "${emp.name}".`, 'info');
-      }
+      showToast(`Admin privileges revoked for "${emp.name}".`, 'info');
 
       // Sync current logged-in employee session if updated
       const activeEmpJson = localStorage.getItem('activeEmployee');
@@ -268,6 +373,47 @@ export const Employees = () => {
       }
     } catch (e) {
       console.error('Error toggling admin status:', e);
+      showToast('Failed to update admin status.', 'error');
+    }
+  };
+
+  const handleConfirmAdmin = async () => {
+    if (!verifyAdminEmp || !activeCompany) return;
+
+    // Cross-verify password
+    if (verifyPasswordInput !== verifyAdminEmp.password) {
+      setVerifyError('Incorrect password. Please try again.');
+      return;
+    }
+
+    try {
+      const updatedList = employees.map(e => {
+        if (e.id === verifyAdminEmp.id) {
+          return {
+            ...e,
+            isAdmin: true
+          };
+        }
+        return e;
+      });
+      await saveCompanyEmployees(activeCompany.id, updatedList);
+      setEmployees(updatedList);
+      
+      const updatedEmp = updatedList.find(e => e.id === verifyAdminEmp.id);
+      showToast(`Employee "${verifyAdminEmp.name}" is now an Admin with full access.`, 'success');
+
+      // Sync current logged-in employee session if updated
+      const activeEmpJson = localStorage.getItem('activeEmployee');
+      if (activeEmpJson) {
+        const activeEmpObj = JSON.parse(activeEmpJson);
+        if (activeEmpObj.id === verifyAdminEmp.id && updatedEmp) {
+          localStorage.setItem('activeEmployee', JSON.stringify(updatedEmp));
+        }
+      }
+
+      setVerifyAdminEmp(null);
+    } catch (e) {
+      console.error('Error promoting to admin:', e);
       showToast('Failed to update admin status.', 'error');
     }
   };
@@ -315,6 +461,7 @@ export const Employees = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-sm transition-all shadow-xs"
+              autoComplete="off"
             />
           </div>
 
@@ -370,17 +517,32 @@ export const Employees = () => {
               const hasNoAccess = activeCount === 0;
 
               return (
-                <div key={emp.id} className="bg-white border border-slate-200/60 rounded-2xl p-5 hover:border-indigo-100 hover:shadow-lg hover:shadow-slate-100/50 transition-all flex flex-col justify-between group">
+                <div 
+                  key={emp.id} 
+                  onClick={() => {
+                    setActiveEmployeeDetail(emp);
+                    setActiveTab('info');
+                  }}
+                  className="bg-white border border-slate-200/60 rounded-2xl p-5 hover:border-indigo-100 hover:shadow-lg hover:shadow-slate-100/50 transition-all flex flex-col justify-between group cursor-pointer"
+                >
                   <div className="space-y-4">
                     {/* Header Info */}
                     <div className="flex items-center gap-3.5">
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-extrabold text-sm uppercase ${
-                        emp.isAdmin 
-                          ? 'bg-amber-50 border border-amber-100/60 text-amber-600' 
-                          : 'bg-indigo-50 border border-indigo-100/40 text-indigo-600'
-                      }`}>
-                        {emp.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                      </div>
+                      {emp.photo ? (
+                        <img 
+                          src={emp.photo} 
+                          alt={emp.name} 
+                          className="w-11 h-11 rounded-full object-cover shrink-0 border border-slate-200" 
+                        />
+                      ) : (
+                        <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-extrabold text-sm uppercase ${
+                          emp.isAdmin 
+                            ? 'bg-amber-50 border border-amber-100/60 text-amber-600' 
+                            : 'bg-indigo-50 border border-indigo-100/40 text-indigo-600'
+                        }`}>
+                          {emp.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <h4 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-indigo-600 transition-colors">{emp.name}</h4>
@@ -397,29 +559,7 @@ export const Employees = () => {
                       </div>
                     </div>
 
-                    {/* Login & Info */}
-                    <div className="bg-slate-50 border border-slate-100/40 rounded-xl p-3 space-y-1.5 text-[11px]">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-semibold">Employee ID:</span>
-                        <span className="text-slate-800 font-mono font-bold">{emp.loginId}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-semibold">Password:</span>
-                        <span className="text-slate-800 font-mono font-bold select-all">{emp.password}</span>
-                      </div>
-                      {emp.phone && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400 font-semibold">Phone:</span>
-                          <span className="text-slate-700 font-medium">{emp.phone}</span>
-                        </div>
-                      )}
-                      {emp.email && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400 font-semibold">Email:</span>
-                          <span className="text-slate-700 font-medium truncate max-w-[170px]" title={emp.email}>{emp.email}</span>
-                        </div>
-                      )}
-                    </div>
+
 
                     {/* Permissions Badges */}
                     <div className="space-y-2">
@@ -481,7 +621,7 @@ export const Employees = () => {
                   {/* Actions */}
                   <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
                     <button
-                      onClick={() => handleToggleAdmin(emp)}
+                      onClick={(e) => { e.stopPropagation(); handleToggleAdmin(emp); }}
                       className={`inline-flex items-center gap-1.5 font-bold text-xs transition-colors cursor-pointer mr-auto ${
                         emp.isAdmin 
                           ? 'text-amber-600 hover:text-amber-700' 
@@ -494,7 +634,7 @@ export const Employees = () => {
                     </button>
 
                     <button
-                      onClick={() => handleOpenEditModal(emp)}
+                      onClick={(e) => { e.stopPropagation(); handleOpenEditModal(emp); }}
                       className="inline-flex items-center gap-1.5 text-slate-500 hover:text-indigo-600 font-bold text-xs transition-colors cursor-pointer"
                       title="Edit Employee"
                     >
@@ -502,7 +642,7 @@ export const Employees = () => {
                       <span>Edit</span>
                     </button>
                     <button
-                      onClick={() => setDeleteEmployeeId(emp.id)}
+                      onClick={(e) => { e.stopPropagation(); setDeleteEmployeeId(emp.id); }}
                       className="inline-flex items-center gap-1.5 text-slate-400 hover:text-rose-600 font-bold text-xs transition-colors cursor-pointer"
                       title="Delete Employee"
                     >
@@ -553,6 +693,60 @@ export const Employees = () => {
                   <input type="text" name="dummy-username" style={{ display: 'none' }} autoComplete="username" />
                   <input type="password" name="dummy-password" style={{ display: 'none' }} autoComplete="current-password" />
                   
+                  {/* Profile Photo Upload Section */}
+                  <div className="flex flex-col items-center gap-3 bg-slate-50 border border-slate-100 p-4 rounded-2xl">
+                    <label className="block text-xs font-bold text-slate-800 self-start">Profile Photo</label>
+                    <div className="relative group">
+                      {photo ? (
+                        <img 
+                          src={photo} 
+                          alt="Preview" 
+                          className="w-20 h-20 rounded-2xl object-cover border border-slate-200" 
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-indigo-50 border border-indigo-150 flex items-center justify-center text-indigo-600">
+                          <User className="w-10 h-10" />
+                        </div>
+                      )}
+                      {photo && (
+                        <button
+                          type="button"
+                          onClick={() => setPhoto('')}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 transition-colors shadow-sm"
+                          title="Remove Photo"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <label htmlFor="modalPhotoUpload" className="inline-flex items-center gap-1.5 text-xs text-indigo-600 bg-white border border-slate-200 hover:bg-slate-50 px-3.5 py-2 rounded-xl cursor-pointer transition-all shadow-xs">
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{photo ? 'Change Photo' : 'Upload Photo'}</span>
+                      <input
+                        type="file"
+                        id="modalPhotoUpload"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 2 * 1024 * 1024) {
+                            showToast('Image size should be less than 2MB.', 'error');
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            if (typeof evt.target?.result === 'string') {
+                              setPhoto(evt.target.result);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                  </div>
+
                   {/* Basic Details Section */}
                   <div className="space-y-4">
                     <h4 className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">Basic Details</h4>
@@ -864,6 +1058,469 @@ export const Employees = () => {
             confirmText="Delete"
             confirmVariant="danger"
           />
+        )}
+
+        {/* Verify Admin Password Modal */}
+        {verifyAdminEmp && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+            <div className="bg-white border border-[#f1f3f9] rounded-3xl w-full max-w-md p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200">
+              {/* Close Button */}
+              <button 
+                onClick={() => setVerifyAdminEmp(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 hover:bg-slate-100 p-1.5 rounded-full cursor-pointer border-none outline-none"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+                  <Shield className="w-6 h-6 stroke-[2px]" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <h3 className="text-base font-extrabold text-slate-900">Make Employee Admin</h3>
+                  <p className="text-xs text-slate-500 font-semibold max-w-[280px] mx-auto leading-relaxed">
+                    To make <span className="text-indigo-600 font-bold">{verifyAdminEmp.name}</span> an Admin, please enter their employee password for verification.
+                  </p>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </span>
+                    <input
+                      type={showVerifyPassword ? "text" : "password"}
+                      value={verifyPasswordInput}
+                      onChange={(e) => {
+                        setVerifyPasswordInput(e.target.value);
+                        setVerifyError('');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleConfirmAdmin();
+                      }}
+                      placeholder="Enter employee password..."
+                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white transition-all text-slate-800"
+                      autoComplete="new-password"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowVerifyPassword(!showVerifyPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-none cursor-pointer p-0"
+                    >
+                      {showVerifyPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {verifyError && (
+                    <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100/50 text-rose-600 px-3.5 py-2.5 rounded-xl text-[11px] font-bold text-left animate-shake">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>{verifyError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setVerifyAdminEmp(null)}
+                      className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer bg-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmAdmin}
+                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-100 transition-all cursor-pointer border-none"
+                    >
+                      Verify & Promote
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Detailed Profile View Modal ("Big Card") */}
+        {activeEmployeeDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto">
+            <div 
+              className="absolute inset-0 cursor-pointer" 
+              onClick={() => setActiveEmployeeDetail(null)}
+            />
+            <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 font-sans">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-3.5">
+                  <div className="relative group/avatar">
+                    {activeEmployeeDetail.photo ? (
+                      <img 
+                        src={activeEmployeeDetail.photo} 
+                        alt={activeEmployeeDetail.name} 
+                        className="w-16 h-16 rounded-2xl object-cover border border-slate-200/80 shadow-xs" 
+                      />
+                    ) : (
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-extrabold text-lg uppercase shadow-xs ${
+                        activeEmployeeDetail.isAdmin 
+                          ? 'bg-amber-50 border border-amber-100 text-amber-600' 
+                          : 'bg-indigo-50 border border-indigo-100 text-indigo-600'
+                      }`}>
+                        {activeEmployeeDetail.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                      </div>
+                    )}
+                    
+                    <label htmlFor="photoUploadDetail" className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center cursor-pointer shadow-md transition-all">
+                      <Plus className="w-3.5 h-3.5" />
+                      <input 
+                        type="file" 
+                        id="photoUploadDetail" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handlePhotoUpload(e, activeEmployeeDetail.id)} 
+                      />
+                    </label>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-slate-900 text-lg leading-tight">{activeEmployeeDetail.name}</h3>
+                      {activeEmployeeDetail.isAdmin && (
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold">
+                          <Shield className="w-3 h-3 text-amber-500" />
+                          Admin
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 font-semibold mt-1">
+                      {activeEmployeeDetail.designation || 'Staff'} • Joined {new Date(activeEmployeeDetail.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setActiveEmployeeDetail(null)}
+                  className="w-8 h-8 rounded-xl border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="flex border-b border-slate-100 bg-slate-50/50 px-6 shrink-0">
+                <button
+                  onClick={() => setActiveTab('info')}
+                  className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                    activeTab === 'info' 
+                      ? 'border-indigo-600 text-indigo-600' 
+                      : 'border-transparent text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Overview & Access
+                </button>
+                <button
+                  onClick={() => setActiveTab('invoices')}
+                  className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'invoices' 
+                      ? 'border-indigo-600 text-indigo-600' 
+                      : 'border-transparent text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Invoices</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
+                    {employeeDocsList.filter(d => d.documentType === 'invoice').length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('documents')}
+                  className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'documents' 
+                      ? 'border-indigo-600 text-indigo-600' 
+                      : 'border-transparent text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Vouchers & Receipts</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
+                    {employeeDocsList.filter(d => d.documentType !== 'invoice').length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('expenses')}
+                  className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'expenses' 
+                      ? 'border-indigo-600 text-indigo-600' 
+                      : 'border-transparent text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Expenses</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
+                    {employeeExpensesList.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Modal Body Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                
+                {/* 1. Overview Tab */}
+                {activeTab === 'info' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* Personal Contact Details */}
+                      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                        <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Contact Details</h4>
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 text-xs">
+                            <Lock className="w-4 h-4 text-slate-400" />
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-semibold">Employee Login ID</p>
+                              <p className="font-mono font-bold text-slate-800">{activeEmployeeDetail.loginId}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs">
+                            <Key className="w-4 h-4 text-slate-400" />
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-semibold">Password</p>
+                              <p className="font-mono font-bold text-slate-800">{activeEmployeeDetail.password}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs">
+                            <Phone className="w-4 h-4 text-slate-400" />
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-semibold">Phone Number</p>
+                              <p className="font-semibold text-slate-800">{activeEmployeeDetail.phone || 'Not provided'}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs">
+                            <Mail className="w-4 h-4 text-slate-400" />
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-semibold">Email Address</p>
+                              <p className="font-semibold text-slate-800 truncate max-w-[200px]" title={activeEmployeeDetail.email}>
+                                {activeEmployeeDetail.email || 'Not provided'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Summary Metrics */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-blue-50/50 border border-blue-100/60 rounded-2xl p-4 flex flex-col justify-between">
+                          <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Total Invoices</span>
+                          <div className="mt-4">
+                            <p className="text-2xl font-black text-blue-900 leading-none">
+                              {employeeDocsList.filter(d => d.documentType === 'invoice').length}
+                            </p>
+                            <p className="text-[9px] text-blue-500 font-semibold mt-1">Generated by employee</p>
+                          </div>
+                        </div>
+
+                        <div className="bg-purple-50/50 border border-purple-100/60 rounded-2xl p-4 flex flex-col justify-between">
+                          <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">Other Docs</span>
+                          <div className="mt-4">
+                            <p className="text-2xl font-black text-purple-900 leading-none">
+                              {employeeDocsList.filter(d => d.documentType !== 'invoice').length}
+                            </p>
+                            <p className="text-[9px] text-purple-500 font-semibold mt-1">Vouchers & Receipts</p>
+                          </div>
+                        </div>
+
+                        <div className="bg-rose-50/50 border border-rose-100/60 rounded-2xl p-4 flex flex-col justify-between col-span-2">
+                          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Total Expenses Logs</span>
+                          <div className="mt-4 flex justify-between items-end">
+                            <div>
+                              <p className="text-2xl font-black text-rose-900 leading-none">
+                                {employeeExpensesList.length}
+                              </p>
+                              <p className="text-[9px] text-rose-500 font-semibold mt-1">Total transactions logged</p>
+                            </div>
+                            <span className="text-xs font-bold text-rose-700 bg-rose-100/60 px-2 py-0.5 rounded-lg">
+                              Sum: {formatCurrency(employeeExpensesList.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0), activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Permissions list */}
+                    <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-3">
+                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Assigned Features & Privileges</h4>
+                      
+                      {activeEmployeeDetail.isAdmin ? (
+                        <div className="flex gap-2.5 items-start p-3 bg-amber-50 border border-amber-100/60 rounded-xl">
+                          <Shield className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">Administrator Access Enabled</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5 leading-normal">
+                              This employee is designated as an Admin and has full system-wide read and write permissions, bypassing normal checks.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          {Object.entries(activeEmployeeDetail.permissions || {}).map(([permKey, val]) => {
+                            const labels: Record<string, string> = {
+                              viewDocuments: 'View Documents & Lists',
+                              addInvoice: 'Create Customer Invoices',
+                              addVoucher: 'Create Voucher Logs',
+                              addReceipt: 'Create Payment Receipts',
+                              addExpense: 'Add Expense Particulars',
+                              viewLedger: 'View Company Ledger',
+                              accessRecycleBin: 'Access Recycle Bin',
+                              accessRecurringPayments: 'Access Recurring Reminders'
+                            };
+                            return (
+                              <div key={permKey} className="flex items-center gap-2 p-2 bg-white border border-slate-100 rounded-xl">
+                                <span className={`w-2 h-2 rounded-full ${val ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                <span className={`font-semibold ${val ? 'text-slate-700' : 'text-slate-400 line-through'}`}>
+                                  {labels[permKey] || permKey}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Invoices Tab */}
+                {activeTab === 'invoices' && (
+                  <div className="space-y-4">
+                    {employeeDocsList.filter(d => d.documentType === 'invoice').length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400">
+                        <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs font-bold">No Invoices Saved</p>
+                        <p className="text-[10px] mt-0.5">This employee hasn't created any invoices yet.</p>
+                      </div>
+                    ) : (
+                      <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100 bg-white">
+                        {employeeDocsList.filter(d => d.documentType === 'invoice').map(doc => (
+                          <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-all text-xs">
+                            <div className="space-y-1">
+                              <span className="font-mono font-bold text-slate-900">{doc.documentNumber}</span>
+                              <p className="text-[10px] text-slate-400 font-semibold">
+                                To: {doc.customer?.customerName || 'N/A'} • {new Date(doc.documentDate || doc.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                doc.status === 'Paid' ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' : 'bg-rose-50 border border-rose-100 text-rose-700'
+                              }`}>
+                                {doc.status}
+                              </span>
+                              <span className="font-bold text-slate-800">
+                                {formatCurrency(doc.totals?.grandTotal || parseFloat(doc.amount) || 0, activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. Vouchers & Receipts Tab */}
+                {activeTab === 'documents' && (
+                  <div className="space-y-4">
+                    {employeeDocsList.filter(d => d.documentType !== 'invoice').length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400">
+                        <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs font-bold">No Vouchers or Receipts</p>
+                        <p className="text-[10px] mt-0.5">This employee hasn't created any vouchers or receipts yet.</p>
+                      </div>
+                    ) : (
+                      <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100 bg-white">
+                        {employeeDocsList.filter(d => d.documentType !== 'invoice').map(doc => (
+                          <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-all text-xs">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-bold text-slate-900">{doc.documentNumber}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-bold uppercase">{doc.documentType}</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 font-semibold">
+                                {doc.voucherType || (doc.documentType === 'receipt' ? 'Receipt' : 'Other')} • {new Date(doc.documentDate || doc.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-slate-500 max-w-[150px] truncate" title={doc.paidTo || doc.receivedFrom}>
+                                {doc.paidTo || doc.receivedFrom}
+                              </span>
+                              <span className="font-bold text-slate-800">
+                                {formatCurrency(doc.totals?.grandTotal || parseFloat(doc.amount) || 0, activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. Expenses Tab */}
+                {activeTab === 'expenses' && (
+                  <div className="space-y-4">
+                    {employeeExpensesList.length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400">
+                        <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs font-bold">No Expenses Logged</p>
+                        <p className="text-[10px] mt-0.5">This employee hasn't logged any expenses yet.</p>
+                      </div>
+                    ) : (
+                      <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100 bg-white">
+                        {employeeExpensesList.map(exp => (
+                          <div key={exp.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-all text-xs">
+                            <div className="space-y-1">
+                              <span className="font-bold text-slate-900">{exp.particulars}</span>
+                              <p className="text-[10px] text-slate-400 font-semibold">
+                                {exp.category} • {new Date(exp.date || exp.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-slate-500 font-medium">{exp.paidVia || 'Cash'}</span>
+                              <span className="font-bold text-rose-600">
+                                {formatCurrency(parseFloat(exp.amount) || 0, activeCompany?.currency ? activeCompany.currency.split(' ')[1] || '₹' : '₹')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              </div>
+
+              {/* Footer */}
+              <div className="p-5 border-t border-slate-100 bg-slate-50/50 shrink-0 flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  className="rounded-xl px-5 py-2.5 text-xs font-bold"
+                  onClick={() => setActiveEmployeeDetail(null)}
+                >
+                  Close Profile
+                </Button>
+                
+                <label htmlFor="photoUploadDetailBtn" className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-50">
+                  <UserPlus className="w-4 h-4" />
+                  <span>Upload Photo</span>
+                  <input 
+                    type="file" 
+                    id="photoUploadDetailBtn" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={(e) => handlePhotoUpload(e, activeEmployeeDetail.id)} 
+                  />
+                </label>
+              </div>
+
+            </div>
+          </div>
         )}
 
       </div>

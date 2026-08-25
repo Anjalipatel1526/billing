@@ -2,7 +2,7 @@ import React from 'react';
 import { formatCurrency, formatDate } from '../utils/formatting';
 import { numberToWords } from '../utils/numberToWords';
 
-export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], totals = {}, document = {}, documents = [] }) => {
+export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], totals = {}, document = {}, documents = [] }: any) => {
   const currencySymbol = company.currency ? company.currency.split(' ')[1] || '₹' : '₹';
   const isInvoice = document.documentType === 'invoice' || !document.documentType;
   const isVoucher = document.documentType === 'voucher';
@@ -230,7 +230,7 @@ export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], t
                   <tbody className="divide-y divide-slate-100">
                     {chunk.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="py-6 text-center text-slate-400">
+                        <td colSpan={5} className="py-6 text-center text-slate-400">
                           No items added to invoice
                         </td>
                       </tr>

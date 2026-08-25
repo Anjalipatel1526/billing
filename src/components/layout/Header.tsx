@@ -3,7 +3,7 @@ import { Menu, ArrowLeft } from 'lucide-react';
 import { useCompany } from '../../contexts/CompanyContext';
 import { useNavigate } from 'react-router-dom';
 
-export const Header = ({ onMenuToggle, isSidebarOpen, title }) => {
+export const Header = ({ onMenuToggle, isSidebarOpen, title, onProfileClick }) => {
   const { activeCompany } = useCompany();
   const navigate = useNavigate();
 
@@ -41,21 +41,33 @@ export const Header = ({ onMenuToggle, isSidebarOpen, title }) => {
       </div>
 
       {!isSidebarOpen && activeCompany && (
-        <div className="flex items-center gap-2.5 animate-in fade-in slide-in-from-right duration-200">
+        <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right duration-200">
           {(() => {
             const employeeJson = localStorage.getItem('activeEmployee');
             if (employeeJson) {
               try {
                 const emp = JSON.parse(employeeJson);
                 return (
-                  <span className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${
-                    emp.isAdmin 
-                      ? 'bg-amber-50 border border-amber-150 text-amber-700' 
-                      : 'bg-slate-50 border border-slate-150 text-slate-500'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${emp.isAdmin ? 'bg-amber-500' : 'bg-indigo-500'}`}></span>
-                    {emp.name} {emp.isAdmin ? '(Admin)' : ''}
-                  </span>
+                  <button
+                    onClick={onProfileClick}
+                    className="flex items-center gap-2 p-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-all active:scale-95 pr-2.5 group"
+                    title="View Profile"
+                  >
+                    {emp.photo ? (
+                      <img 
+                        src={emp.photo} 
+                        alt={emp.name} 
+                        className="w-7 h-7 rounded-full object-cover border border-white shadow-xs" 
+                      />
+                    ) : (
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] uppercase ${
+                        emp.isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {emp.name.charAt(0)}
+                      </div>
+                    )}
+                    <span className="text-[11px] font-bold text-slate-600 group-hover:text-indigo-600 transition-colors max-w-[100px] truncate">{emp.name}</span>
+                  </button>
                 );
               } catch (e) {
                 return null;
@@ -63,6 +75,9 @@ export const Header = ({ onMenuToggle, isSidebarOpen, title }) => {
             }
             return null;
           })()}
+          
+          {localStorage.getItem('activeEmployee') && <div className="h-6 w-px bg-slate-200" />}
+
           {activeCompany.logo ? (
             <img src={activeCompany.logo} alt="Logo" className="w-10 h-10 rounded-xl object-contain shrink-0 bg-white shadow-sm border border-slate-100 p-0.5" />
           ) : (

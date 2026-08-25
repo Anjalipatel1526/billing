@@ -76,7 +76,7 @@ export const InvoiceChart = ({ documents = [], currencySymbol = '₹' }) => {
     },
   };
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="rounded-lg border border-[#e2e8f0] bg-white p-3 shadow-md shadow-black/5 min-w-[150px]">

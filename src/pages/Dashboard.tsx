@@ -563,7 +563,7 @@ export const Dashboard = () => {
         id: `act_${doc.id}`,
         targetId: doc.id,
         title: `New ${typeLabel} created`,
-        detail: `${doc.documentNumber} for ${party}`,
+        detail: `${doc.documentNumber} for ${party}${doc.createdBy ? ` by ${doc.createdBy}` : ''}`,
         date: doc.createdAt || doc.documentDate,
         type: doc.documentType || 'invoice'
       };
@@ -574,7 +574,7 @@ export const Dashboard = () => {
         id: `act_${exp.id}`,
         targetId: exp.id,
         title: `Expense recorded`,
-        detail: `${exp.particulars} - ${exp.category}`,
+        detail: `${exp.particulars} - ${exp.category}${exp.createdBy ? ` by ${exp.createdBy}` : ''}`,
         date: exp.createdAt || exp.date,
         type: 'expense'
       };
@@ -687,14 +687,39 @@ export const Dashboard = () => {
             </svg>
 
             {/* Welcome Card Content */}
-            <div className="relative z-10">
-              <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                <span>{greeting}, {activeEmployee ? activeEmployee.name : (activeCompany?.companyName ? activeCompany.companyName.split(' ')[0] : 'there')}!</span>
-                <span className={`inline-block transition-transform duration-300 ${isWelcomeHovered ? 'animate-wave-shake' : ''}`}>👋</span>
-              </h1>
-              <p className="text-xs text-slate-500 font-semibold mt-1">
-                {activeEmployee ? `Logged in as employee (${activeEmployee.designation || 'Staff'}).` : 'Create and manage your business invoices, vouchers, and receipts easily.'}
-              </p>
+            <div className="relative z-10 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>{greeting}, {activeEmployee ? activeEmployee.name : (activeCompany?.companyName ? activeCompany.companyName.split(' ')[0] : 'there')}!</span>
+                  <span className={`inline-block transition-transform duration-300 ${isWelcomeHovered ? 'animate-wave-shake' : ''}`}>👋</span>
+                </h1>
+                <p className="text-xs text-slate-500 font-semibold mt-1">
+                  {activeEmployee ? `Logged in as employee (${activeEmployee.designation || 'Staff'}).` : 'Create and manage your business invoices, vouchers, and receipts easily.'}
+                </p>
+              </div>
+              
+              {activeEmployee && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.dispatchEvent(new Event('open-self-profile'));
+                  }}
+                  className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-slate-100 hover:border-indigo-400 shadow-md hover:scale-105 transition-all cursor-pointer shrink-0 ml-4 active:scale-95 flex items-center justify-center bg-white"
+                  title="View Profile"
+                >
+                  {activeEmployee.photo ? (
+                    <img 
+                      src={activeEmployee.photo} 
+                      alt={activeEmployee.name} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-indigo-50 text-indigo-650 flex items-center justify-center font-bold text-lg uppercase">
+                      {activeEmployee.name.charAt(0)}
+                    </div>
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
@@ -979,7 +1004,7 @@ export const Dashboard = () => {
                                   {doc.documentNumber}
                                 </div>
                                 <p className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">
-                                  {label} • {partyName}
+                                  {label} • {partyName}{doc.createdBy ? ` (by ${doc.createdBy})` : ''}
                                 </p>
                               </div>
                             </div>

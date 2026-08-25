@@ -4,7 +4,7 @@
 
 export function generateNextDocNumber(prefix = 'INV-', currentNumber = 1001) {
   const cleanPrefix = prefix ? prefix.trim() : 'INV-';
-  const num = parseInt(currentNumber, 10) || 1001;
+  const num = parseInt(String(currentNumber), 10) || 1001;
   return `${cleanPrefix}${num}`;
 }
 

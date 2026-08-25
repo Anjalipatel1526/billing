@@ -2,7 +2,7 @@ import React from 'react';
 import { formatCurrency, formatDate } from '../utils/formatting';
 import { numberToWords } from '../utils/numberToWords';
 
-export const ModernTemplate = ({ company = {}, customer = {}, items = [], totals = {}, document = {} }) => {
+export const ModernTemplate = ({ company = {}, customer = {}, items = [], totals = {}, document = {} }: any) => {
   const currencySymbol = company.currency ? company.currency.split(' ')[1] || '₹' : '₹';
   const isInvoice = document.documentType === 'invoice' || !document.documentType;
   const isVoucher = document.documentType === 'voucher';
@@ -105,7 +105,7 @@ export const ModernTemplate = ({ company = {}, customer = {}, items = [], totals
               <tbody className="divide-y divide-slate-100">
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="py-6 text-center text-slate-400">No items</td>
+                    <td colSpan={6} className="py-6 text-center text-slate-400">No items</td>
                   </tr>
                 ) : (
                   items.map((item, idx) => (

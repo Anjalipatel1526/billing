@@ -25,7 +25,7 @@ function ChartContainer({
   children,
   config,
   ...props
-}) {
+}: any) {
   const uniqueId = React.useId();
   const chartId = `chart-${id || uniqueId.replace(/:/g, '')}`;
 

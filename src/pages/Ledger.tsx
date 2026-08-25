@@ -151,7 +151,8 @@ export const Ledger = () => {
       previewUrl: `${window.location.origin}/preview/${d.id}`,
       isExpense: false,
       partyOrProject: d.customer?.customerName || d.paidTo || d.receivedFrom || 'N/A',
-      status: d.status
+      status: d.status,
+      createdBy: d.createdBy
     }));
 
     // 2. Filter expenses
@@ -185,7 +186,8 @@ export const Ledger = () => {
       amount: parseFloat(e.amount) || 0,
       previewUrl: `${window.location.origin}/expenses`,
       isExpense: true,
-      partyOrProject: e.projectEvent || e.category || 'N/A'
+      partyOrProject: e.projectEvent || e.category || 'N/A',
+      createdBy: e.createdBy
     }));
 
     // Combine and sort by date ascending
@@ -234,7 +236,8 @@ export const Ledger = () => {
         balance: runningBalance,
         previewUrl: item.previewUrl,
         isExpense: item.isExpense,
-        partyOrProject: item.partyOrProject
+        partyOrProject: item.partyOrProject,
+        createdBy: (item as any).createdBy
       };
     });
 
@@ -521,7 +524,12 @@ export const Ledger = () => {
             {ledgerData.entries.map((row, idx) => (
               <tr key={idx}>
                 <td className="py-2 px-3 text-slate-500">{formatDate(row.date)}</td>
-                <td className="py-2 px-3 text-slate-800 max-w-[180px] truncate">{row.particulars}</td>
+                <td className="py-2 px-3 max-w-[180px]">
+                  <div className="truncate text-slate-800" title={row.particulars}>{row.particulars}</div>
+                  {(row as any).createdBy && (
+                    <div className="text-[8px] text-slate-400 font-semibold mt-0.5">by {(row as any).createdBy}</div>
+                  )}
+                </td>
                 <td className="py-2 px-3 font-mono text-slate-600 uppercase">{row.number}</td>
                 <td className={`py-2 px-3 text-right font-semibold ${
                   row.type === 'invoice' ? 'text-rose-600' : 'text-blue-600'
@@ -875,7 +883,12 @@ export const Ledger = () => {
                 {ledgerData.entries.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50">
                     <td className="py-2.5 px-3 text-slate-500">{formatDate(row.date)}</td>
-                    <td className="py-2.5 px-3 text-slate-800 max-w-[180px] truncate">{row.particulars}</td>
+                    <td className="py-2.5 px-3 max-w-[180px]">
+                      <div className="truncate text-slate-800" title={row.particulars}>{row.particulars}</div>
+                      {(row as any).createdBy && (
+                        <div className="text-[7px] text-slate-400 font-semibold mt-0.5">by {(row as any).createdBy}</div>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3">
                       <span className="font-mono text-slate-600 font-bold uppercase text-[8px]">{row.number}</span>
                       <span className="ml-1 text-[7px] text-slate-400 capitalize">({row.type})</span>
@@ -1090,7 +1103,7 @@ export const Ledger = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {ledgerData.entries.map((row, idx) => (
+                  {ledgerData.entries.map((row: any, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                       <td className="py-3 px-4 text-slate-500">{formatDate(row.date)}</td>
                       <td className="py-3 px-4 max-w-[250px]">
@@ -1098,6 +1111,9 @@ export const Ledger = () => {
                           <span className="text-slate-800 font-semibold truncate" title={row.particulars}>
                             {row.particulars}
                           </span>
+                          {row.createdBy && (
+                            <span className="text-[10px] text-slate-400 font-medium">by {row.createdBy}</span>
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -1306,7 +1322,12 @@ export const Ledger = () => {
                             <td className="py-2 px-3 text-slate-500">{formatDate(e.date)}</td>
                             <td className="py-2 px-3 text-slate-600 uppercase">{e.type}</td>
                             <td className="py-2 px-3 font-mono font-semibold text-slate-800 uppercase">{e.number}</td>
-                            <td className="py-2 px-3 text-slate-700">{e.particulars}</td>
+                            <td className="py-2 px-3">
+                              <span className="text-slate-700">{e.particulars}</span>
+                              {(e as any).createdBy && (
+                                <span className="text-[10px] text-slate-400 ml-1 font-semibold">by {(e as any).createdBy}</span>
+                              )}
+                            </td>
                             <td className="py-2 px-3 text-right text-blue-600">{e.debit > 0 ? formatCurrency(e.debit, currencySymbol) : '-'}</td>
                             <td className="py-2 px-3 text-right text-emerald-600">{e.credit > 0 ? formatCurrency(e.credit, currencySymbol) : '-'}</td>
                             <td className="py-2 px-3 text-right text-slate-900 font-black">{formatCurrency(e.balance, currencySymbol)}</td>
