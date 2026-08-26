@@ -342,7 +342,7 @@ export const Dashboard = () => {
 
       return (
         <div className="bg-white border border-[#f1f3f9] rounded-3xl p-5 shadow-xs">
-          <div className="grid grid-cols-3 gap-y-5 justify-items-center w-full">
+          <div className={`grid ${(!activeEmployee || activeEmployee.isAdmin) ? 'grid-cols-4' : 'grid-cols-3'} gap-y-5 justify-items-center w-full`}>
             {mobileItems.map((item, idx) => (
               <div key={idx} className="flex flex-col items-center gap-1.5 w-[64px] text-center shrink-0">
                 <button
