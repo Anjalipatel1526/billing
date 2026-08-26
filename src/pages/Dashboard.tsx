@@ -180,6 +180,14 @@ export const Dashboard = () => {
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
 
+  // Close speed dial menu on click outside
+  useEffect(() => {
+    if (!createMenuOpen) return;
+    const handleClose = () => setCreateMenuOpen(false);
+    window.addEventListener('click', handleClose);
+    return () => window.removeEventListener('click', handleClose);
+  }, [createMenuOpen]);
+
   const [expenses, setExpenses] = useState([]);
   const [recurringReminders, setRecurringReminders] = useState([]);
 
@@ -256,119 +264,99 @@ export const Dashboard = () => {
     const canPayroll = !activeEmployee || activeEmployee.isAdmin;
 
     if (isMobile) {
+      const mobileItems = [
+        {
+          show: canEmployees,
+          onClick: () => navigate('/employees'),
+          bgClass: 'bg-blue-50 text-blue-600 border border-blue-100/30',
+          icon: <UserPlus className="w-5 h-5 stroke-[2.2]" />,
+          label: 'Employees'
+        },
+        {
+          show: canPayroll,
+          onClick: () => navigate('/payroll'),
+          bgClass: 'bg-purple-50 text-purple-600 border border-purple-100/30',
+          icon: (
+            <>
+              <Banknote className="w-5 h-5 stroke-[2.2]" />
+              {showSalaryReminderDot && (
+                <span className="absolute top-1 right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+              )}
+            </>
+          ),
+          label: 'Payroll'
+        },
+        {
+          show: canDocs,
+          onClick: () => navigate('/documents'),
+          bgClass: 'bg-blue-50 text-blue-600 border border-blue-100/30',
+          icon: <FolderOpen className="w-5 h-5 stroke-[2.2]" />,
+          label: 'Files'
+        },
+        {
+          show: canLedger,
+          onClick: () => navigate('/ledger'),
+          bgClass: 'bg-orange-50 text-orange-600 border border-orange-100/30',
+          icon: <BookOpen className="w-5 h-5 stroke-[2.2]" />,
+          label: 'Ledger'
+        },
+        {
+          show: canExpenses,
+          onClick: () => navigate('/expenses'),
+          bgClass: 'bg-rose-50 text-rose-600 border border-rose-100/30',
+          icon: <Wallet className="w-5 h-5 stroke-[2.2]" />,
+          label: 'Expenses'
+        },
+        {
+          show: canRecurring,
+          onClick: () => navigate('/recurring'),
+          bgClass: 'bg-purple-50 text-purple-600 border border-purple-100/30',
+          icon: <Bell className="w-5 h-5 stroke-[2.2]" />,
+          label: 'Recurring'
+        },
+        {
+          show: canRecycle,
+          onClick: () => navigate('/recycle-bin'),
+          bgClass: 'bg-red-50 text-red-600 border border-red-100/30',
+          icon: <Trash2 className="w-5 h-5 stroke-[2.2]" />,
+          label: 'Recycle'
+        },
+        {
+          show: !!activeEmployee && !activeEmployee.isAdmin,
+          onClick: () => navigate('/payslips'),
+          bgClass: 'bg-indigo-50 text-indigo-650 border border-indigo-100/30',
+          icon: <Banknote className="w-5 h-5 stroke-[2.2]" />,
+          label: 'Pay Slips'
+        },
+        {
+          show: canSettings,
+          onClick: () => navigate('/settings'),
+          bgClass: 'bg-blue-50 text-blue-600 border border-blue-100/30',
+          icon: <Settings className="w-5 h-5 stroke-[2.2]" />,
+          label: 'Settings'
+        }
+      ].filter(item => item.show);
+
       return (
-        <div className="bg-white border border-[#f1f3f9] rounded-3xl p-4.5 shadow-xs flex flex-col gap-4 items-center">
-          {/* Row 1: Existing Quick Actions */}
-          <div className="flex flex-row flex-wrap justify-center items-center gap-3.5 w-full">
-            {canEmployees && (
-              <button
-                onClick={() => navigate('/employees')}
-                className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-blue-100/30"
-                title="Employees"
-              >
-                <UserPlus className="w-5 h-5 stroke-[2.2]" />
-              </button>
-            )}
-
-            {canInvoice && (
-              <button
-                onClick={() => navigate('/documents/new?type=invoice')}
-                className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-emerald-100/30"
-                title="New Invoice"
-              >
-                <FileText className="w-5 h-5 stroke-[2.2]" />
-              </button>
-            )}
-
-            {canPayroll && (
-              <button
-                onClick={() => navigate('/payroll')}
-                className="relative w-12 h-12 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-purple-100/30"
-                title="Salary Payroll"
-              >
-                <Banknote className="w-5 h-5 stroke-[2.2]" />
-                {showSalaryReminderDot && (
-                  <span className="absolute top-1 right-1 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                  </span>
-                )}
-              </button>
-            )}
-
-            {canDocs && (
-              <button
-                onClick={() => navigate('/documents')}
-                className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-blue-100/30"
-                title="Manage Files"
-              >
-                <FolderOpen className="w-5 h-5 stroke-[2.2]" />
-              </button>
-            )}
-
-            <button
-              onClick={() => setShowWhatsNew(true)}
-              className="w-12 h-12 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-orange-100/30"
-              title="What's New"
-            >
-              <Sparkles className="w-5 h-5 stroke-[2.2] text-amber-500 fill-amber-500 animate-pulse" />
-            </button>
-          </div>
-
-          {/* Divider line between quick actions and sidebar sections */}
-          <div className="border-t border-slate-100 w-full" />
-
-          {/* Row 2: Sidebar Navigation Sections */}
-          <div className="flex flex-row flex-wrap justify-center items-center gap-3.5 w-full">
-            {canLedger && (
-              <button
-                onClick={() => navigate('/ledger')}
-                className="w-12 h-12 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-orange-100/30"
-                title="Ledger"
-              >
-                <BookOpen className="w-5 h-5 stroke-[2.2]" />
-              </button>
-            )}
-
-            {canExpenses && (
-              <button
-                onClick={() => navigate('/expenses')}
-                className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-rose-100/30"
-                title="Expenses"
-              >
-                <Wallet className="w-5 h-5 stroke-[2.2]" />
-              </button>
-            )}
-
-            {canRecurring && (
-              <button
-                onClick={() => navigate('/recurring')}
-                className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-purple-100/30"
-                title="Recurring"
-              >
-                <Bell className="w-5 h-5 stroke-[2.2]" />
-              </button>
-            )}
-
-            {canRecycle && (
-              <button
-                onClick={() => navigate('/recycle-bin')}
-                className="w-12 h-12 rounded-full bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-red-100/30"
-                title="Recycle Bin"
-              >
-                <Trash2 className="w-5 h-5 stroke-[2.2]" />
-              </button>
-            )}
-
-            {canSettings && (
-              <button
-                onClick={() => navigate('/settings')}
-                className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs border border-blue-100/30"
-                title="Settings"
-              >
-                <Settings className="w-5 h-5 stroke-[2.2]" />
-              </button>
-            )}
+        <div className="bg-white border border-[#f1f3f9] rounded-3xl p-5 shadow-xs">
+          <div className="grid grid-cols-3 gap-y-5 justify-items-center w-full">
+            {mobileItems.map((item, idx) => (
+              <div key={idx} className="flex flex-col items-center gap-1.5 w-[64px] text-center shrink-0">
+                <button
+                  onClick={item.onClick}
+                  className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs ${item.bgClass}`}
+                  title={item.label}
+                >
+                  {item.icon}
+                </button>
+                <span className="text-[10px] font-extrabold text-slate-500 tracking-tight leading-none">
+                  {item.label}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       );
@@ -442,15 +430,29 @@ export const Dashboard = () => {
             </button>
           )}
 
-          <button
-            onClick={() => setShowWhatsNew(true)}
-            className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
-          >
-            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500 animate-pulse" />
-            </div>
-            <span className="text-xs font-bold text-slate-700">What's New</span>
-          </button>
+          {canLedger && (
+            <button
+              onClick={() => navigate('/ledger')}
+              className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+            >
+              <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-700">System Reports</span>
+            </button>
+          )}
+
+          {activeEmployee && !activeEmployee.isAdmin && (
+            <button
+              onClick={() => navigate('/payslips')}
+              className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
+            >
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-650 flex items-center justify-center shrink-0">
+                <Banknote className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-700">Pay Slips</span>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -728,7 +730,7 @@ export const Dashboard = () => {
                     e.stopPropagation();
                     window.dispatchEvent(new Event('open-self-profile'));
                   }}
-                  className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-slate-100 hover:border-indigo-400 shadow-md hover:scale-105 transition-all cursor-pointer shrink-0 ml-4 active:scale-95 flex items-center justify-center bg-white"
+                  className="hidden sm:flex w-14 h-14 rounded-2xl overflow-hidden border-2 border-slate-100 hover:border-indigo-400 shadow-md hover:scale-105 transition-all cursor-pointer shrink-0 ml-4 active:scale-95 items-center justify-center bg-white"
                   title="View Profile"
                 >
                   {activeEmployee.photo ? (
@@ -747,58 +749,6 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          {canCreateAnyDoc && (
-            <div className="relative shrink-0 flex items-center">
-              <button
-                onClick={() => setCreateMenuOpen(!createMenuOpen)}
-                className="w-full lg:w-auto flex items-center justify-between gap-4.5 bg-[#3b2ae0] hover:bg-[#3223c6] text-white font-extrabold text-xs py-3.5 px-5 rounded-2xl transition-all shadow-md shadow-indigo-100 active:scale-[0.98] cursor-pointer"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Plus className="w-4 h-4 stroke-[3px]" />
-                  Create Document
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 opacity-80" />
-              </button>
-
-              {createMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-2xl shadow-lg border border-[#e2e8f0] py-2 z-50 animate-in fade-in duration-100">
-                  {canAddInvoice && (
-                    <button
-                      onClick={() => {
-                        navigate('/documents/new?type=invoice');
-                        setCreateMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-[#eff6ff] hover:text-blue-600 transition-colors cursor-pointer"
-                    >
-                      New Invoice
-                    </button>
-                  )}
-                  {canAddVoucher && (
-                    <button
-                      onClick={() => {
-                        navigate('/documents/new?type=voucher');
-                        setCreateMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-[#eff6ff] hover:text-blue-600 transition-colors cursor-pointer"
-                    >
-                      New Voucher
-                    </button>
-                  )}
-                  {canAddReceipt && (
-                    <button
-                      onClick={() => {
-                        navigate('/documents/new?type=receipt');
-                        setCreateMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-[#eff6ff] hover:text-blue-600 transition-colors cursor-pointer"
-                    >
-                      New Receipt
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Quick Actions (Mobile-only: appears after the Create Invoice button on mobile) */}
@@ -1219,6 +1169,75 @@ export const Dashboard = () => {
           </div>
         )}
 
+
+        {/* Floating Speed Dial Action Button (FAB) for adding documents - Unique design */}
+        {canCreateAnyDoc && (
+          <div className="fixed bottom-20 right-6 z-40 flex flex-col items-end gap-3">
+            {/* Expanded Speed Dial Menu Options */}
+            {createMenuOpen && (
+              <div className="flex flex-col gap-2.5 animate-in slide-in-from-bottom-5 duration-200">
+                {canAddInvoice && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/documents/new?type=invoice');
+                      setCreateMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/85 rounded-2xl shadow-md hover:bg-indigo-50 text-indigo-650 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    New Invoice
+                  </button>
+                )}
+                {canAddVoucher && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/documents/new?type=voucher');
+                      setCreateMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/85 rounded-2xl shadow-md hover:bg-indigo-50 text-indigo-650 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    New Voucher
+                  </button>
+                )}
+                {canAddReceipt && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/documents/new?type=receipt');
+                      setCreateMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/85 rounded-2xl shadow-md hover:bg-indigo-50 text-indigo-650 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    New Receipt
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Main FAB Trigger Button */}
+            <div className="relative flex items-center justify-center">
+              {/* Glow pulsing ring behind the button */}
+              {!createMenuOpen && (
+                <span className="absolute inline-flex h-14 w-14 rounded-[20px] bg-indigo-400 opacity-25 animate-ping duration-1000 pointer-events-none"></span>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCreateMenuOpen(!createMenuOpen);
+                }}
+                className="relative w-14 h-14 bg-gradient-to-tr from-indigo-600 via-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-[20px] flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/10 group"
+                title="Create Document"
+              >
+                {/* Plus icon inside with rotation animation when open */}
+                <Plus className={`w-6 h-6 stroke-[2.8] transition-transform duration-300 ${createMenuOpen ? 'rotate-45' : 'group-hover:rotate-90'}`} />
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     </MainLayout>

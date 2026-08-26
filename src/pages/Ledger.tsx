@@ -950,7 +950,7 @@ export const Ledger = () => {
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Track account statements, transaction flows, and running balances.</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-row items-center gap-2 self-start sm:self-auto">
             <Button variant="outline" icon={Download} onClick={() => {
               if (ledgerData.entries.length === 0) {
                 showToast('No ledger data available to export.', 'warning');
@@ -959,7 +959,7 @@ export const Ledger = () => {
               setLedgerReportType('excel');
               setShowLedgerPreviewModal(true);
             }}>
-              Export Excel
+              <span className="hidden sm:inline">Export </span>Excel
             </Button>
             <Button variant="outline" icon={Download} onClick={() => {
               if (ledgerData.entries.length === 0) {
@@ -969,7 +969,7 @@ export const Ledger = () => {
               setLedgerReportType('pdf');
               setShowLedgerPreviewModal(true);
             }}>
-              Download PDF
+              <span className="hidden sm:inline">Download </span>PDF
             </Button>
             <Button icon={BookOpen} onClick={() => {
               if (ledgerData.entries.length === 0) {
@@ -979,14 +979,14 @@ export const Ledger = () => {
               setLedgerReportType('advance');
               setShowLedgerPreviewModal(true);
             }}>
-              Advance Report
+              Advance<span className="hidden sm:inline"> Report</span>
             </Button>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-4 sm:p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
             
             {/* Party Selector */}
             <div>
@@ -1034,48 +1034,58 @@ export const Ledger = () => {
           </div>
         </div>
 
-        {/* Summary Metric Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
-          {/* Debits Card */}
-          <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5" />
+        {/* Stats Grid (Bento Layout) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Card 1: Net Balance (Spans 2 columns on all screens) */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[120px] col-span-2">
+            <div className="absolute -right-4 -top-4 w-36 h-36 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 rounded-full filter blur-2xl pointer-events-none"></div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Net Balance</span>
+              <div className="w-9 h-9 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100/30">
+                <Scale className="w-5 h-5" />
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Debits (+)</p>
-              <h3 className="font-extrabold text-slate-900 text-base mt-0.5">
-                {formatCurrency(ledgerData.totalDebit, currencySymbol)}
-              </h3>
-            </div>
-          </div>
-
-          {/* Credits Card */}
-          <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <TrendingDown className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Credits (-)</p>
-              <h3 className="font-extrabold text-slate-900 text-base mt-0.5">
-                {formatCurrency(ledgerData.totalCredit, currencySymbol)}
-              </h3>
-            </div>
-          </div>
-
-          {/* Net Balance Card */}
-          <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Scale className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Net Balance</p>
-              <h3 className="font-extrabold text-slate-900 text-base mt-0.5">
+            <div className="mt-4">
+              <h3 className="text-2xl md:text-3xl font-black text-slate-900 leading-none">
                 {formatCurrency(ledgerData.finalBalance, currencySymbol)}
               </h3>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1.5">Overall account standing</p>
             </div>
           </div>
 
+          {/* Card 2: Total Debits (Spans 1 column) */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[120px] col-span-1">
+            <div className="absolute -right-4 -top-4 w-28 h-28 bg-blue-500/10 rounded-full filter blur-xl pointer-events-none"></div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Debits</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/30">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-lg md:text-xl font-extrabold text-blue-650 leading-none">
+                {formatCurrency(ledgerData.totalDebit, currencySymbol)}
+              </h3>
+              <p className="text-[9px] text-slate-400 font-semibold mt-1">Outflows recorded (+)</p>
+            </div>
+          </div>
+
+          {/* Card 3: Total Credits (Spans 1 column) */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[120px] col-span-1">
+            <div className="absolute -right-4 -top-4 w-28 h-28 bg-emerald-500/10 rounded-full filter blur-xl pointer-events-none"></div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Credits</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100/30">
+                <TrendingDown className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-lg md:text-xl font-extrabold text-emerald-650 leading-none">
+                {formatCurrency(ledgerData.totalCredit, currencySymbol)}
+              </h3>
+              <p className="text-[9px] text-slate-400 font-semibold mt-1">Inflows recorded (-)</p>
+            </div>
+          </div>
         </div>
 
         {/* Ledger Grid View */}
@@ -1105,18 +1115,20 @@ export const Ledger = () => {
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {ledgerData.entries.map((row: any, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 px-4 text-slate-500">{formatDate(row.date)}</td>
-                      <td className="py-3 px-4 max-w-[250px]">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-slate-800 font-semibold truncate" title={row.particulars}>
+                      <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{formatDate(row.date)}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-slate-800 font-semibold flex items-center gap-1.5">
+                          <span className="truncate max-w-[250px]" title={row.particulars}>
                             {row.particulars}
                           </span>
                           {row.createdBy && (
-                            <span className="text-[10px] text-slate-400 font-medium">by {row.createdBy}</span>
+                            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                              (by {row.createdBy})
+                            </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           {row.isExpense ? (
                             <span className="font-mono font-semibold uppercase text-slate-600">{row.number}</span>
@@ -1140,15 +1152,15 @@ export const Ledger = () => {
                           </Badge>
                         </div>
                       </td>
-                      <td className={`py-3 px-4 text-right font-semibold ${
+                      <td className={`py-3 px-4 text-right font-semibold whitespace-nowrap ${
                         row.type === 'invoice' ? 'text-rose-600' : 'text-blue-600'
                       }`}>
                         {row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}
                       </td>
-                      <td className="py-3 px-4 text-right font-semibold text-emerald-600">
+                      <td className="py-3 px-4 text-right font-semibold text-emerald-600 whitespace-nowrap">
                         {row.credit > 0 ? formatCurrency(row.credit, currencySymbol) : '-'}
                       </td>
-                      <td className="py-3 px-4 text-right font-bold text-slate-900">
+                      <td className="py-3 px-4 text-right font-bold text-slate-900 whitespace-nowrap">
                         {formatCurrency(row.balance, currencySymbol)}
                       </td>
                       <td className="py-3 px-4 text-center">

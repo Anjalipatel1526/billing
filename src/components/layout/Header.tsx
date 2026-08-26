@@ -23,19 +23,15 @@ export const Header = ({ onMenuToggle, isSidebarOpen, title, onProfileClick }) =
   return (
     <header className="h-16 bg-white border-b border-slate-200/80 px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 font-sans">
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => {
-            if (title === 'Dashboard' || !title) {
-              navigate('/');
-            } else {
-              navigate('/dashboard');
-            }
-          }}
-          className="flex text-slate-600 hover:text-slate-900 p-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        {title !== 'Dashboard' && title && (
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex text-slate-600 hover:text-slate-900 p-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        )}
 
         <h2 className="font-bold text-slate-900 text-base md:text-lg tracking-tight">{title || 'Dashboard'}</h2>
       </div>
@@ -50,7 +46,7 @@ export const Header = ({ onMenuToggle, isSidebarOpen, title, onProfileClick }) =
                 return (
                   <button
                     onClick={onProfileClick}
-                    className="flex items-center gap-2 p-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-all active:scale-95 pr-2.5 group"
+                    className="flex items-center gap-0 sm:gap-2 p-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-all active:scale-95 sm:pr-2.5 group"
                     title="View Profile"
                   >
                     {emp.photo ? (
@@ -66,7 +62,7 @@ export const Header = ({ onMenuToggle, isSidebarOpen, title, onProfileClick }) =
                         {emp.name.charAt(0)}
                       </div>
                     )}
-                    <span className="text-[11px] font-bold text-slate-600 group-hover:text-indigo-600 transition-colors max-w-[100px] truncate">{emp.name}</span>
+                    <span className="hidden sm:inline text-[11px] font-bold text-slate-600 group-hover:text-indigo-600 transition-colors max-w-[100px] truncate">{emp.name}</span>
                   </button>
                 );
               } catch (e) {

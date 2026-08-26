@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { ChevronRight, X, Lock, Key, Phone, Mail, Shield, Users, AlertCircle, Banknote } from 'lucide-react';
+import { ChevronRight, X, Lock, Key, Phone, Mail, Shield, Users, AlertCircle, Banknote, Download, BadgeCheck, Printer } from 'lucide-react';
 import { useCompany } from '../../contexts/CompanyContext';
 import { useDocument } from '../../contexts/DocumentContext';
 import { getAllExpenses } from '../../services/db';
 import { formatCurrency } from '../../utils/formatting';
 import { Button } from '../ui/Button';
+import { useToast } from '../ui/Toast';
 
 export const MainLayout = ({ children, title }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -14,6 +15,7 @@ export const MainLayout = ({ children, title }) => {
 
   const { activeCompany } = useCompany();
   const { documents } = useDocument();
+  const { showToast } = useToast();
 
   const [showSelfProfile, setShowSelfProfile] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'invoices' | 'documents' | 'expenses'>('info');
@@ -41,8 +43,10 @@ export const MainLayout = ({ children, title }) => {
 
   // Listen for global open profile events
   useEffect(() => {
-    const handleOpen = () => {
-      setActiveTab('info');
+    const handleOpen = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const tab = customEvent.detail?.tab || 'info';
+      setActiveTab(tab);
       setShowSelfProfile(true);
     };
     window.addEventListener('open-self-profile', handleOpen);
@@ -117,7 +121,7 @@ export const MainLayout = ({ children, title }) => {
           />
         </div>
 
-        <main className="flex-1 p-6 md:p-8 w-full max-w-(--breakpoint-2xl) mx-auto">
+        <main className="flex-1 p-4 md:p-8 w-full max-w-(--breakpoint-2xl) mx-auto">
           {children}
         </main>
 

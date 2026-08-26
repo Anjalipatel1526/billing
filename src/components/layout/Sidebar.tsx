@@ -44,6 +44,13 @@ export const Sidebar = ({ className = '', onCollapse }) => {
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Employees', path: '/employees', icon: Users, permission: 'adminOnly' },
     { label: 'Salary Payroll', path: '/payroll', icon: Banknote, permission: 'adminOnly' },
+    ...(activeEmployee && !activeEmployee.isAdmin ? [
+      { 
+        label: 'Pay Slips', 
+        path: '/payslips', 
+        icon: Banknote 
+      }
+    ] : []),
     { label: 'Documents', path: '/documents', icon: FileText, permission: 'viewDocuments' },
     { label: 'Ledger', path: '/ledger', icon: BookOpen, permission: 'viewLedger' },
     { label: 'Expenses', path: '/expenses', icon: Wallet, permission: 'addExpense' },
@@ -107,6 +114,19 @@ export const Sidebar = ({ className = '', onCollapse }) => {
           </div>
           {navItems.map((item) => {
             const Icon = item.icon;
+            if (item.onClick) {
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={item.onClick}
+                  className="w-full flex items-center gap-3.5 px-4.5 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
+                >
+                  <Icon className="w-4.5 h-4.5 shrink-0 stroke-[2.2]" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            }
             return (
               <NavLink
                 key={item.path}

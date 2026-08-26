@@ -341,9 +341,9 @@ export const CreateDocument = () => {
 
   return (
     <MainLayout title={id ? `Edit Document ${documentNumber}` : 'Create Document'}>
-      <div className="space-y-4 max-w-[1440px] mx-auto px-4">
+      <div className="space-y-4 max-w-[1440px] mx-auto">
         {/* Top Navigation & Actions Bar */}
-        <div className={`sticky top-16 md:top-4 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-[#f1f3f9] shadow-sm transition-all duration-300 ${
+        <div className={`sticky top-16 md:top-4 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/95 backdrop-blur-md p-4 sm:p-6 md:p-8 rounded-3xl border border-[#f1f3f9] shadow-sm transition-all duration-300 ${
           scrollDirection === 'down' ? '-translate-y-40 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}>
           <div className="flex items-center gap-3">
@@ -357,18 +357,15 @@ export const CreateDocument = () => {
               <h1 className="font-extrabold text-slate-900 text-sm md:text-base tracking-tight">
                 {id ? `Edit ${docType.toUpperCase()}` : `New ${docType.toUpperCase()}`}
               </h1>
-              <p className="text-[11px] font-semibold text-slate-500">Click Preview to view the complete A4 document page.</p>
+              <p className="text-[11px] font-semibold text-slate-500">Click Preview Document to view the complete A4 document page.</p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" icon={Eye} onClick={() => setShowPreviewModal(true)}>
-              Preview
-            </Button>
             <Button variant="outline" icon={Save} onClick={handleSave}>
               Save Document
             </Button>
-            <Button icon={Download} onClick={() => setShowPreviewModal(true)}>
+            <Button icon={Download} onClick={handleDownload}>
               Download PDF
             </Button>
           </div>
@@ -377,7 +374,7 @@ export const CreateDocument = () => {
         {/* Main Grid: Form Editor + Live Preview */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Form Editor */}
-          <div className="lg:col-span-7 space-y-6 bg-white p-6 md:p-8 rounded-3xl border border-[#f1f3f9] shadow-xs">
+          <div className="lg:col-span-7 space-y-6 bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-[#f1f3f9] shadow-xs">
           {/* Document Type Selector Tabs + Preview Button */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -414,7 +411,7 @@ export const CreateDocument = () => {
           </div>
 
           {/* Document Numbers & Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-4">
             <Input
               label="Document Number"
               required
@@ -458,7 +455,7 @@ export const CreateDocument = () => {
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Customer Information</h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-4">
                 <Input
                   label="Customer Name"
                   required
@@ -476,7 +473,7 @@ export const CreateDocument = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-4">
                 <Input
                   label="GSTIN"
                   placeholder="27ABCDE1234F1Z5"
@@ -565,7 +562,7 @@ export const CreateDocument = () => {
             <div className="pt-4 border-t border-slate-100 space-y-4 bg-slate-50 p-4 rounded-xl">
               <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Tax & Discount Adjustments</h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-4">
                 <Select
                   label="Tax Calculation Mode"
                   value={taxType}
@@ -633,7 +630,7 @@ export const CreateDocument = () => {
                 </Select>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-4">
                 {docType === 'voucher' ? (
                   <Input
                     label="Paid To / Beneficiary"
@@ -666,7 +663,7 @@ export const CreateDocument = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-4">
                 <Input
                   label="Reference / Transaction #"
                   placeholder="e.g. UTR12345678"
@@ -688,7 +685,7 @@ export const CreateDocument = () => {
           <div className="pt-4 border-t border-slate-100 space-y-4">
             <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Notes & Authorized Signature</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-4">
               <Select
                 label="Payment Method"
                 value={paymentMethod}

@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { useCompany } from '../contexts/CompanyContext';
 import { useToast } from '../components/ui/Toast';
 import { Button } from '../components/ui/Button';
 import { getCompanyEmployees, getCompanyPayroll, saveCompanyPayroll } from '../services/db';
 import { formatCurrency, formatDate } from '../utils/formatting';
+import { downloadDocumentPDF } from '../services/pdfGenerator';
+import { PayslipTemplate } from '../templates/PayslipTemplate';
 import { 
   Users, 
   Search, 
@@ -65,6 +67,11 @@ export const Payroll = () => {
     return `${d.getFullYear()}-${mm}`;
   });
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Paid' | 'Hold'>('All');
+
+  // PDF download state
+  const [pdfRenderSlip, setPdfRenderSlip] = useState<{ employee: Employee; record: PayrollRecord } | null>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
+  const [previewSlip, setPreviewSlip] = useState<{ employee: Employee; record: PayrollRecord } | null>(null);
 
   // Modal State for recording payment details
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -245,6 +252,25 @@ export const Payroll = () => {
     }
   };
 
+  const handleDownloadPayslip = (employee: Employee, record: PayrollRecord) => {
+    setPdfRenderSlip({ employee, record });
+    showToast('Generating Payslip PDF...', 'info');
+    setTimeout(async () => {
+      try {
+        if (pdfRef.current) {
+          const filename = `Payslip_${employee.name.replace(/\s+/g, '_')}_${record.month}`;
+          await downloadDocumentPDF(pdfRef.current, filename, 'portrait');
+          showToast('Payslip downloaded successfully!', 'success');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to download payslip.', 'error');
+      } finally {
+        setPdfRenderSlip(null);
+      }
+    }, 300);
+  };
+
   // Open modal to record payment details
   const handleOpenPaymentModal = (emp: Employee) => {
     setSelectedEmployee(emp);
@@ -363,20 +389,20 @@ export const Payroll = () => {
               Payroll Processing
             </h2>
             <p className="text-slate-400 text-xs font-semibold mt-1">
-              Manage salary records and payment status for <span className="text-indigo-600 font-bold">{formattedMonthLabel}</span>
+              Salary records and payment status for <span className="text-indigo-600 font-bold">{formattedMonthLabel}</span>
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
             {/* Month Input Styled */}
-            <div className="relative">
-              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 pointer-events-none" />
+            <div className="relative flex-1 min-w-0 max-w-[150px] sm:max-w-none">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
                 type="month"
                 id="payroll-month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-2xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                className="pl-9 pr-2 py-2 w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-2xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-xs font-bold text-slate-700 transition-all cursor-pointer min-w-0"
               />
             </div>
 
@@ -384,94 +410,74 @@ export const Payroll = () => {
               variant="outline"
               icon={Printer}
               onClick={handlePrint}
-              className="border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl px-4 py-2.5 text-xs font-bold cursor-pointer"
+              className="border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl px-3 py-2 text-xs font-bold cursor-pointer shrink-0"
               id="btn-print-payroll"
             >
-              Print
+              <span className="hidden sm:inline">Print</span>
             </Button>
 
             <Button
               variant="outline"
               icon={Download}
               onClick={handleExportCSV}
-              className="border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl px-4 py-2.5 text-xs font-bold cursor-pointer"
+              className="border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl px-3 py-2 text-xs font-bold cursor-pointer shrink-0"
               id="btn-export-payroll"
             >
-              Export
+              <span className="hidden sm:inline">Export</span>
             </Button>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Card 1: Total Budget */}
-          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[110px]">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/20 rounded-full filter blur-xl pointer-events-none"></div>
+        {/* Stats Grid (Bento Layout) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Card 1: Total Budget (Spans 2 columns on all screens) */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[120px] col-span-2">
+            <div className="absolute -right-4 -top-4 w-36 h-36 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 rounded-full filter blur-2xl pointer-events-none"></div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Payroll Budget</span>
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                <Banknote className="w-4 h-4" />
+              <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-650 flex items-center justify-center border border-indigo-100/30">
+                <Banknote className="w-5 h-5" />
               </div>
             </div>
-            <div className="mt-3">
-              <h3 className="text-xl font-extrabold text-slate-900 leading-none">
+            <div className="mt-4">
+              <h3 className="text-2xl md:text-3xl font-black text-slate-900 leading-none">
                 {formatCurrency(stats.totalBudget, currencySymbol)}
               </h3>
-              <p className="text-[10px] text-slate-400 font-semibold mt-1">Based on active employee profiles</p>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1.5">Based on active employee profiles</p>
             </div>
           </div>
 
-          {/* Card 2: Total Paid */}
-          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[110px]">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50/20 rounded-full filter blur-xl pointer-events-none"></div>
+          {/* Card 2: Total Paid (Spans 1 column) */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[120px] col-span-1">
+            <div className="absolute -right-4 -top-4 w-28 h-28 bg-emerald-500/10 rounded-full filter blur-xl pointer-events-none"></div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Paid Amount</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Paid</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100/30">
                 <Coins className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-3">
-              <h3 className="text-xl font-extrabold text-slate-900 leading-none text-emerald-650">
+            <div className="mt-4">
+              <h3 className="text-lg md:text-xl font-extrabold text-emerald-650 leading-none">
                 {formatCurrency(stats.totalPaid, currencySymbol)}
               </h3>
-              <p className="text-[10px] text-slate-400 font-semibold mt-1">Transferred or settled successfully</p>
+              <p className="text-[9px] text-slate-400 font-semibold mt-1">Settled successfully</p>
             </div>
           </div>
 
-          {/* Card 3: Total Hold */}
-          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[110px]">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50/20 rounded-full filter blur-xl pointer-events-none"></div>
+          {/* Card 3: Total Hold (Spans 1 column) */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[120px] col-span-1">
+            <div className="absolute -right-4 -top-4 w-28 h-28 bg-amber-500/10 rounded-full filter blur-xl pointer-events-none"></div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Hold Salary</span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Withheld</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100/30">
                 <Wallet className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-3">
-              <h3 className="text-xl font-extrabold text-slate-900 leading-none text-amber-650">
+            <div className="mt-4">
+              <h3 className="text-lg md:text-xl font-extrabold text-amber-650 leading-none">
                 {formatCurrency(stats.totalHold, currencySymbol)}
               </h3>
-              <p className="text-[10px] text-slate-400 font-semibold mt-1">Salaries explicitly marked on hold</p>
-            </div>
-          </div>
-
-          {/* Card 4: Progress */}
-          <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[110px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Payout Completion</span>
-              <span className="text-xs font-extrabold text-indigo-600">{stats.progressPercent}%</span>
-            </div>
-            <div className="mt-3 space-y-1.5">
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-indigo-600 h-full rounded-full transition-all duration-500" 
-                  style={{ width: `${stats.progressPercent}%` }}
-                />
-              </div>
-              <div className="flex justify-between items-center text-[10px] text-slate-400 font-semibold">
-                <span>{stats.paidCount} Paid</span>
-                <span>{stats.holdCount} Hold • {stats.pendingCount} Pending</span>
-              </div>
+              <p className="text-[9px] text-slate-400 font-semibold mt-1">Marked on hold</p>
             </div>
           </div>
         </div>
@@ -551,8 +557,8 @@ export const Payroll = () => {
                   <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                     <th className="py-4.5 px-6">Employee Info</th>
                     <th className="py-4.5 px-6">Designation</th>
-                    <th className="py-4.5 px-6">Base Salary</th>
-                    <th className="py-4.5 px-6">Payment Status</th>
+                    <th className="py-4.5 px-6">Salary</th>
+                    <th className="py-4.5 px-6">Status</th>
                     <th className="py-4.5 px-6">Payment Details</th>
                     <th className="py-4.5 px-6 text-right">Actions</th>
                   </tr>
@@ -624,12 +630,9 @@ export const Payroll = () => {
                         {/* Payment Details */}
                         <td className="py-4 px-6">
                           {status === 'Paid' ? (
-                            <div className="space-y-0.5 text-[10px] text-slate-400 font-semibold leading-tight">
-                              <p className="text-slate-600">Settled: <span className="font-bold">{formatCurrency(salary, currencySymbol)}</span></p>
-                              <p>Date: {paymentDate ? formatDate(paymentDate) : 'N/A'}</p>
-                              <p>Via: {paymentMethod}</p>
-                              {notes && <p className="italic truncate max-w-[150px]" title={notes}>Note: "{notes}"</p>}
-                            </div>
+                            <span className="text-[11px] font-extrabold text-slate-700 whitespace-nowrap">
+                              Settled: {formatCurrency(salary, currencySymbol)}
+                            </span>
                           ) : status === 'Hold' ? (
                             <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">Withheld</span>
                           ) : (
@@ -640,6 +643,23 @@ export const Payroll = () => {
                         {/* Actions (Paid & Hold options toggle) */}
                         <td className="py-4 px-6 text-right">
                           <div className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/50 p-1 rounded-2xl w-fit">
+                            {/* Download Slip Option */}
+                            {status === 'Paid' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const rec = payrollRecords.find(r => r.employeeId === employee.id && r.month === selectedMonth);
+                                  if (rec) setPreviewSlip({ employee, record: rec });
+                                }}
+                                className="px-3.5 py-2 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 bg-white hover:bg-indigo-50/55 text-indigo-650 border border-slate-200/40 hover:border-indigo-150 shadow-2xs"
+                                title={`Preview Payslip for ${employee.name}`}
+                                id={`btn-payslip-${employee.id}`}
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                Slip
+                              </button>
+                            )}
+
                             {/* Paid Option */}
                             <button
                               type="button"
@@ -682,6 +702,66 @@ export const Payroll = () => {
           </div>
         )}
       </div>
+
+      {/* Payslip Preview Modal */}
+      {previewSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50">
+              <div className="flex items-center gap-2">
+                <BadgeCheck className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-800 text-sm">
+                  Payslip Preview - {previewSlip.employee.name} ({previewSlip.record.month})
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setPreviewSlip(null)}
+                  className="rounded-xl px-4 py-2 text-xs font-bold border border-slate-250/70 text-slate-700 bg-white hover:bg-slate-50 cursor-pointer"
+                >
+                  Close Preview
+                </Button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 bg-slate-200/80 p-6 overflow-auto flex justify-center items-start">
+              <div className="bg-white p-4 shadow-lg rounded border border-slate-200/60 w-full max-w-[210mm]">
+                <PayslipTemplate
+                  company={activeCompany}
+                  employee={previewSlip.employee}
+                  record={previewSlip.record}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 bg-white border-t border-slate-200 flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                icon={Printer} 
+                onClick={() => {
+                  handleDownloadPayslip(previewSlip.employee, previewSlip.record);
+                }}
+                className="cursor-pointer"
+              >
+                Print / PDF Dialog
+              </Button>
+              <Button 
+                icon={Download} 
+                onClick={() => {
+                  handleDownloadPayslip(previewSlip.employee, previewSlip.record);
+                }}
+                className="cursor-pointer bg-indigo-650 hover:bg-indigo-700 text-white"
+              >
+                Download PDF
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Release Payment Dialog Modal */}
       {paymentModalOpen && selectedEmployee && (
@@ -909,6 +989,19 @@ export const Payroll = () => {
           </div>
         </div>
       </div>
+
+      {/* Hidden Payslip Printable Wrapper */}
+      {pdfRenderSlip && (
+        <div className="hidden">
+          <div ref={pdfRef}>
+            <PayslipTemplate
+              company={activeCompany}
+              employee={pdfRenderSlip.employee}
+              record={pdfRenderSlip.record}
+            />
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 };

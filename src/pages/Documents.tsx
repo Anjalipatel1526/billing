@@ -17,6 +17,7 @@ import {
   FileText, 
   Search, 
   PlusCircle, 
+  Plus,
   Copy, 
   Download, 
   Trash2, 
@@ -52,6 +53,19 @@ export const Documents = () => {
   const { search } = useLocation();
   const [previewDoc, setPreviewDoc] = useState(null);
   const [shareDoc, setShareDoc] = useState<any>(null);
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
+
+  const canAddInvoice = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.addInvoice;
+  const canAddVoucher = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.addVoucher;
+  const canAddReceipt = !activeEmployee || activeEmployee.isAdmin || activeEmployee.permissions.addReceipt;
+
+  // Close speed dial menu on click outside
+  useEffect(() => {
+    if (!createMenuOpen) return;
+    const handleClose = () => setCreateMenuOpen(false);
+    window.addEventListener('click', handleClose);
+    return () => window.removeEventListener('click', handleClose);
+  }, [createMenuOpen]);
 
   useEffect(() => {
     const queryParams = new URLSearchParams(search);
@@ -215,11 +229,6 @@ export const Documents = () => {
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Manage, filter, duplicate, and export all invoices, vouchers, and receipts.</p>
           </div>
 
-          {canCreate && (
-            <Button icon={PlusCircle} onClick={() => navigate('/documents/new')}>
-              Create Document
-            </Button>
-          )}
         </div>
 
         {/* Filter and Search Bar */}
@@ -289,9 +298,9 @@ export const Documents = () => {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
-                    <th className="py-3 px-4">Doc #</th>
+                    <th className="py-3 px-4">Doc</th>
                     <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Customer / Party</th>
+                    <th className="py-3 px-4">Customer / Client</th>
                     <th className="py-3 px-4">Date</th>
                     <th className="py-3 px-4 text-right">Amount</th>
                     <th className="py-3 px-4">Status</th>
@@ -307,7 +316,7 @@ export const Documents = () => {
 
                     return (
                       <tr key={doc.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-3 px-4 font-mono font-semibold text-slate-900">
+                        <td className="py-3 px-4 font-mono font-semibold text-slate-900 whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => setPreviewDoc(doc)}
@@ -329,17 +338,18 @@ export const Documents = () => {
                             </Badge>
                           </button>
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-slate-800">{partyName}</div>
-                          {doc.createdBy && (
-                            <div className="text-[10px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
-                              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                              <span>by {doc.createdBy}</span>
-                            </div>
-                          )}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="font-medium text-slate-800 flex items-center gap-1.5">
+                            <span>{partyName}</span>
+                            {doc.createdBy && (
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                (by {doc.createdBy})
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td className="py-3 px-4 text-slate-500">{formatDate(doc.documentDate)}</td>
-                        <td className={`py-3 px-4 text-right font-semibold ${
+                        <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{formatDate(doc.documentDate)}</td>
+                        <td className={`py-3 px-4 text-right font-semibold whitespace-nowrap ${
                           doc.status === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
                         }`}>
                           {formatCurrency(amount, activeCompany?.currency?.split(' ')[1] || '₹')}
@@ -606,6 +616,76 @@ export const Documents = () => {
             </div>
           </div>
         )}
+
+        {/* Floating Speed Dial Action Button (FAB) for adding documents - Unique design */}
+        {canCreate && (
+          <div className="fixed bottom-20 right-6 z-40 flex flex-col items-end gap-3">
+            {/* Expanded Speed Dial Menu Options */}
+            {createMenuOpen && (
+              <div className="flex flex-col gap-2.5 animate-in slide-in-from-bottom-5 duration-200">
+                {canAddInvoice && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/documents/new?type=invoice');
+                      setCreateMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/85 rounded-2xl shadow-md hover:bg-indigo-50 text-indigo-650 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    New Invoice
+                  </button>
+                )}
+                {canAddVoucher && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/documents/new?type=voucher');
+                      setCreateMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/85 rounded-2xl shadow-md hover:bg-indigo-50 text-indigo-650 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    New Voucher
+                  </button>
+                )}
+                {canAddReceipt && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/documents/new?type=receipt');
+                      setCreateMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/85 rounded-2xl shadow-md hover:bg-indigo-50 text-indigo-650 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    New Receipt
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Main FAB Trigger Button */}
+            <div className="relative flex items-center justify-center">
+              {/* Glow pulsing ring behind the button */}
+              {!createMenuOpen && (
+                <span className="absolute inline-flex h-14 w-14 rounded-[20px] bg-indigo-400 opacity-25 animate-ping duration-1000 pointer-events-none"></span>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCreateMenuOpen(!createMenuOpen);
+                }}
+                className="relative w-14 h-14 bg-gradient-to-tr from-indigo-600 via-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-[20px] flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/10 group"
+                title="Create Document"
+              >
+                {/* Plus icon inside with rotation animation when open */}
+                <Plus className={`w-6 h-6 stroke-[2.8] transition-transform duration-300 ${createMenuOpen ? 'rotate-45' : 'group-hover:rotate-90'}`} />
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </MainLayout>
   );

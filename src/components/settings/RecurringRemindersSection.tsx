@@ -517,82 +517,88 @@ export const RecurringRemindersSection = () => {
             Configure automated email notifications for recurring incomes (Invoices) and outcomes (Expenses).
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleOpenAddModal}
-          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Add Recurring Reminder</span>
-        </button>
       </div>
 
       {/* Analytics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Active Count */}
-        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 font-bold">
-            <Bell className="w-5 h-5 stroke-[2.2]" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Card 1: Active Templates */}
+        <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[140px] col-span-1">
+          <div className="absolute -right-4 -top-4 w-28 h-28 bg-blue-500/10 rounded-full filter blur-xl pointer-events-none"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Templates</span>
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/30 shrink-0 font-bold">
+              <Bell className="w-4.5 h-4.5" />
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Active Templates</p>
-            <h3 className="text-lg font-black text-slate-900 mt-0.5">{analytics.activeCount}</h3>
-            <p className="text-[9px] text-slate-400 font-semibold mt-0.5">
-              {analytics.incomeCount} Inflow • {analytics.outcomeCount} Outflow
+          <div className="mt-auto pt-2">
+            <h3 className="text-sm sm:text-base md:text-lg font-black text-slate-900 leading-none">
+              {analytics.activeCount}
+            </h3>
+            <p className="text-[9px] text-slate-400 font-semibold mt-1">
+              {analytics.incomeCount} In • {analytics.outcomeCount} Out
             </p>
           </div>
         </div>
 
-        {/* Monthly Inflow */}
-        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 font-bold">
-            <ArrowUpRight className="w-5 h-5 stroke-[2.2]" />
+        {/* Card 2: Projected Inflow */}
+        <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[140px] col-span-1">
+          <div className="absolute -right-4 -top-4 w-28 h-28 bg-indigo-500/10 rounded-full filter blur-xl pointer-events-none"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Inflows</span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-655 flex items-center justify-center border border-indigo-100/30 shrink-0 font-bold">
+              <ArrowUpRight className="w-4.5 h-4.5" />
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Projected Inflow</p>
-            <h3 className="text-lg font-black text-indigo-600 mt-0.5">{analytics.projectedIncome}</h3>
-            <p className="text-[9px] text-slate-400 mt-0.5">Recurring Invoices</p>
-          </div>
-        </div>
-
-        {/* Monthly Outflow */}
-        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 font-bold">
-            <ArrowDownRight className="w-5 h-5 stroke-[2.2]" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Projected Outflow</p>
-            <h3 className="text-lg font-black text-rose-600 mt-0.5">{analytics.projectedOutcome}</h3>
-            <p className="text-[9px] text-slate-400 mt-0.5">Recurring Expenses</p>
+          <div className="mt-auto pt-2">
+            <h3 className="text-sm sm:text-base md:text-lg font-black text-indigo-650 leading-none">
+              {analytics.projectedIncome}
+            </h3>
+            <p className="text-[9px] text-slate-400 font-semibold mt-1">Recurring Invoices</p>
           </div>
         </div>
 
-        {/* Next Reminder */}
-        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold">
-            <Clock className="w-5 h-5 stroke-[2.2]" />
+        {/* Card 3: Projected Outflow */}
+        <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[140px] col-span-1">
+          <div className="absolute -right-4 -top-4 w-28 h-28 bg-rose-500/10 rounded-full filter blur-xl pointer-events-none"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Outflows</span>
+            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100/30 shrink-0 font-bold">
+              <ArrowDownRight className="w-4.5 h-4.5" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Next Notification</p>
+          <div className="mt-auto pt-2">
+            <h3 className="text-sm sm:text-base md:text-lg font-black text-rose-650 leading-none">
+              {analytics.projectedOutcome}
+            </h3>
+            <p className="text-[9px] text-slate-400 font-semibold mt-1">Recurring Expenses</p>
+          </div>
+        </div>
+
+        {/* Card 4: Next Reminder */}
+        <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[140px] col-span-1">
+          <div className="absolute -right-4 -top-4 w-28 h-28 bg-amber-500/10 rounded-full filter blur-xl pointer-events-none"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Next Alert</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100/30 shrink-0 font-bold">
+              <Clock className="w-4.5 h-4.5" />
+            </div>
+          </div>
+          <div className="mt-auto pt-2 min-w-0">
             {analytics.nextReminder ? (
               <>
-                <h3 className="text-xs font-black text-slate-900 mt-0.5 truncate max-w-[120px]" title={analytics.nextReminder.title}>
+                <h3 className="text-xs font-black text-slate-900 leading-tight truncate max-w-[120px]" title={analytics.nextReminder.title}>
                   {analytics.nextReminder.title}
                 </h3>
-                <p className="text-[9px] text-amber-600 font-bold mt-0.5">
+                <p className="text-[9px] text-amber-655 font-extrabold mt-1">
                   {analytics.nextReminder.daysRemaining === 0 
                     ? 'Due Today!' 
-                    : `In ${analytics.nextReminder.daysRemaining}d (${analytics.nextReminder.nextDate})`}
+                    : `In ${analytics.nextReminder.daysRemaining}d`}
                 </p>
               </>
             ) : (
               <>
-                <h3 className="text-xs font-black text-slate-400 mt-0.5">None Scheduled</h3>
-                <p className="text-[9px] text-slate-400 mt-0.5">Add recurring bills</p>
+                <h3 className="text-xs font-black text-slate-450 leading-tight">None</h3>
+                <p className="text-[9px] text-slate-400 font-semibold mt-1">Add recurring bills</p>
               </>
             )}
           </div>
@@ -681,8 +687,8 @@ export const RecurringRemindersSection = () => {
 
                     return (
                       <tr key={rem.id} className="hover:bg-slate-50/40 transition-colors">
-                        <td className="py-3 px-4 font-bold text-slate-900">{rem.title}</td>
-                        <td className="py-3 px-3">
+                        <td className="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">{rem.title}</td>
+                        <td className="py-3 px-3 whitespace-nowrap">
                           <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider ${
                             rem.type === 'income' 
                               ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' 
@@ -691,22 +697,22 @@ export const RecurringRemindersSection = () => {
                             {rem.type === 'income' ? 'Income' : 'Outcome'}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-right font-extrabold text-slate-900">
+                        <td className="py-3 px-3 text-right font-extrabold text-slate-900 whitespace-nowrap">
                           {formatCurrency(rem.amount, currencySymbol)}
                         </td>
-                        <td className="py-3 px-3 capitalize font-semibold text-slate-650">{rem.frequency}</td>
-                        <td className="py-3 px-3 font-semibold">
-                          <div className="space-y-0.5">
+                        <td className="py-3 px-3 capitalize font-semibold text-slate-650 whitespace-nowrap">{rem.frequency}</td>
+                        <td className="py-3 px-3 font-semibold whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
                             <span className="text-slate-800">{rem.nextDate}</span>
-                            <div className="text-[9px]">
+                            <span className="text-[9px]">
                               {isOverdue ? (
-                                <span className="text-rose-600 font-extrabold">Overdue!</span>
+                                <span className="text-rose-600 font-extrabold">(Overdue!)</span>
                               ) : daysLeft === 0 ? (
-                                <span className="text-amber-600 font-extrabold">Due Today!</span>
+                                <span className="text-amber-600 font-extrabold">(Due Today!)</span>
                               ) : (
-                                <span className="text-slate-400 font-medium">Due in {daysLeft}d</span>
+                                <span className="text-slate-400 font-medium">(Due in {daysLeft}d)</span>
                               )}
-                            </div>
+                            </span>
                           </div>
                         </td>
                         <td className="py-3 px-3">
@@ -1072,6 +1078,20 @@ export const RecurringRemindersSection = () => {
         confirmText="Clear Logs"
         confirmVariant="danger"
       />
+
+      {/* Floating Add Reminder Action Button (FAB) - Unique design */}
+      <div className="fixed bottom-20 right-6 z-40 flex items-center justify-center">
+        {/* Glow pulsing ring behind the button */}
+        <span className="absolute inline-flex h-14 w-14 rounded-[20px] bg-indigo-400 opacity-25 animate-ping duration-1000 pointer-events-none"></span>
+        <button
+          onClick={handleOpenAddModal}
+          className="relative w-14 h-14 bg-gradient-to-tr from-blue-600 via-indigo-650 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-[20px] flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/10 group"
+          title="Add Recurring Reminder"
+        >
+          {/* Plus icon inside with hover rotation */}
+          <Plus className="w-6 h-6 stroke-[2.8] transition-transform duration-300 group-hover:rotate-90" />
+        </button>
+      </div>
 
     </div>
   );

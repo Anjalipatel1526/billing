@@ -473,13 +473,7 @@ export const Employees = () => {
             />
           </div>
 
-          <Button
-            onClick={handleOpenAddModal}
-            icon={UserPlus}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 rounded-2xl px-5 py-2.5 text-sm font-bold shrink-0 self-start md:self-auto cursor-pointer"
-          >
-            Add Employee
-          </Button>
+
         </div>
 
         {/* Employee Grid */}
@@ -1567,6 +1561,20 @@ export const Employees = () => {
             </div>
           </div>
         )}
+
+        {/* Floating Action Button (FAB) for adding employee - Unique design */}
+        <div className="fixed bottom-20 right-6 z-40 flex items-center justify-center">
+          {/* Glow pulsing ring behind the button */}
+          <span className="absolute inline-flex h-14 w-14 rounded-[20px] bg-indigo-400 opacity-25 animate-ping duration-1000 pointer-events-none"></span>
+          <button
+            onClick={handleOpenAddModal}
+            className="relative w-14 h-14 bg-gradient-to-tr from-indigo-600 via-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-[20px] flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/10 group"
+            title="Add Employee"
+          >
+            {/* Plus icon inside with rotation animation on hover */}
+            <Plus className="w-6 h-6 stroke-[2.8] transition-transform duration-300 group-hover:rotate-90" />
+          </button>
+        </div>
 
       </div>
     </MainLayout>

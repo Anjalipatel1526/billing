@@ -615,7 +615,7 @@ export const Expenses = () => {
             <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Company Expenses</h1>
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Track, categorize, and assign expenses to projects or events.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-row items-center gap-2 self-start sm:self-auto">
             <button
               onClick={() => {
                 if (filteredExpenses.length === 0) {
@@ -625,11 +625,11 @@ export const Expenses = () => {
                 setExpenseReportType('excel');
                 setShowExpensePreviewModal(true);
               }}
-              className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-4 py-3 rounded-2xl shadow-xs transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-3.5 py-2.5 rounded-2xl shadow-xs transition-all cursor-pointer"
               title="Export Current Expenses to Excel CSV"
             >
               <Download className="w-4 h-4 text-slate-500" />
-              <span>Export Excel</span>
+              <span><span className="hidden sm:inline">Export </span>Excel</span>
             </button>
             <button
               onClick={() => {
@@ -640,57 +640,50 @@ export const Expenses = () => {
                 setExpenseReportType('pdf');
                 setShowExpensePreviewModal(true);
               }}
-              className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-4 py-3 rounded-2xl shadow-xs transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-xs px-3.5 py-2.5 rounded-2xl shadow-xs transition-all cursor-pointer"
               title="Download Current Expenses PDF Statement"
             >
               <FileText className="w-4 h-4 text-slate-500" />
-              <span>Download PDF</span>
+              <span><span className="hidden sm:inline">Download </span>PDF</span>
             </button>
-            {canAddExpense && (
-              <button
-                onClick={handleOpenModal}
-                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>Add New Expense</span>
-              </button>
-            )}
           </div>
         </div>
 
         {/* Analytics Summary */}
         {(!activeEmployee || activeEmployee.isAdmin) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Card 1: Total Expenses */}
-            <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                <Coins className="w-6 h-6 stroke-[2.2]" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Card 1: Total Expenses (Spans 1 column) */}
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[140px] col-span-1">
+              <div className="absolute -right-4 -top-4 w-36 h-36 bg-gradient-to-br from-rose-500/10 to-indigo-500/5 rounded-full filter blur-2xl pointer-events-none"></div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Spent</span>
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100/30 shrink-0">
+                  <Coins className="w-4.5 h-4.5" />
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Total Expenses</p>
-                <h3 className="text-xl font-black text-slate-900 mt-0.5 truncate">{formatCurrency(stats.total, currencySymbol)}</h3>
-                <p className="text-[9px] text-slate-400 mt-0.5">Cumulative outflows recorded</p>
+              <div className="mt-auto pt-2">
+                <h3 className="text-sm sm:text-base md:text-lg font-black text-slate-900 leading-none">
+                  {formatCurrency(stats.total, currencySymbol)}
+                </h3>
+                <p className="text-[9px] text-slate-400 font-semibold mt-1">All time records</p>
               </div>
             </div>
 
-            {/* Card 2: Monthly Budget Progress */}
-            <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex flex-col justify-between relative overflow-hidden">
-              <div className="flex items-center gap-3 relative z-10">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                  <Calendar className="w-5 h-5 stroke-[2.2]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Monthly Budget ({stats.activeMonthLabel})</p>
-                  <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
-                    <span className="text-base font-black text-slate-900">{formatCurrency(stats.thisMonth, currencySymbol)}</span>
-                    <span className="text-[10px] text-slate-400 font-semibold truncate">/ {formatCurrency(stats.monthlyLimit, currencySymbol)}</span>
-                  </div>
+            {/* Card 2: Monthly Budget Progress (Spans 1 column) */}
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[140px] col-span-1">
+              <div className="absolute -right-4 -top-4 w-28 h-28 bg-amber-500/10 rounded-full filter blur-xl pointer-events-none"></div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Monthly Budget</span>
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100/30 shrink-0">
+                  <Calendar className="w-4.5 h-4.5" />
                 </div>
               </div>
-              
-              <div className="mt-3 relative z-10 w-full">
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div className="mt-auto pt-2 w-full">
+                <h3 className="text-sm sm:text-base md:text-lg font-black text-slate-900 leading-none">
+                  {formatCurrency(stats.thisMonth, currencySymbol)}
+                </h3>
+                <p className="text-[9px] text-slate-400 font-semibold mt-1 truncate">Limit: {formatCurrency(stats.monthlyLimit, currencySymbol)}</p>
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1.5">
                   <div 
                     className={`h-full rounded-full transition-all duration-500 ${
                       stats.monthlyPercent >= 100 ? 'bg-red-500' : stats.monthlyPercent >= 80 ? 'bg-amber-500' : 'bg-blue-600'
@@ -704,29 +697,27 @@ export const Expenses = () => {
                     onClick={handleOpenBudgetModal}
                     className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-0.5 cursor-pointer font-bold bg-transparent border-0 p-0"
                   >
-                    <Settings className="w-3 h-3 inline" /> Customize
+                    <Settings className="w-3 h-3 inline" /> Edit
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Card 3: Yearly Budget Progress */}
-            <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs flex flex-col justify-between relative overflow-hidden">
-              <div className="flex items-center gap-3 relative z-10">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-5 h-5 stroke-[2.2]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Yearly Budget</p>
-                  <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
-                    <span className="text-base font-black text-slate-900">{formatCurrency(stats.thisYear, currencySymbol)}</span>
-                    <span className="text-[10px] text-slate-400 font-semibold truncate">/ {formatCurrency(stats.yearlyLimit, currencySymbol)}</span>
-                  </div>
+            {/* Card 3: Yearly Budget Progress (Spans 1 column) */}
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[140px] col-span-1">
+              <div className="absolute -right-4 -top-4 w-28 h-28 bg-emerald-500/10 rounded-full filter blur-xl pointer-events-none"></div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Yearly Budget</span>
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100/30 shrink-0">
+                  <TrendingUp className="w-4.5 h-4.5" />
                 </div>
               </div>
-              
-              <div className="mt-3 relative z-10 w-full">
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div className="mt-auto pt-2 w-full">
+                <h3 className="text-sm sm:text-base md:text-lg font-black text-slate-900 leading-none">
+                  {formatCurrency(stats.thisYear, currencySymbol)}
+                </h3>
+                <p className="text-[9px] text-slate-400 font-semibold mt-1 truncate">Limit: {formatCurrency(stats.yearlyLimit, currencySymbol)}</p>
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1.5">
                   <div 
                     className={`h-full rounded-full transition-all duration-500 ${
                       stats.yearlyPercent >= 100 ? 'bg-red-500' : stats.yearlyPercent >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
@@ -740,22 +731,26 @@ export const Expenses = () => {
                     onClick={handleOpenBudgetModal}
                     className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-0.5 cursor-pointer font-bold bg-transparent border-0 p-0"
                   >
-                    <Settings className="w-3 h-3 inline" /> Customize
+                    <Settings className="w-3 h-3 inline" /> Edit
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Card 4: Active Projects */}
-            <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs flex items-center gap-4 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/40 rounded-full translate-x-8 -translate-y-8 pointer-events-none" />
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                <FolderKanban className="w-6 h-6 stroke-[2.2]" />
+            {/* Card 4: Active Projects (Spans 1 column) */}
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[140px] col-span-1">
+              <div className="absolute -right-8 -top-8 w-40 h-40 bg-indigo-50/15 rounded-full filter blur-2xl pointer-events-none"></div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Projects</span>
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-650 flex items-center justify-center border border-indigo-100/30 shrink-0">
+                  <FolderKanban className="w-4.5 h-4.5" />
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Active Projects / Events</p>
-                <h3 className="text-xl font-black text-slate-900 mt-0.5 truncate">{stats.projectCount}</h3>
-                <p className="text-[9px] text-slate-400 mt-0.5">Campaigns & projects tagged</p>
+              <div className="mt-auto pt-2">
+                <h3 className="text-sm sm:text-base md:text-lg font-black text-slate-900 leading-none">
+                  {stats.projectCount}
+                </h3>
+                <p className="text-[9px] text-slate-400 font-semibold mt-1">Campaigns active</p>
               </div>
             </div>
           </div>
@@ -1430,6 +1425,22 @@ export const Expenses = () => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Floating Add Expense Action Button (FAB) - Unique design */}
+        {canAddExpense && (
+          <div className="fixed bottom-20 right-6 z-40 flex items-center justify-center">
+            {/* Glow pulsing ring behind the button */}
+            <span className="absolute inline-flex h-14 w-14 rounded-[20px] bg-indigo-400 opacity-25 animate-ping duration-1000 pointer-events-none"></span>
+            <button
+              onClick={handleOpenModal}
+              className="relative w-14 h-14 bg-gradient-to-tr from-blue-600 via-indigo-650 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-[20px] flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/10 group"
+              title="Add New Expense"
+            >
+              {/* Plus icon inside with hover rotation */}
+              <Plus className="w-6 h-6 stroke-[2.8] transition-transform duration-300 group-hover:rotate-90" />
+            </button>
           </div>
         )}
 
