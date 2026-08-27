@@ -6,7 +6,7 @@ import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { LogoUploader } from '../components/company/LogoUploader';
 
-import { validateEmail, validateGST, validatePAN } from '../utils/formatting';
+import { validateEmail, validateGST, validatePAN, validatePhone, validatePassword } from '../utils/formatting';
 import { joinCompanyByCode, loginAsEmployee } from '../services/db';
 import { 
   Check, ArrowRight, ArrowLeft, Building2, Landmark, Sliders, 
@@ -103,20 +103,18 @@ export const Onboarding = () => {
     if (formData.email && !validateEmail(formData.email)) errs.email = 'Invalid email address.';
     if (formData.gstNumber && !validateGST(formData.gstNumber)) errs.gstNumber = 'Invalid GSTIN format.';
     if (formData.panNumber && !validatePAN(formData.panNumber)) errs.panNumber = 'Invalid PAN format.';
+    if (formData.phone && !validatePhone(formData.phone)) errs.phone = 'Phone number must be exactly 10 digits.';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const validateStep4 = () => {
     const errs: Record<string, string | null> = {};
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     
     if (!companyPassword) {
       errs.password = 'Password is required.';
-    } else if (companyPassword.length < 8) {
-      errs.password = 'Password must be at least 8 characters.';
-    } else if (!passwordRegex.test(companyPassword)) {
-      errs.password = 'Password must contain uppercase, lowercase, number, and special character (@$!%*?&).';
+    } else if (!validatePassword(companyPassword)) {
+      errs.password = 'Password must be at least 8 characters, containing uppercase, lowercase, and a symbol.';
     }
     
     if (companyPassword !== confirmPassword) {
@@ -359,7 +357,7 @@ export const Onboarding = () => {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <Input label="Email Address" type="email" placeholder="billing@company.com" value={formData.email} onChange={(e) => updateField('email', e.target.value)} error={errors.email} />
-                      <Input label="Phone Number" placeholder="+91 98765 43210" value={formData.phone} onChange={(e) => updateField('phone', e.target.value)} />
+                      <Input label="Phone Number" placeholder="+91 98765 43210" value={formData.phone} onChange={(e) => updateField('phone', e.target.value)} error={errors.phone} />
                       <Input label="Website" placeholder="https://company.com" value={formData.website} onChange={(e) => updateField('website', e.target.value)} />
                     </div>
                     <Input label="Address" placeholder="Street address, Suite, Floor" value={formData.address} onChange={(e) => updateField('address', e.target.value)} />
@@ -418,22 +416,26 @@ export const Onboarding = () => {
                       </p>
                       
                       <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 text-left max-w-xs mx-auto space-y-1 text-[10px] text-slate-500">
-                        <p className="font-bold text-slate-600 mb-1">Password requirements:</p>
+                        <p className="font-bold text-slate-605 mb-1">Password requirements:</p>
                         <div className="flex items-center gap-1.5">
                           <div className={`w-1.5 h-1.5 rounded-full transition-colors ${companyPassword.length >= 8 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                           <span>At least 8 characters</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${/[A-Z]/.test(companyPassword) && /[a-z]/.test(companyPassword) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          <span>Uppercase & lowercase letters</span>
+                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${/[A-Z]/.test(companyPassword) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                          <span>At least one uppercase letter (Cap)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${/[a-z]/.test(companyPassword) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                          <span>At least one lowercase letter</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <div className={`w-1.5 h-1.5 rounded-full transition-colors ${/\d/.test(companyPassword) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                           <span>At least one number</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${/[@$!%*?&]/.test(companyPassword) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          <span>Special character (e.g. @$!%*?&)</span>
+                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${/[^A-Za-z0-9]/.test(companyPassword) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                          <span>At least one symbol (special character)</span>
                         </div>
                       </div>
                     </div>

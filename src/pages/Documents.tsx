@@ -16,6 +16,7 @@ import { ResponsiveDocumentWrapper } from '../components/ui/ResponsiveDocumentWr
 import { 
   FileText, 
   Search, 
+  SlidersHorizontal,
   PlusCircle, 
   Plus,
   Copy, 
@@ -103,6 +104,8 @@ export const Documents = () => {
   const [typeFilter, setTypeFilter] = useState(queryParams.get('type') || 'all'); // all | invoice | voucher | receipt
   const [statusFilter, setStatusFilter] = useState(queryParams.get('status') || 'all'); // all | Paid | Pending | Overdue | Draft
   const [searchQuery, setSearchQuery] = useState('');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [activeFilterCategory, setActiveFilterCategory] = useState<'type' | 'status' | 'sort' | null>(null);
   const [sortBy, setSortBy] = useState('newest'); // newest | oldest | highest | lowest
 
   // Sync filters when search query params change
@@ -119,6 +122,9 @@ export const Documents = () => {
     const handleOutsideClick = (e) => {
       if (!e.target.closest('.dropdown-container')) {
         setActiveMenuId(null);
+      }
+      if (!e.target.closest('.filter-popover-container')) {
+        setShowMobileFilters(false);
       }
     };
     document.addEventListener('click', handleOutsideClick);
@@ -233,44 +239,175 @@ export const Documents = () => {
 
         {/* Filter and Search Bar */}
         <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <Input
-              icon={Search}
-              placeholder="Search doc #, customer, status..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="relative max-w-sm w-full filter-popover-container">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search doc #, customer, status..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full text-xs rounded-xl border border-slate-200/85 bg-slate-50 py-2.5 pl-9 pr-10 transition-all focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/10 focus:border-blue-600 text-slate-800 font-semibold"
+              />
+              <button
+                type="button"
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all cursor-pointer ${
+                  showMobileFilters 
+                    ? 'bg-blue-50 text-blue-600 border border-blue-100' 
+                    : 'text-slate-400 hover:text-slate-655 hover:bg-slate-100'
+                }`}
+                title="Toggle Filters"
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+            </div>
 
-            <Select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="all">All Types (Invoices, Vouchers, Receipts)</option>
-              <option value="invoice">Invoices Only</option>
-              <option value="voucher">Vouchers Only</option>
-              <option value="receipt">Receipts Only</option>
-            </Select>
+            {/* Floating Popover for Filters - Speed Dial Inspired */}
+            {showMobileFilters && (
+              <div className="absolute top-full right-0 mt-2 z-30 bg-white border border-[#f1f3f9] rounded-3xl shadow-xl p-3 w-72 flex flex-col gap-2.5 animate-in slide-in-from-top-5 duration-200">
+                {/* Document Type Category */}
+                <div className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilterCategory(activeFilterCategory === 'type' ? null : 'type')}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 bg-white border rounded-2xl shadow-sm text-xs font-bold transition-all cursor-pointer ${
+                      activeFilterCategory === 'type' 
+                        ? 'border-indigo-305 text-indigo-700 bg-indigo-50/10' 
+                        : 'border-slate-200/85 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                      <span>Document Type</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {activeFilterCategory === 'type' ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {activeFilterCategory === 'type' && (
+                    <div className="mt-2 pl-4 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                      {[
+                        { val: 'all', label: 'All', color: 'bg-slate-400' },
+                        { val: 'invoice', label: 'Invoices', color: 'bg-blue-500' },
+                        { val: 'voucher', label: 'Vouchers', color: 'bg-emerald-500' },
+                        { val: 'receipt', label: 'Receipts', color: 'bg-amber-500' }
+                      ].map(item => (
+                        <button
+                          key={item.val}
+                          type="button"
+                          onClick={() => {
+                            setTypeFilter(item.val);
+                          }}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            typeFilter === item.val
+                              ? 'bg-indigo-50 text-indigo-705'
+                              : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-            <Select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="Paid">Paid</option>
-              <option value="Overdue">Overdue</option>
-              <option value="Draft">Draft</option>
-            </Select>
+                {/* Status Category */}
+                <div className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilterCategory(activeFilterCategory === 'status' ? null : 'status')}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 bg-white border rounded-2xl shadow-sm text-xs font-bold transition-all cursor-pointer ${
+                      activeFilterCategory === 'status' 
+                        ? 'border-indigo-305 text-indigo-700 bg-indigo-50/10' 
+                        : 'border-slate-200/85 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span>Status</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {activeFilterCategory === 'status' ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {activeFilterCategory === 'status' && (
+                    <div className="mt-2 pl-4 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                      {[
+                        { val: 'all', label: 'All Statuses', color: 'bg-slate-400' },
+                        { val: 'Pending', label: 'Pending', color: 'bg-amber-500' },
+                        { val: 'Paid', label: 'Paid', color: 'bg-emerald-500' },
+                        { val: 'Overdue', label: 'Overdue', color: 'bg-rose-500' },
+                        { val: 'Draft', label: 'Draft', color: 'bg-slate-550' }
+                      ].map(item => (
+                        <button
+                          key={item.val}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(item.val);
+                          }}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            statusFilter === item.val
+                              ? 'bg-indigo-50 text-indigo-705'
+                              : 'text-slate-665 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-            <Select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="newest">Sort: Newest First</option>
-              <option value="oldest">Sort: Oldest First</option>
-              <option value="highest">Sort: Highest Amount</option>
-              <option value="lowest">Sort: Lowest Amount</option>
-            </Select>
+                {/* Sort By Category */}
+                <div className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilterCategory(activeFilterCategory === 'sort' ? null : 'sort')}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 bg-white border rounded-2xl shadow-sm text-xs font-bold transition-all cursor-pointer ${
+                      activeFilterCategory === 'sort' 
+                        ? 'border-indigo-305 text-indigo-700 bg-indigo-50/10' 
+                        : 'border-slate-200/85 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      <span>Sort By</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {activeFilterCategory === 'sort' ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {activeFilterCategory === 'sort' && (
+                    <div className="mt-2 pl-4 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                      {[
+                        { val: 'newest', label: 'Newest First' },
+                        { val: 'oldest', label: 'Oldest First' },
+                        { val: 'highest', label: 'Highest Amount' },
+                        { val: 'lowest', label: 'Lowest Amount' }
+                      ].map(item => (
+                        <button
+                          key={item.val}
+                          type="button"
+                          onClick={() => {
+                            setSortBy(item.val);
+                          }}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            sortBy === item.val
+                              ? 'bg-indigo-50 text-indigo-705'
+                              : 'text-slate-665 hover:bg-slate-50'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -147,9 +147,14 @@ export const PayslipTemplate = ({ company = {}, employee = {}, record = {} }: Pa
           <p>Confidential Corporate Document</p>
         </div>
 
-        <div className="text-right border-t border-slate-350 pt-2 px-6">
-          <p className="font-extrabold text-slate-800">{company.companyName}</p>
-          <p className="text-[9px] text-slate-400 mt-0.5">Authorised Signatory</p>
+        <div className="text-right flex flex-col items-end">
+          {company.cfoSignature && (
+            <img src={company.cfoSignature} alt="CFO Signature" className="h-10 w-auto mb-1 object-contain" />
+          )}
+          <div className="border-t border-slate-350 pt-1 px-6 min-w-[120px]">
+            <p className="font-extrabold text-slate-800">{company.companyName}</p>
+            <p className="text-[9px] text-slate-400 mt-0.5">Authorised Signatory</p>
+          </div>
         </div>
       </div>
     </div>

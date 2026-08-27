@@ -17,6 +17,7 @@ export const defaultCompanyState = {
   businessType: 'Private Limited',
   logo: '',
   watermarkLogo: '',
+  cfoSignature: '',
   themeColor: '#f97316',
   gstNumber: '',
   panNumber: '',

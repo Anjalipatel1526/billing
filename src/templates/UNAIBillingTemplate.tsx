@@ -397,6 +397,8 @@ export const UNAIBillingTemplate = ({ company = {}, customer = {}, items = [], t
                   <div className="pt-2 ml-auto inline-block text-right">
                     {document.signature ? (
                       <img src={document.signature} alt="Signature" className="h-12 w-auto ml-auto mb-1 object-contain" />
+                    ) : company.cfoSignature ? (
+                      <img src={company.cfoSignature} alt="CFO Signature" className="h-12 w-auto ml-auto mb-1 object-contain" />
                     ) : (
                       <div className="h-12"></div>
                     )}

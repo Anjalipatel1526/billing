@@ -219,6 +219,8 @@ export const ClassicTemplate = ({ company = {}, customer = {}, items = [], total
         <div className="text-right">
           {document.signature ? (
             <img src={document.signature} alt="Signature" className="h-10 w-auto ml-auto mb-1 object-contain" />
+          ) : company.cfoSignature ? (
+            <img src={company.cfoSignature} alt="CFO Signature" className="h-10 w-auto ml-auto mb-1 object-contain" />
           ) : (
             <div className="h-10"></div>
           )}

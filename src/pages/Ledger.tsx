@@ -23,7 +23,9 @@ import {
   Eye,
   Printer,
   Plus,
-  X
+  X,
+  Search,
+  Filter
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import { getAllExpenses } from '../services/db';
@@ -52,6 +54,8 @@ export const Ledger = () => {
     return d.toISOString().slice(0, 10);
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [activeFilterCategory, setActiveFilterCategory] = useState<'party' | 'start' | 'end' | null>(null);
 
   // Modal and PDF export state
   const [previewDoc, setPreviewDoc] = useState(null);
@@ -77,6 +81,17 @@ export const Ledger = () => {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.filter-popover-container')) {
+        setShowMobileFilters(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   useEffect(() => {
     const loadExpensesData = async () => {
@@ -559,9 +574,16 @@ export const Ledger = () => {
           <div>
             <p className="text-[8px] text-slate-400">Report generated dynamically on: {new Date().toLocaleDateString()}</p>
           </div>
-          <div className="text-right border-t border-slate-300 pt-2 pr-6">
-            <p className="font-extrabold text-slate-900">{activeCompany?.companyName}</p>
-            <p className="text-[9px] text-slate-400 mt-0.5">Authorized Signatory</p>
+          <div className="text-right pr-6 flex flex-col items-end">
+            {activeCompany?.cfoSignature ? (
+              <img src={activeCompany.cfoSignature} alt="CFO Signature" className="h-10 w-auto mb-1 object-contain" />
+            ) : (
+              <div className="h-10"></div>
+            )}
+            <div className="border-t border-slate-300 pt-1 w-36">
+              <p className="font-extrabold text-slate-900">{activeCompany?.companyName}</p>
+              <p className="text-[9px] text-slate-400 mt-0.5">Authorized Signatory</p>
+            </div>
           </div>
         </div>
       </>
@@ -837,9 +859,14 @@ export const Ledger = () => {
               <p className="text-[8px] text-slate-400 uppercase tracking-wider">Report Authorization</p>
               <p className="text-[8px] text-slate-400 mt-1">Report Generated Automatically | Non-Repudiable</p>
             </div>
-            <div className="text-right">
-              <p className="font-extrabold text-[10px] text-slate-900">{activeCompany?.companyName}</p>
-              <p className="text-[8px] text-slate-400 mt-0.5">Authorised Signature</p>
+            <div className="text-right flex flex-col items-end">
+              {activeCompany?.cfoSignature && (
+                <img src={activeCompany.cfoSignature} alt="CFO Signature" className="h-8 w-auto mb-0.5 object-contain" />
+              )}
+              <div className="border-t border-slate-200 pt-0.5 min-w-[100px]">
+                <p className="font-extrabold text-[10px] text-slate-900">{activeCompany?.companyName}</p>
+                <p className="text-[8px] text-slate-400 mt-0.5">Authorised Signature</p>
+              </div>
             </div>
           </div>
         </div>
@@ -930,9 +957,14 @@ export const Ledger = () => {
               <p className="text-[8px] text-slate-400 uppercase tracking-wider">End of Statement of Account</p>
               <p className="text-[8px] text-slate-400 mt-1">Thank you for your business.</p>
             </div>
-            <div className="text-right">
-              <p className="font-extrabold text-[10px] text-slate-900">{activeCompany?.companyName}</p>
-              <p className="text-[8px] text-slate-400 mt-0.5">Authorised Signature</p>
+            <div className="text-right flex flex-col items-end">
+              {activeCompany?.cfoSignature && (
+                <img src={activeCompany.cfoSignature} alt="CFO Signature" className="h-8 w-auto mb-0.5 object-contain" />
+              )}
+              <div className="border-t border-slate-200 pt-0.5 min-w-[100px]">
+                <p className="font-extrabold text-[10px] text-slate-900">{activeCompany?.companyName}</p>
+                <p className="text-[8px] text-slate-400 mt-0.5">Authorised Signature</p>
+              </div>
             </div>
           </div>
         </div>
@@ -987,56 +1019,6 @@ export const Ledger = () => {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white p-4 sm:p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
-            
-            {/* Party Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                <Users className="w-3.5 h-3.5 text-slate-400" />
-                Select Party / Customer
-              </label>
-              <Select
-                value={selectedParty}
-                onChange={(e) => setSelectedParty(e.target.value)}
-              >
-                <option value="all">All Parties & Customers</option>
-                {parties.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </Select>
-            </div>
-
-            {/* Start Date */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                Start Date
-              </label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-
-            {/* End Date */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                End Date
-              </label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-
-          </div>
-        </div>
-
         {/* Stats Grid (Bento Layout) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Card 1: Net Balance (Spans 2 columns on all screens) */}
@@ -1088,6 +1070,133 @@ export const Ledger = () => {
               </h3>
               <p className="text-[9px] text-slate-400 font-semibold mt-1">Inflows recorded (-)</p>
             </div>
+          </div>
+        </div>
+
+        {/* Filter and Search Bar */}
+        <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs space-y-3">
+          <div className="relative max-w-sm w-full filter-popover-container">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Filter by party..."
+                value={selectedParty === 'all' ? '' : selectedParty}
+                onChange={(e) => setSelectedParty(e.target.value || 'all')}
+                className="w-full text-xs rounded-xl border border-slate-200/85 bg-slate-50 py-2.5 pl-9 pr-10 transition-all focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/10 focus:border-blue-600 text-slate-800 font-semibold"
+              />
+              <button
+                type="button"
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all cursor-pointer ${
+                  showMobileFilters 
+                    ? 'bg-blue-50 text-blue-600 border border-blue-100' 
+                    : 'text-slate-400 hover:text-slate-655 hover:bg-slate-100'
+                }`}
+                title="Toggle Filters"
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Floating Popover for Filters - Speed Dial Inspired */}
+            {showMobileFilters && (
+              <div className="absolute top-full right-0 mt-2 z-30 bg-white border border-[#f1f3f9] rounded-3xl shadow-xl p-3 w-72 flex flex-col gap-2.5 animate-in slide-in-from-top-5 duration-200">
+                {/* Party Selector Category */}
+                <div className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilterCategory(activeFilterCategory === 'party' ? null : 'party')}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 bg-white border rounded-2xl shadow-sm text-xs font-bold transition-all cursor-pointer ${
+                      activeFilterCategory === 'party' 
+                        ? 'border-indigo-305 text-indigo-700 bg-indigo-50/10' 
+                        : 'border-slate-200/85 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                      <span>Party / Customer</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {activeFilterCategory === 'party' ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {activeFilterCategory === 'party' && (
+                    <div className="mt-2 pl-4 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                      <Select
+                        value={selectedParty}
+                        onChange={(e) => setSelectedParty(e.target.value)}
+                      >
+                        <option value="all">All Parties & Customers</option>
+                        {parties.map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Start Date Category */}
+                <div className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilterCategory(activeFilterCategory === 'start' ? null : 'start')}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 bg-white border rounded-2xl shadow-sm text-xs font-bold transition-all cursor-pointer ${
+                      activeFilterCategory === 'start' 
+                        ? 'border-indigo-305 text-indigo-700 bg-indigo-50/10' 
+                        : 'border-slate-200/85 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span>Start Date</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {activeFilterCategory === 'start' ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {activeFilterCategory === 'start' && (
+                    <div className="mt-2 pl-4 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                      <Input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* End Date Category */}
+                <div className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilterCategory(activeFilterCategory === 'end' ? null : 'end')}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 bg-white border rounded-2xl shadow-sm text-xs font-bold transition-all cursor-pointer ${
+                      activeFilterCategory === 'end' 
+                        ? 'border-indigo-305 text-indigo-700 bg-indigo-50/10' 
+                        : 'border-slate-200/85 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      <span>End Date</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {activeFilterCategory === 'end' ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {activeFilterCategory === 'end' && (
+                    <div className="mt-2 pl-4 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                      <Input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1425,20 +1534,20 @@ export const Ledger = () => {
               </div>
 
               {/* Modal Body */}
-              <div className="flex-1 bg-slate-200/80 p-6 overflow-auto flex justify-center items-start">
+              <div className="flex-1 bg-slate-200/80 p-4 sm:p-6 overflow-auto flex justify-center items-start">
                 {ledgerReportType === 'pdf' && (
-                  <div className="bg-white shadow-md rounded-xl p-2 max-w-[210mm] w-full text-xs">
-                    <div className="p-8 w-[210mm] min-h-[295mm] bg-white font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden">
+                  <ResponsiveDocumentWrapper isInvoice={true}>
+                    <div className="bg-white shadow-md rounded-xl p-8 w-[794px] min-h-[1123px] font-sans text-xs text-slate-800 space-y-6 relative overflow-hidden text-left">
                       {renderStandardLedgerContent()}
                     </div>
-                  </div>
+                  </ResponsiveDocumentWrapper>
                 )}
                 {ledgerReportType === 'advance' && (
-                  <div className="bg-white shadow-md rounded-xl p-2 max-w-[210mm] w-full">
-                    <div className="w-[210mm] bg-white font-sans text-slate-800">
+                  <ResponsiveDocumentWrapper isInvoice={true}>
+                    <div className="bg-white shadow-md rounded-xl w-[794px] font-sans text-slate-800 text-left">
                       {renderAdvanceLedgerContent()}
                     </div>
-                  </div>
+                  </ResponsiveDocumentWrapper>
                 )}
                 {ledgerReportType === 'excel' && (
                   <div className="bg-white shadow-md rounded-xl p-6 w-full max-w-4xl overflow-x-auto">

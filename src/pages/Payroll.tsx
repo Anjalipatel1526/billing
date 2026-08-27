@@ -21,7 +21,8 @@ import {
   Plus,
   BadgeCheck,
   Pause,
-  Coins
+  Coins,
+  Filter
 } from 'lucide-react';
 
 interface Employee {
@@ -69,6 +70,7 @@ export const Payroll = () => {
   });
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Paid' | 'Hold'>('All');
   const [showMobileControls, setShowMobileControls] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // PDF download state
   const [pdfRenderSlip, setPdfRenderSlip] = useState<{ employee: Employee; record: PayrollRecord } | null>(null);
@@ -105,6 +107,17 @@ export const Payroll = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.filter-popover-container')) {
+        setShowMobileFilters(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   // Deny access to non-admin employees
   if (activeEmployee && !activeEmployee.isAdmin) {
@@ -487,43 +500,94 @@ export const Payroll = () => {
         </div>
 
         {/* Filter Controls & Search */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/65 shadow-xs">
-          {/* Status filters */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-50 border border-slate-200/50 rounded-2xl w-fit shrink-0">
-            {(['All', 'Pending', 'Paid', 'Hold'] as const).map(f => (
+        <div className="flex flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/65 shadow-xs">
+          {/* Search bar & Filter Toggle */}
+          <div className="relative max-w-sm w-full filter-popover-container">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by employee name or role..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200/80 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-xs transition-all font-semibold text-slate-800"
+                autoComplete="off"
+              />
               <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  statusFilter === f
-                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/40'
-                    : 'text-slate-500 hover:text-slate-800'
+                type="button"
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-xl transition-all cursor-pointer ${
+                  showMobileFilters 
+                    ? 'bg-indigo-55 text-indigo-600 border border-indigo-100' 
+                    : 'text-slate-400 hover:text-slate-655 hover:bg-slate-100'
                 }`}
+                title="Toggle Filters"
               >
-                {f} ({
-                  f === 'All' 
-                    ? stats.totalCount 
-                    : f === 'Pending' 
-                      ? stats.pendingCount 
-                      : f === 'Paid' 
-                        ? stats.paidCount 
-                        : stats.holdCount
-                })
+                <Filter className="w-4 h-4" />
               </button>
-            ))}
-          </div>
+            </div>
 
-          {/* Search bar */}
-          <div className="relative max-w-sm w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by employee name or role..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-xs transition-all"
-              autoComplete="off"
-            />
+            {/* Floating Popover for Filters - Speed Dial Inspired */}
+            {showMobileFilters && (
+              <div className="absolute top-full right-0 mt-2 z-30 flex flex-col items-end gap-2.5 animate-in slide-in-from-top-5 duration-200">
+                <button
+                  onClick={() => {
+                    setStatusFilter('All');
+                    setShowMobileFilters(false);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 bg-white border rounded-2xl shadow-md text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0 ${
+                    statusFilter === 'All'
+                      ? 'border-indigo-300 text-indigo-650 ring-2 ring-indigo-550/10'
+                      : 'border-slate-200/85 text-slate-655 hover:bg-indigo-50/40 hover:text-indigo-650'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                  All ({stats.totalCount})
+                </button>
+                <button
+                  onClick={() => {
+                    setStatusFilter('Pending');
+                    setShowMobileFilters(false);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 bg-white border rounded-2xl shadow-md text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0 ${
+                    statusFilter === 'Pending'
+                      ? 'border-indigo-300 text-indigo-650 ring-2 ring-indigo-550/10'
+                      : 'border-slate-200/85 text-slate-655 hover:bg-indigo-50/40 hover:text-indigo-650'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  Pending ({stats.pendingCount})
+                </button>
+                <button
+                  onClick={() => {
+                    setStatusFilter('Paid');
+                    setShowMobileFilters(false);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 bg-white border rounded-2xl shadow-md text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0 ${
+                    statusFilter === 'Paid'
+                      ? 'border-indigo-300 text-indigo-650 ring-2 ring-indigo-550/10'
+                      : 'border-slate-200/85 text-slate-655 hover:bg-indigo-50/40 hover:text-indigo-650'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Paid ({stats.paidCount})
+                </button>
+                <button
+                  onClick={() => {
+                    setStatusFilter('Hold');
+                    setShowMobileFilters(false);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 bg-white border rounded-2xl shadow-md text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0 ${
+                    statusFilter === 'Hold'
+                      ? 'border-indigo-300 text-indigo-650 ring-2 ring-indigo-550/10'
+                      : 'border-slate-200/85 text-slate-655 hover:bg-indigo-50/40 hover:text-indigo-650'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  Hold ({stats.holdCount})
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

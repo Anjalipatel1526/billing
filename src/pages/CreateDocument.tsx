@@ -13,7 +13,7 @@ import { ResponsiveDocumentWrapper } from '../components/ui/ResponsiveDocumentWr
 import { numberToWords } from '../utils/numberToWords';
 import { generateNextDocNumber } from '../utils/documentNumber';
 import { downloadDocumentPDF } from '../services/pdfGenerator';
-import { validateEmail, validateGST } from '../utils/formatting';
+import { validateEmail, validateGST, validatePhone } from '../utils/formatting';
 import { Save, Download, FileText, CreditCard, Receipt, Eye, ArrowLeft, Image as ImageIcon, X, Printer } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -184,6 +184,7 @@ export const CreateDocument = () => {
       if (!customer.customerName.trim()) errs.customerName = 'Customer Name is required.';
       if (customer.email && !validateEmail(customer.email)) errs.customerEmail = 'Invalid email address.';
       if (customer.gstNumber && !validateGST(customer.gstNumber)) errs.customerGst = 'Invalid GSTIN format.';
+      if (customer.phone && !validatePhone(customer.phone)) errs.customerPhone = 'Phone number must be exactly 10 digits.';
       if (items.length === 0) errs.items = 'At least one item is required.';
       else {
         items.forEach((item, idx) => {
@@ -494,6 +495,7 @@ export const CreateDocument = () => {
                   placeholder="+91 98765 43210"
                   value={customer.phone}
                   onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                  error={errors.customerPhone}
                 />
               </div>
 

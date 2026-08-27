@@ -9,13 +9,14 @@ import {
   FileText, Receipt, CreditCard, BookOpen
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
+import { validatePassword } from '../utils/formatting';
 
 export const WorkspaceLogin = () => {
   const { activeCompany, switchCompany, saveCompanyProfile, setAuthenticatedState } = useCompany();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [loginTab, setLoginTab] = useState<'admin' | 'employee'>('admin');
+  const [loginTab, setLoginTab] = useState<'admin' | 'employee'>('employee');
   
   // Admin credentials
   const [adminPassword, setAdminPassword] = useState('');
@@ -113,8 +114,8 @@ export const WorkspaceLogin = () => {
       setErrorMsg('New password is required.');
       return;
     }
-    if (newPassword.trim().length < 4) {
-      setErrorMsg('Password must be at least 4 characters long.');
+    if (!validatePassword(newPassword.trim())) {
+      setErrorMsg('Password must be at least 8 characters, containing uppercase, lowercase, and a symbol.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -338,152 +339,60 @@ export const WorkspaceLogin = () => {
               // Unified Login Forms
               <div className="space-y-6">
                 
-                {/* Header with Company Logo / Name */}
-                <div className="text-center space-y-2">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-50 border-2 border-white shadow-sm overflow-hidden p-2">
-                    {activeCompany?.logo ? (
-                      <img src={activeCompany.logo} alt="Company Logo" className="w-full h-full object-contain" />
-                    ) : (
-                      <Building2 className="w-6 h-6 text-slate-605" />
-                    )}
-                  </div>
-                  <h3 className="text-base font-black text-slate-900 tracking-tight">
-                    {activeCompany?.companyName || 'Workspace Login'}
-                  </h3>
-                  <div className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 text-[10px] font-black font-mono px-2.5 py-1 rounded-full uppercase">
-                    <span>Company ID:</span>
-                    <span className="text-indigo-600">#{activeCompany?.companyCode}</span>
-                  </div>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex bg-slate-100 p-1 rounded-xl">
-                  <button
-                    onClick={() => { setLoginTab('admin'); setErrorMsg(''); }}
-                    className={`flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all ${
-                      loginTab === 'admin' 
-                        ? 'bg-white text-slate-900 shadow-sm' 
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-center gap-1.5">
-                      <Shield className="w-3.5 h-3.5" />
-                      <span>Admin / Owner</span>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => { setLoginTab('employee'); setErrorMsg(''); }}
-                    className={`flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all ${
-                      loginTab === 'employee' 
-                        ? 'bg-white text-slate-900 shadow-sm' 
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-center gap-1.5">
-                      <Users className="w-3.5 h-3.5" />
-                      <span>Employee</span>
-                    </div>
-                  </button>
-                </div>
-
-                {/* Admin Form */}
-                {loginTab === 'admin' && (
-                  <form onSubmit={handleAdminLogin} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 mb-1.5">Workspace Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type={showAdminPassword ? "text" : "password"}
-                          value={adminPassword}
-                          onChange={(e) => { setAdminPassword(e.target.value); setErrorMsg(''); }}
-                          placeholder="Enter workspace password"
-                          className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white transition-all text-slate-800 font-mono"
-                          required
-                          autoComplete="current-password"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowAdminPassword(!showAdminPassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-none cursor-pointer p-0"
-                        >
-                          {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {errorMsg && (
-                      <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100/50 text-rose-600 px-3.5 py-2.5 rounded-xl text-[11px] font-bold text-left animate-shake">
-                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                        <span>{errorMsg}</span>
-                      </div>
-                    )}
-
-                    <Button
-                      type="submit"
-                      className="w-full py-2.5"
-                    >
-                      Authenticate Admin
-                    </Button>
-                  </form>
-                )}
-
                 {/* Employee Form */}
-                {loginTab === 'employee' && (
-                  <form onSubmit={handleEmployeeLogin} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 mb-1.5">Employee ID</label>
-                      <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="text"
-                          value={employeeLoginId}
-                          onChange={(e) => { setEmployeeLoginId(e.target.value); setErrorMsg(''); }}
-                          placeholder="e.g. company001"
-                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white transition-all text-slate-800"
-                          required
-                        />
-                      </div>
+                <form onSubmit={handleEmployeeLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">Employee ID</label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={employeeLoginId}
+                        onChange={(e) => { setEmployeeLoginId(e.target.value); setErrorMsg(''); }}
+                        placeholder="e.g. company001"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white transition-all text-slate-800"
+                        required
+                      />
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 mb-1.5">Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type={showEmployeePassword ? "text" : "password"}
-                          value={employeePassword}
-                          onChange={(e) => { setEmployeePassword(e.target.value); setErrorMsg(''); }}
-                          placeholder="Enter password"
-                          className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white transition-all text-slate-800 font-mono"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowEmployeePassword(!showEmployeePassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-none cursor-pointer p-0"
-                        >
-                          {showEmployeePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type={showEmployeePassword ? "text" : "password"}
+                        value={employeePassword}
+                        onChange={(e) => { setEmployeePassword(e.target.value); setErrorMsg(''); }}
+                        placeholder="Enter password"
+                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white transition-all text-slate-800 font-mono"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEmployeePassword(!showEmployeePassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-none cursor-pointer p-0"
+                      >
+                        {showEmployeePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
+                  </div>
 
-                    {errorMsg && (
-                      <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100/50 text-rose-600 px-3.5 py-2.5 rounded-xl text-[11px] font-bold text-left animate-shake">
-                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                        <span>{errorMsg}</span>
-                      </div>
-                    )}
+                  {errorMsg && (
+                    <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100/50 text-rose-600 px-3.5 py-2.5 rounded-xl text-[11px] font-bold text-left animate-shake">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
 
-                    <Button
-                      type="submit"
-                      className="w-full py-2.5"
-                      disabled={loading}
-                    >
-                      {loading ? 'Authenticating...' : 'Authenticate Employee'}
-                    </Button>
-                  </form>
-                )}
+                  <Button
+                    type="submit"
+                    className="w-full py-2.5"
+                    disabled={loading}
+                  >
+                    {loading ? 'Authenticating...' : 'Authenticate'}
+                  </Button>
+                </form>
 
               </div>
             )}

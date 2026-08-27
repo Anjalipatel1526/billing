@@ -73,6 +73,8 @@ export const Expenses = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProject, setSelectedProject] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [activeFilterCategory, setActiveFilterCategory] = useState<'category' | 'project' | 'month' | null>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -144,6 +146,17 @@ export const Expenses = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
+  }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.filter-popover-container')) {
+        setShowMobileFilters(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
   }, []);
 
   // List of unique projects for filter panel
@@ -597,9 +610,16 @@ export const Expenses = () => {
             <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Report Authorization</p>
             <p className="text-[8px] text-slate-400 mt-1">Generated automatically | Verified ledger representation</p>
           </div>
-          <div className="text-right border-t border-slate-300 pt-2 pr-6">
-            <p className="font-extrabold text-slate-900">{activeCompany?.companyName}</p>
-            <p className="text-[9px] text-slate-400 mt-0.5">Authorised Signatory</p>
+          <div className="text-right pr-6 flex flex-col items-end">
+            {activeCompany?.cfoSignature ? (
+              <img src={activeCompany.cfoSignature} alt="CFO Signature" className="h-10 w-auto mb-1 object-contain" />
+            ) : (
+              <div className="h-10"></div>
+            )}
+            <div className="border-t border-slate-300 pt-1 w-36">
+              <p className="font-extrabold text-slate-900">{activeCompany?.companyName}</p>
+              <p className="text-[9px] text-slate-400 mt-0.5">Authorised Signatory</p>
+            </div>
           </div>
         </div>
       </div>
@@ -758,133 +778,162 @@ export const Expenses = () => {
         )}
 
         {/* Filter Panel */}
-        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-slate-400" />
-              <h3 className="font-extrabold text-sm text-slate-800">Filters</h3>
-            </div>
-            
-            {/* Clear Filters */}
-            {(searchTerm || selectedCategory !== 'all' || selectedProject !== 'all' || selectedMonth !== 'all') && (
-              <button 
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedCategory('all');
-                  setSelectedProject('all');
-                  setSelectedMonth('all');
-                }}
-                className="flex items-center gap-1.5 text-[10px] font-extrabold text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 px-3 py-1.5 rounded-xl transition-all cursor-pointer w-fit"
-              >
-                <X className="w-3.5 h-3.5 stroke-[2.5]" />
-                Clear Filters
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Search Input */}
+        <div className="bg-white p-5 rounded-3xl border border-[#f1f3f9] shadow-xs space-y-3">
+          <div className="relative max-w-sm w-full filter-popover-container">
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
-                id="searchTerm"
-                name="searchTerm"
                 type="text"
                 placeholder="Search description, project..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
+                className="w-full text-xs rounded-xl border border-slate-200/85 bg-slate-50 py-2.5 pl-9 pr-10 transition-all focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/10 focus:border-blue-600 text-slate-800 font-semibold"
               />
+              <button
+                type="button"
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all cursor-pointer ${
+                  showMobileFilters 
+                    ? 'bg-blue-50 text-blue-600 border border-blue-100' 
+                    : 'text-slate-400 hover:text-slate-655 hover:bg-slate-100'
+                }`}
+                title="Toggle Filters"
+              >
+                <Filter className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* Category Dropdown */}
-            <select
-              id="selectedCategory"
-              name="selectedCategory"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
-            >
-              <option value="all">All Categories</option>
-              {CATEGORIES.map(cat => (
-                <option key={cat.value} value={cat.value}>{cat.label}</option>
-              ))}
-              {uniqueCategories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-
-            {/* Project/Event Dropdown */}
-            <select
-              id="selectedProject"
-              name="selectedProject"
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
-            >
-              <option value="all">All Projects & Events</option>
-              <option value="none">Without Project / Event</option>
-              {uniqueProjects.map(proj => (
-                <option key={proj} value={proj}>{proj}</option>
-              ))}
-            </select>
-
-            {/* Month Filter Dropdown */}
-            <select
-              id="selectedMonth"
-              name="selectedMonth"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-slate-50/20"
-            >
-              <option value="all">All Months</option>
-              {monthOptions.map(opt => (
-                <option key={opt.val} value={opt.val}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Quick Click Project Filter Tags */}
-          {uniqueProjects.length > 0 && (
-            <div className="pt-2 border-t border-slate-100/80">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">Quick Filter by Project / Event:</p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelectedProject('all')}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer ${
-                    selectedProject === 'all' 
-                      ? 'bg-blue-600 text-white shadow-xs' 
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  All Projects
-                </button>
-                <button
-                  onClick={() => setSelectedProject('none')}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer ${
-                    selectedProject === 'none' 
-                      ? 'bg-blue-600 text-white shadow-xs' 
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  Without Project
-                </button>
-                {uniqueProjects.map(proj => (
+            {/* Floating Popover for Filters - Speed Dial Inspired */}
+            {showMobileFilters && (
+              <div className="absolute top-full right-0 mt-2 z-30 bg-white border border-[#f1f3f9] rounded-3xl shadow-xl p-3 w-72 flex flex-col gap-2.5 animate-in slide-in-from-top-5 duration-200">
+                {/* Category Selection */}
+                <div className="w-full">
                   <button
-                    key={proj}
-                    onClick={() => setSelectedProject(proj)}
-                    className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer ${
-                      selectedProject === proj 
-                        ? 'bg-blue-600 text-white shadow-xs' 
-                        : 'bg-blue-50/50 hover:bg-blue-50 text-blue-600 border border-blue-100/50'
+                    type="button"
+                    onClick={() => setActiveFilterCategory(activeFilterCategory === 'category' ? null : 'category')}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 bg-white border rounded-2xl shadow-sm text-xs font-bold transition-all cursor-pointer ${
+                      activeFilterCategory === 'category' 
+                        ? 'border-indigo-305 text-indigo-700 bg-indigo-50/10' 
+                        : 'border-slate-200/85 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    {proj}
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                      <span>Category</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {activeFilterCategory === 'category' ? '▲' : '▼'}
+                    </span>
                   </button>
-                ))}
+                  {activeFilterCategory === 'category' && (
+                    <div className="mt-2 pl-4 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                      <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-white"
+                      >
+                        <option value="all">All Categories</option>
+                        {CATEGORIES.map(cat => (
+                          <option key={cat.value} value={cat.value}>{cat.label}</option>
+                        ))}
+                        {uniqueCategories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Project / Event Selection */}
+                <div className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilterCategory(activeFilterCategory === 'project' ? null : 'project')}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 bg-white border rounded-2xl shadow-sm text-xs font-bold transition-all cursor-pointer ${
+                      activeFilterCategory === 'project' 
+                        ? 'border-indigo-305 text-indigo-700 bg-indigo-50/10' 
+                        : 'border-slate-200/85 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span>Project & Event</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {activeFilterCategory === 'project' ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {activeFilterCategory === 'project' && (
+                    <div className="mt-2 pl-4 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                      <select
+                        value={selectedProject}
+                        onChange={(e) => setSelectedProject(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-white"
+                      >
+                        <option value="all">All Projects & Events</option>
+                        <option value="none">Without Project / Event</option>
+                        {uniqueProjects.map(proj => (
+                          <option key={proj} value={proj}>{proj}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Month Selection */}
+                <div className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilterCategory(activeFilterCategory === 'month' ? null : 'month')}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 bg-white border rounded-2xl shadow-sm text-xs font-bold transition-all cursor-pointer ${
+                      activeFilterCategory === 'month' 
+                        ? 'border-indigo-305 text-indigo-700 bg-indigo-50/10' 
+                        : 'border-slate-200/85 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      <span>Month</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {activeFilterCategory === 'month' ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {activeFilterCategory === 'month' && (
+                    <div className="mt-2 pl-4 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-blue-600 bg-white"
+                      >
+                        <option value="all">All Months</option>
+                        {monthOptions.map(opt => (
+                          <option key={opt.val} value={opt.val}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Clear Filters Reset Button inside popover */}
+                {(searchTerm || selectedCategory !== 'all' || selectedProject !== 'all' || selectedMonth !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSelectedCategory('all');
+                      setSelectedProject('all');
+                      setSelectedMonth('all');
+                      setShowMobileFilters(false);
+                    }}
+                    className="w-full mt-1.5 flex items-center justify-center gap-1.5 text-[10px] font-extrabold text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs border border-blue-100"
+                  >
+                    <X className="w-3 h-3 stroke-[2.5]" />
+                    Reset All Filters
+                  </button>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Expenses List Table */}

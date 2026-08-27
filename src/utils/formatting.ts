@@ -19,10 +19,32 @@ export function formatDate(dateString) {
   });
 }
 
-export function validateEmail(email) {
+export function validateEmail(email: string): boolean {
   if (!email) return true; // Optional field
+  const trimmed = email.trim();
+  if (!trimmed) return true;
+  if (!trimmed.includes('@')) return false;
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(email);
+  return re.test(trimmed);
+}
+
+export function validatePhone(phone: string): boolean {
+  if (!phone) return true; // Optional field
+  const trimmed = phone.trim();
+  if (!trimmed) return true;
+  // Clean all non-digit characters to verify it contains exactly 10 digits
+  const cleanPhone = trimmed.replace(/\D/g, '');
+  return cleanPhone.length === 10;
+}
+
+export function validatePassword(password: string): boolean {
+  if (!password) return false;
+  // Strong password: min 8 characters, at least one uppercase, one lowercase, one digit, one symbol
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const hasSymbol = /[^A-Za-z0-9]/.test(password);
+  return password.length >= 8 && hasUpper && hasLower && hasNumber && hasSymbol;
 }
 
 export function validateGST(gst) {

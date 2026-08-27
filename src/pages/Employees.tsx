@@ -5,7 +5,7 @@ import { useToast } from '../components/ui/Toast';
 import { Button } from '../components/ui/Button';
 import { getCompanyEmployees, saveCompanyEmployees, getAllExpenses } from '../services/db';
 import { useDocument } from '../contexts/DocumentContext';
-import { formatCurrency } from '../utils/formatting';
+import { formatCurrency, validateEmail, validatePhone, validatePassword } from '../utils/formatting';
 import { 
   Users, 
   UserPlus, 
@@ -321,7 +321,15 @@ export const Employees = () => {
     if (!loginId.trim()) return 'Employee ID is required.';
     if (loginId.trim().includes(' ')) return 'Employee ID cannot contain spaces.';
     if (!password.trim()) return 'Password is required.';
-    if (password.trim().length < 4) return 'Password must be at least 4 characters long.';
+    if (!validatePassword(password.trim())) {
+      return 'Password must be at least 8 characters, and contain at least one uppercase letter, one lowercase letter, and one symbol.';
+    }
+    if (email.trim() && !validateEmail(email.trim())) {
+      return 'Invalid email address.';
+    }
+    if (phone.trim() && !validatePhone(phone.trim())) {
+      return 'Phone number must be exactly 10 digits.';
+    }
     
     // Check if login ID is already taken
     const exists = employees.some(

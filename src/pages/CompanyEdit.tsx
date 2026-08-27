@@ -6,7 +6,7 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { LogoUploader } from '../components/company/LogoUploader';
-import { validateEmail, validateGST, validatePAN } from '../utils/formatting';
+import { validateEmail, validateGST, validatePAN, validatePhone } from '../utils/formatting';
 import { Save, ArrowLeft, Building2, Landmark, Sliders, Palette } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -30,7 +30,13 @@ export const CompanyEdit = () => {
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
+    if (errors[field]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   const updateBankField = (field, value) => {
@@ -49,6 +55,7 @@ export const CompanyEdit = () => {
     if (formData.email && !validateEmail(formData.email)) errs.email = 'Invalid email address.';
     if (formData.gstNumber && !validateGST(formData.gstNumber)) errs.gstNumber = 'Invalid GSTIN format.';
     if (formData.panNumber && !validatePAN(formData.panNumber)) errs.panNumber = 'Invalid PAN format.';
+    if (formData.phone && !validatePhone(formData.phone)) errs.phone = 'Phone number must be exactly 10 digits.';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -127,8 +134,8 @@ export const CompanyEdit = () => {
             </Select>
           </div>
 
-          {/* Logo & Watermark Uploaders */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          {/* Logo, Watermark & Signature Uploaders */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <LogoUploader
               label="Company Header Logo"
               value={formData.logo}
@@ -140,9 +147,15 @@ export const CompanyEdit = () => {
               value={formData.watermarkLogo}
               onChange={(val) => updateField('watermarkLogo', val)}
             />
+
+            <LogoUploader
+              label="CFO Authorized Signature (Optional)"
+              value={(formData as any).cfoSignature || ''}
+              onChange={(val) => updateField('cfoSignature', val)}
+            />
           </div>
           <p className="text-[11px] text-slate-500 italic">
-            * If no custom watermark image is uploaded, your main Company Header Logo will automatically be used as the background watermark on all invoices, vouchers, and receipts.
+            * If no custom watermark image is uploaded, your main Company Header Logo will automatically be used as the background watermark on all invoices, vouchers, and receipts. CFO signature will automatically be stamped on all bills, invoices, receipts, vouchers, ledger statements, and payslips.
           </p>
 
           {/* Theme Color Picker */}
@@ -194,6 +207,7 @@ export const CompanyEdit = () => {
               label="Phone"
               value={formData.phone}
               onChange={(e) => updateField('phone', e.target.value)}
+              error={errors.phone}
             />
             <Input
               label="Website"

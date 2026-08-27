@@ -167,7 +167,8 @@ export function companyToRow(c: any): any {
       ...(c.bankDetails || {}),
       _monthlyBudgets: c.monthlyBudgets || {},
       _yearlyBudget: c.yearlyBudget,
-      _monthlyBudget: c.monthlyBudget
+      _monthlyBudget: c.monthlyBudget,
+      _cfoSignature: c.cfoSignature
     },
     invoice_prefix: c.invoicePrefix,
     invoice_start_number: c.invoiceStartNumber,
@@ -210,12 +211,13 @@ export function rowToCompany(r: any): any {
     udyamNumber: r.udyam_number || r.udyamNumber,
     bankDetails: (() => {
       const bd = r.bank_details || r.bankDetails || {};
-      const { _monthlyBudgets, _yearlyBudget, _monthlyBudget, ...cleanBd } = bd;
+      const { _monthlyBudgets, _yearlyBudget, _monthlyBudget, _cfoSignature, ...cleanBd } = bd;
       return cleanBd;
     })(),
     monthlyBudgets: (r.bank_details || r.bankDetails)?._monthlyBudgets || r.monthlyBudgets || {},
     yearlyBudget: (r.bank_details || r.bankDetails)?._yearlyBudget ?? r.yearlyBudget,
     monthlyBudget: (r.bank_details || r.bankDetails)?._monthlyBudget ?? r.monthlyBudget,
+    cfoSignature: (r.bank_details || r.bankDetails)?._cfoSignature || r.cfoSignature || '',
     invoicePrefix: r.invoice_prefix || r.invoicePrefix,
     invoiceStartNumber: r.invoice_start_number || r.invoiceStartNumber,
     voucherPrefix: r.voucher_prefix || r.voucherPrefix,
