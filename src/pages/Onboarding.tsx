@@ -11,7 +11,7 @@ import { joinCompanyByCode, loginAsEmployee } from '../services/db';
 import { 
   Check, ArrowRight, ArrowLeft, Building2, Landmark, Sliders, 
   UserPlus, KeyRound, Copy, Lock, Hash, Shield, 
-  FileText, Receipt, CreditCard, BookOpen, Eye, EyeOff, User 
+  FileText, Receipt, CreditCard, BookOpen, Eye, EyeOff, User, AlertCircle 
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -30,7 +30,7 @@ const BrandLogo = ({ className = "w-6 h-6" }) => (
 );
 
 export const Onboarding = () => {
-  const { saveCompanyProfile, activeCompany } = useCompany();
+  const { saveCompanyProfile, activeCompany, setAuthenticatedState } = useCompany();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -64,6 +64,16 @@ export const Onboarding = () => {
   const [joinPassword, setJoinPassword] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState('');
+
+  // ==================
+  // EMPLOYEE LOGIN STATE
+  // ==================
+  const [empCompanyCode, setEmpCompanyCode] = useState('');
+  const [empLoginId, setEmpLoginId] = useState('');
+  const [empPassword, setEmpPassword] = useState('');
+  const [showEmpPassword, setShowEmpPassword] = useState(false);
+  const [empLoading, setEmpLoading] = useState(false);
+  const [empError, setEmpError] = useState('');
 
   // ==================
   // FORM HELPERS
@@ -130,6 +140,7 @@ export const Onboarding = () => {
         companyPassword: companyPassword,
       };
       await saveCompanyProfile(dataWithAuth);
+      setAuthenticatedState(true);
       setCreatedCode(code);
       setStep(5); // Show success with code
     } catch (err) {
@@ -148,6 +159,7 @@ export const Onboarding = () => {
       const company = await joinCompanyByCode(joinCode, joinPassword);
       await saveCompanyProfile(company);
       localStorage.removeItem('activeEmployee');
+      setAuthenticatedState(true);
       showToast(`Joined "${company.companyName}" successfully!`, 'success');
       navigate('/dashboard');
     } catch (err: any) {
@@ -156,7 +168,40 @@ export const Onboarding = () => {
       setJoinLoading(false);
     }
   };
+  const handleEmpLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmpError('');
 
+    if (!empLoginId.trim()) { setEmpError('Employee ID is required.'); return; }
+    if (!empPassword.trim()) { setEmpError('Password is required.'); return; }
+
+    setEmpLoading(true);
+    try {
+      const { company, employee } = await loginAsEmployee(
+        '',
+        empLoginId.trim(),
+        empPassword.trim()
+      );
+      
+      if (employee.mustChangePassword) {
+        await saveCompanyProfile(company);
+        localStorage.setItem('activeEmployee', JSON.stringify(employee));
+        showToast('First time login. Redirecting to set your new password.', 'info');
+        navigate('/login');
+        return;
+      }
+      
+      await saveCompanyProfile(company);
+      localStorage.setItem('activeEmployee', JSON.stringify(employee));
+      setAuthenticatedState(true);
+      showToast(`Welcome back, ${employee.name}!`, 'success');
+      navigate('/dashboard');
+    } catch (err: any) {
+      setEmpError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setEmpLoading(false);
+    }
+  };
   const copyCode = () => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -672,14 +717,24 @@ export const Onboarding = () => {
       {/* RIGHT COLUMN: DYNAMIC WORKSPACES & CONTROLS */}
       <div className="flex-1 h-auto md:h-full bg-[#f8fafc] flex flex-col justify-between p-4 md:p-6 relative overflow-y-auto md:overflow-hidden">
         
-        {/* Login as Employee Link */}
-        <button
-          onClick={() => navigate('/employeelogin')}
-          className="absolute top-4 right-4 md:top-6 md:right-6 z-50 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-[11px] font-extrabold shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95 border-none"
-        >
-          <User className="w-3.5 h-3.5" strokeWidth={2.5} />
-          <span>Login as Employee</span>
-        </button>
+        {/* Top-Right Action Links */}
+        <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2">
+          <button
+            onClick={() => { navigate('/onboarding'); setStep(1); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-705 text-[11px] font-extrabold shadow-sm transition-all cursor-pointer active:scale-95 border border-indigo-200/50"
+          >
+            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+            <span>New Company</span>
+          </button>
+          
+          <button
+            onClick={() => navigate('/join')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-705 text-[11px] font-extrabold shadow-sm transition-all cursor-pointer active:scale-95 border border-emerald-200/50"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Join Company</span>
+          </button>
+        </div>
 
         {/* Center Dynamic Interface */}
         <div className="my-auto flex items-center justify-center w-full max-w-xl mx-auto py-2">
@@ -687,101 +742,79 @@ export const Onboarding = () => {
           {/* Card Wrapper with Mockup Shadow styling */}
           <div className="w-full bg-white border border-slate-200/80 rounded-2xl shadow-lg p-5 md:p-8 relative overflow-hidden transition-all duration-300">
             
-            {/* ========== CHOOSE MODE ========== */}
+            {/* ========== CHOOSE MODE: EMPLOYEE LOGIN IN CENTER ========== */}
             {mode === 'choose' && (
-              <div className="space-y-5">
-                
-                {/* Logo & Headline */}
+              <form onSubmit={handleEmpLoginSubmit} className="space-y-6" autoComplete="off">
                 <div className="text-center space-y-2">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 border-2 border-white shadow-sm overflow-hidden p-2">
-                    <img src="/favicon.png" alt="UNAI Logo" className="w-full h-full object-contain" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                    Welcome to <span className="text-indigo-600">UNAI Billing</span>
-                  </h3>
-                  <div className="flex items-center justify-center gap-1.5 text-slate-300">
-                    <div className="w-6 h-px bg-slate-200"></div>
-                    <div className="w-1 h-1 rounded-full bg-indigo-400"></div>
-                    <div className="w-6 h-px bg-slate-200"></div>
-                  </div>
-                  <p className="text-slate-500 text-[11px] leading-relaxed max-w-sm mx-auto">
-                    Get started by setting up a new company or joining an existing one to manage your billing and finance in one place.
-                  </p>
+                  <h3 className="font-bold text-slate-900 text-lg">Employee Login</h3>
+                  <p className="text-xs text-slate-500 font-medium">Enter your credentials to log in.</p>
                 </div>
 
-                {/* Choices Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  
-                  {/* Create New Company Card */}
-                  <div className="group relative border border-slate-200 hover:border-indigo-200 rounded-xl p-4 bg-white hover:bg-indigo-50/10 transition-all flex flex-col justify-between min-h-[160px]">
-                    <div className="absolute top-0 right-3 w-5 h-6 bg-indigo-600 text-white rounded-b-sm flex items-center justify-center">
-                      <div className="w-0.5 h-0.5 rounded-full bg-white/80"></div>
+                <div className="space-y-4 max-w-sm mx-auto">
+
+                  {/* Employee ID */}
+                  <div>
+                    <label htmlFor="empLoginId" className="block text-xs font-semibold text-slate-800 mb-1.5">Employee ID</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        id="empLoginId"
+                        name="empLoginId"
+                        type="text"
+                        value={empLoginId}
+                        onChange={(e) => setEmpLoginId(e.target.value)}
+                        placeholder="e.g. company001"
+                        className="w-full pl-9 pr-3 py-2.5 text-xs border border-slate-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-slate-800"
+                        required
+                      />
                     </div>
-                    <div className="space-y-2">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-                        <Building2 className="w-4 h-4" />
-                      </div>
-                      <h4 className="font-bold text-slate-950 text-xs">New Company</h4>
-                      <p className="text-[10px] text-slate-400 font-medium leading-normal">
-                        Register a new business profile and start creating invoices, vouchers and documents.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => { navigate('/onboarding'); setStep(1); }}
-                      className="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[10px] py-1.5 px-2.5 rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm"
-                    >
-                      <span>Create New Company</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
                   </div>
 
-                  {/* Join Company Card */}
-                  <div className="group relative border border-slate-200 hover:border-emerald-200 rounded-xl p-4 bg-white hover:bg-emerald-50/10 transition-all flex flex-col justify-between min-h-[160px]">
-                    <div className="absolute top-0 right-3 w-5 h-6 bg-emerald-600 text-white rounded-b-sm flex items-center justify-center">
-                      <div className="w-0.5 h-0.5 rounded-full bg-white/80"></div>
+                  {/* Password */}
+                  <div>
+                    <label htmlFor="empPassword" className="block text-xs font-semibold text-slate-800 mb-1.5">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        id="empPassword"
+                        name="empPassword"
+                        type={showEmpPassword ? "text" : "password"}
+                        value={empPassword}
+                        onChange={(e) => setEmpPassword(e.target.value)}
+                        placeholder="Enter password"
+                        className="w-full pl-9 pr-10 py-2.5 text-xs border border-slate-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-slate-800"
+                        autoComplete="current-password"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEmpPassword(!showEmpPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none bg-transparent border-none cursor-pointer p-0"
+                      >
+                        {showEmpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
-                    <div className="space-y-2">
-                      <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-                        <UserPlus className="w-4 h-4" />
-                      </div>
-                      <h4 className="font-bold text-slate-950 text-xs">Join Company</h4>
-                      <p className="text-[10px] text-slate-400 font-semibold leading-normal">
-                        Enter a company ID and password to access an existing profile and continue.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => navigate('/join')}
-                      className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] py-1.5 px-2.5 rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
-                    >
-                      <span>Join Company</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
                   </div>
 
+                  {empError && (
+                    <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs px-3.5 py-2.5 rounded-xl font-semibold flex items-center gap-1.5 animate-shake">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{empError}</span>
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <Button
+                      type="submit"
+                      className="w-full bg-indigo-650 hover:bg-indigo-700 text-white py-2.5"
+                      icon={ArrowRight}
+                      disabled={empLoading}
+                    >
+                      {empLoading ? 'Logging in...' : 'Login'}
+                    </Button>
+                  </div>
                 </div>
-
-                {/* Bottom Encrypted Alert */}
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl p-2.5">
-                  <div className="w-6 h-6 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-                    <Lock className="w-3.5 h-3.5" />
-                  </div>
-                  <p className="text-[10px] text-slate-500 leading-snug font-medium">
-                    Your financial data is encrypted and secure with <span className="text-indigo-600 font-semibold">UNAI Billing.</span>
-                  </p>
-                </div>
-
-                {activeCompany && (
-                  <div className="text-center pt-2">
-                    <button
-                      onClick={() => navigate('/dashboard')}
-                      className="text-xs text-slate-400 hover:text-slate-600 font-semibold underline"
-                    >
-                      Go to Dashboard
-                    </button>
-                  </div>
-                )}
-
-              </div>
+              </form>
             )}
 
             {/* ========== JOIN COMPANY SCREEN ========== */}

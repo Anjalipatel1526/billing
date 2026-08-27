@@ -294,150 +294,289 @@ export const Documents = () => {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto min-h-[280px]">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
-                    <th className="py-3 px-4">Doc</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Customer / Client</th>
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4 text-right">Amount</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredDocs.map((doc) => {
-                    const partyName = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'N/A';
-                    const amount = doc.totals?.grandTotal || parseFloat(doc.amount) || 0;
-                    const isInvoice = doc.documentType === 'invoice';
-                    const isVoucher = doc.documentType === 'voucher';
+            <>
+              {/* Desktop View (Table Layout) */}
+              <div className="hidden md:block overflow-x-auto min-h-[280px]">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
+                      <th className="py-3 px-4">Doc</th>
+                      <th className="py-3 px-4">Type</th>
+                      <th className="py-3 px-4">Customer / Client</th>
+                      <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4 text-right">Amount</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredDocs.map((doc) => {
+                      const partyName = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'N/A';
+                      const amount = doc.totals?.grandTotal || parseFloat(doc.amount) || 0;
+                      const isInvoice = doc.documentType === 'invoice';
+                      const isVoucher = doc.documentType === 'voucher';
 
-                    return (
-                      <tr key={doc.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-3 px-4 font-mono font-semibold text-slate-900 whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewDoc(doc)}
-                            className="hover:text-blue-600 font-mono font-semibold transition-colors cursor-pointer text-left"
-                            title="Preview Document"
-                          >
-                            <span>{doc.documentNumber}</span>
-                          </button>
-                        </td>
-                        <td className="py-3 px-4">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewDoc(doc)}
-                            className="hover:scale-105 active:scale-95 transition-transform"
-                            title="Preview Document"
-                          >
-                            <Badge variant={isInvoice ? 'invoice' : isVoucher ? 'voucher' : 'receipt'}>
-                              {doc.documentType ? doc.documentType.toUpperCase() : 'INVOICE'}
+                      return (
+                        <tr key={doc.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="py-3 px-4 font-mono font-semibold text-slate-900 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDoc(doc)}
+                              className="hover:text-blue-600 font-mono font-semibold transition-colors cursor-pointer text-left"
+                              title="Preview Document"
+                            >
+                              <span>{doc.documentNumber}</span>
+                            </button>
+                          </td>
+                          <td className="py-3 px-4">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDoc(doc)}
+                              className="hover:scale-105 active:scale-95 transition-transform"
+                              title="Preview Document"
+                            >
+                              <Badge variant={isInvoice ? 'invoice' : isVoucher ? 'voucher' : 'receipt'}>
+                                {doc.documentType ? doc.documentType.toUpperCase() : 'INVOICE'}
+                              </Badge>
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="font-medium text-slate-800 flex items-center gap-1.5">
+                              <span>{partyName}</span>
+                              {doc.createdBy && (
+                                <span className="text-[10px] text-slate-400 font-medium">
+                                  (by {doc.createdBy})
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{formatDate(doc.documentDate)}</td>
+                          <td className={`py-3 px-4 text-right font-semibold whitespace-nowrap ${
+                            doc.status === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
+                          }`}>
+                            {formatCurrency(amount, activeCompany?.currency?.split(' ')[1] || '₹')}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant={doc.status === 'Paid' ? 'success' : doc.status === 'Draft' ? 'default' : 'warning'}>
+                              {doc.status || 'Pending'}
                             </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => setPreviewDoc(doc)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                                title="Preview Document"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDownload(doc)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                                title="Download PDF"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                              
+                              {/* Action Dropdown Menu */}
+                              <div className="relative dropdown-container">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuId(activeMenuId === doc.id ? null : doc.id);
+                                  }}
+                                  className={`p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer ${
+                                    activeMenuId === doc.id ? 'bg-slate-100 text-slate-800' : ''
+                                  }`}
+                                  title="More Actions"
+                                >
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </button>
+                                
+                                {activeMenuId === doc.id && (
+                                  <div className="absolute right-0 mt-1 w-32 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-30 animate-in fade-in slide-in-from-top-1 duration-100">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveMenuId(null);
+                                        setShareDoc(doc);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 cursor-pointer transition-colors"
+                                    >
+                                      <Share2 className="w-3 h-3" />
+                                      <span>Share</span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveMenuId(null);
+                                        handleDuplicate(doc.id);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-purple-600 flex items-center gap-2 cursor-pointer transition-colors"
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                      <span>Duplicate</span>
+                                    </button>
+                                    <hr className="my-1 border-slate-100" />
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveMenuId(null);
+                                        setDeleteDocId(doc.id);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer transition-colors"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      <span>Delete</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile View (Recent Documents Card Inspo) */}
+              <div className="md:hidden space-y-4 p-4.5 bg-slate-50/50">
+                {filteredDocs.map((doc) => {
+                  const partyName = doc.customer?.customerName || doc.paidTo || doc.receivedFrom || 'N/A';
+                  const amount = doc.totals?.grandTotal || parseFloat(doc.amount) || 0;
+                  const isInvoice = doc.documentType === 'invoice';
+                  const isVoucher = doc.documentType === 'voucher';
+
+                  return (
+                    <div 
+                      key={doc.id}
+                      className="p-5 bg-white border border-[#f1f3f9] rounded-3xl flex flex-col gap-4 shadow-xs hover:shadow-md transition-all duration-300 group"
+                    >
+                      {/* Top Row: Doc ID, Type Badge, and Grand Total */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewDoc(doc)}
+                            className="hover:text-indigo-650 font-mono font-extrabold text-[13px] text-slate-900 truncate text-left transition-colors cursor-pointer"
+                          >
+                            {doc.documentNumber}
                           </button>
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="font-medium text-slate-800 flex items-center gap-1.5">
-                            <span>{partyName}</span>
-                            {doc.createdBy && (
-                              <span className="text-[10px] text-slate-400 font-medium">
-                                (by {doc.createdBy})
-                              </span>
-                            )}
+                          <Badge variant={isInvoice ? 'invoice' : isVoucher ? 'voucher' : 'receipt'}>
+                            {doc.documentType ? doc.documentType.toUpperCase() : 'INVOICE'}
+                          </Badge>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className={`font-extrabold text-xs transition-colors ${
+                            doc.status === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
+                          }`}>
+                            {formatCurrency(amount, activeCompany?.currency?.split(' ')[1] || '₹')}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                            {formatDate(doc.documentDate)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Middle: Party Name and Creator */}
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <div className="font-extrabold text-[13px] text-slate-800 truncate">
+                          {partyName}
+                        </div>
+                        {doc.createdBy && (
+                          <div className="text-[10px] text-slate-400 font-semibold">
+                            Created by: {doc.createdBy}
                           </div>
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{formatDate(doc.documentDate)}</td>
-                        <td className={`py-3 px-4 text-right font-semibold whitespace-nowrap ${
-                          doc.status === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
-                        }`}>
-                          {formatCurrency(amount, activeCompany?.currency?.split(' ')[1] || '₹')}
-                        </td>
-                        <td className="py-3 px-4">
+                        )}
+                      </div>
+
+                      {/* Bottom Row: Status Badge and Action Buttons */}
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-100/80">
+                        <div>
                           <Badge variant={doc.status === 'Paid' ? 'success' : doc.status === 'Draft' ? 'default' : 'warning'}>
                             {doc.status || 'Pending'}
                           </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                        </div>
+
+                        <div className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/50 p-1 rounded-2xl">
+                          <button
+                            onClick={() => setPreviewDoc(doc)}
+                            className="p-2 rounded-xl text-slate-500 hover:text-indigo-650 hover:bg-white active:scale-95 transition-all cursor-pointer"
+                            title="Preview Document"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDownload(doc)}
+                            className="p-2 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-white active:scale-95 transition-all cursor-pointer"
+                            title="Download PDF"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                          
+                          {/* More menu on mobile */}
+                          <div className="relative dropdown-container">
                             <button
-                              onClick={() => setPreviewDoc(doc)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
-                              title="Preview Document"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuId(activeMenuId === doc.id ? null : doc.id);
+                              }}
+                              className={`p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-white active:scale-95 transition-all cursor-pointer ${
+                                activeMenuId === doc.id ? 'bg-white shadow-2xs text-slate-800' : ''
+                              }`}
+                              title="More Actions"
                             >
-                              <Eye className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setPreviewDoc(doc)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
-                              title="Download PDF"
-                            >
-                              <Download className="w-3.5 h-3.5" />
+                              <MoreVertical className="w-3.5 h-3.5" />
                             </button>
                             
-                            {/* Action Dropdown Menu */}
-                            <div className="relative dropdown-container">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(activeMenuId === doc.id ? null : doc.id);
-                                }}
-                                className={`p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer ${
-                                  activeMenuId === doc.id ? 'bg-slate-100 text-slate-800' : ''
-                                }`}
-                                title="More Actions"
-                              >
-                                <MoreVertical className="w-3.5 h-3.5" />
-                              </button>
-                              
-                              {activeMenuId === doc.id && (
-                                <div className="absolute right-0 mt-1 w-32 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-30 animate-in fade-in slide-in-from-top-1 duration-100">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveMenuId(null);
-                                      setShareDoc(doc);
-                                    }}
-                                    className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 cursor-pointer transition-colors"
-                                  >
-                                    <Share2 className="w-3 h-3" />
-                                    <span>Share</span>
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveMenuId(null);
-                                      handleDuplicate(doc.id);
-                                    }}
-                                    className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-purple-600 flex items-center gap-2 cursor-pointer transition-colors"
-                                  >
-                                    <Copy className="w-3 h-3" />
-                                    <span>Duplicate</span>
-                                  </button>
-                                  <hr className="my-1 border-slate-100" />
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveMenuId(null);
-                                      setDeleteDocId(doc.id);
-                                    }}
-                                    className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer transition-colors"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                    <span>Delete</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                            {activeMenuId === doc.id && (
+                              <div className="absolute right-0 bottom-full mb-2 w-32 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-30 animate-in fade-in slide-in-from-bottom-1 duration-100">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuId(null);
+                                    setShareDoc(doc);
+                                  }}
+                                  className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 cursor-pointer transition-colors text-[11px] font-bold"
+                                >
+                                  <Share2 className="w-3.5 h-3.5" />
+                                  <span>Share</span>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuId(null);
+                                    handleDuplicate(doc.id);
+                                  }}
+                                  className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 hover:text-purple-600 flex items-center gap-2 cursor-pointer transition-colors text-[11px] font-bold"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>Duplicate</span>
+                                </button>
+                                <hr className="my-1 border-slate-100" />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuId(null);
+                                    setDeleteDocId(doc.id);
+                                  }}
+                                  className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer transition-colors text-[11px] font-bold"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Delete</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
 

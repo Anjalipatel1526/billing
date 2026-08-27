@@ -897,7 +897,8 @@ export const Expenses = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop View (Table Layout) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs font-sans">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider">
@@ -1001,6 +1002,108 @@ export const Expenses = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile View (Recent Documents Card Inspo) */}
+          <div className="md:hidden space-y-4 p-4.5 bg-slate-50/50">
+            {loading ? (
+              <div className="py-12 text-center text-slate-400">
+                <div className="flex justify-center items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <span>Loading expenses...</span>
+                </div>
+              </div>
+            ) : filteredExpenses.length === 0 ? (
+              <div className="py-16 text-center text-slate-400 font-medium">
+                <p className="text-slate-400 text-xs">No expense records found.</p>
+              </div>
+            ) : (
+              filteredExpenses.map((row) => {
+                const colors = getCategoryColorClasses(row.category);
+                const Icon = getCategoryIcon(row.category);
+
+                return (
+                  <div
+                    key={row.id}
+                    className="p-5 bg-white border border-[#f1f3f9] rounded-3xl flex flex-col gap-4 shadow-xs hover:shadow-md transition-all duration-300 group"
+                  >
+                    {/* Top Row: Category Badge + Date */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-bold ${colors.bg} ${colors.text}`}>
+                          <Icon className="w-3.5 h-3.5" />
+                          {row.category}
+                        </span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-slate-400 font-semibold">
+                          {formatDate(row.date)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Middle: Details */}
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <div className="font-extrabold text-[13px] text-slate-800 break-words">
+                        {row.particulars}
+                      </div>
+                      {row.createdBy && (
+                        <div className="text-[10px] text-slate-400 font-semibold">
+                          Created by: {row.createdBy}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Project / Event Tag & Payment Method + Amount */}
+                    <div className="grid grid-cols-2 gap-3 bg-slate-50/60 p-3 rounded-2xl border border-slate-100">
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Project / Event</p>
+                        <div className="mt-0.5 min-w-0 truncate">
+                          {row.projectEvent ? (
+                            <button
+                              onClick={() => setSelectedProject(row.projectEvent)}
+                              className="inline-flex items-center gap-1 bg-blue-50/40 hover:bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg border border-blue-100/30 text-[9px] font-bold transition-all cursor-pointer truncate max-w-full"
+                              title="Click to filter by this project"
+                            >
+                              <Tag className="w-2.5 h-2.5" />
+                              {row.projectEvent}
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 text-[10px] italic">General Office</span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Paid Via</p>
+                        <p className="font-extrabold text-xs mt-0.5 text-slate-800 truncate">
+                          {row.paidVia}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Amount & Actions */}
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100/80">
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Amount</p>
+                        <p className="font-black text-sm text-slate-900 mt-0.5">
+                          {formatCurrency(row.amount, currencySymbol)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/50 p-1 rounded-2xl">
+                        <button
+                          onClick={() => handleDeleteExpense(row.id)}
+                          className="p-2 text-rose-500 hover:text-rose-600 hover:bg-white rounded-xl active:scale-95 transition-all cursor-pointer"
+                          title="Delete Expense Entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

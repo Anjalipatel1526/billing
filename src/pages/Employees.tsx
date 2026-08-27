@@ -25,7 +25,8 @@ import {
   Phone,
   Mail,
   Briefcase,
-  Banknote
+  Banknote,
+  ChevronDown
 } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 
@@ -53,6 +54,7 @@ interface Employee {
   isAdmin?: boolean;
   createdAt: string;
   photo?: string;
+  mustChangePassword?: boolean;
 }
 
 const defaultPermissions: EmployeePermissions = {
@@ -90,6 +92,7 @@ export const Employees = () => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [designation, setDesignation] = useState('');
+  const [designationType, setDesignationType] = useState('Accountant');
   const [salary, setSalary] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [permissions, setPermissions] = useState<EmployeePermissions>({ ...defaultPermissions });
@@ -159,15 +162,74 @@ export const Employees = () => {
     loadEmployees();
   }, [loadEmployees]);
 
+  const handleDesignationTypeChange = (type: string) => {
+    setDesignationType(type);
+    if (type === 'Accountant') {
+      setDesignation('Accountant');
+      setPermissions({
+        viewDocuments: true,
+        addInvoice: true,
+        addVoucher: true,
+        addReceipt: true,
+        addExpense: true,
+        viewLedger: true,
+        accessRecycleBin: true,
+        accessRecurringPayments: true
+      });
+    } else if (type === 'Auditor') {
+      setDesignation('Auditor');
+      setPermissions({
+        viewDocuments: true,
+        addInvoice: false,
+        addVoucher: false,
+        addReceipt: false,
+        addExpense: false,
+        viewLedger: true,
+        accessRecycleBin: false,
+        accessRecurringPayments: false
+      });
+    } else {
+      setDesignation('');
+    }
+  };
+
   const handleOpenAddModal = () => {
     setModalMode('add');
     setEditingEmployeeId(null);
     setName('');
-    setLoginId('');
-    setPassword('');
+
+    // Generate sequential Login ID based on company name
+    const companyClean = (activeCompany?.companyName || 'company')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    
+    let nextNum = 1;
+    const regex = new RegExp(`^${companyClean}(\\d+)$`);
+    employees.forEach(emp => {
+      const match = emp.loginId.toLowerCase().trim().match(regex);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num >= nextNum) {
+          nextNum = num + 1;
+        }
+      }
+    });
+    const paddedNum = String(nextNum).padStart(3, '0');
+    const generatedLoginId = `${companyClean}${paddedNum}`;
+    setLoginId(generatedLoginId);
+
+    // Generate random 8-character temporary password
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let generatedPass = '';
+    for (let i = 0; i < 8; i++) {
+      generatedPass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(generatedPass);
+
     setPhone('');
     setEmail('');
     setDesignation('');
+    setDesignationType('');
     setSalary('');
     setPermissions({ ...defaultPermissions });
     setIsAdmin(false);
@@ -184,7 +246,17 @@ export const Employees = () => {
     setPassword(emp.password);
     setPhone(emp.phone || '');
     setEmail(emp.email || '');
-    setDesignation(emp.designation || '');
+    
+    const currentDesignation = emp.designation || '';
+    setDesignation(currentDesignation);
+    if (currentDesignation === 'Accountant') {
+      setDesignationType('Accountant');
+    } else if (currentDesignation === 'Auditor') {
+      setDesignationType('Auditor');
+    } else {
+      setDesignationType(currentDesignation ? 'Custom' : '');
+    }
+
     setSalary(emp.salary !== undefined && emp.salary !== null ? String(emp.salary) : '');
     setPermissions(emp.permissions || { ...defaultPermissions });
     setIsAdmin(!!emp.isAdmin);
@@ -244,6 +316,8 @@ export const Employees = () => {
 
   const validateForm = () => {
     if (!name.trim()) return 'Name is required.';
+    if (!designationType) return 'Please select a Designation / Role.';
+    if (designationType === 'Custom' && !designation.trim()) return 'Custom designation name is required.';
     if (!loginId.trim()) return 'Employee ID is required.';
     if (loginId.trim().includes(' ')) return 'Employee ID cannot contain spaces.';
     if (!password.trim()) return 'Password is required.';
@@ -283,13 +357,15 @@ export const Employees = () => {
           permissions,
           isAdmin,
           createdAt: new Date().toISOString(),
-          photo: photo
+          photo: photo,
+          mustChangePassword: true
         };
         updatedList.push(newEmployee);
         showToast(`Employee "${newEmployee.name}" created successfully!`, 'success');
       } else if (modalMode === 'edit' && editingEmployeeId) {
         updatedList = updatedList.map(emp => {
           if (emp.id === editingEmployeeId) {
+            const passwordChanged = emp.password !== password;
             const updated = {
               ...emp,
               name: name.trim(),
@@ -301,7 +377,8 @@ export const Employees = () => {
               salary: salary.trim() ? (isNaN(Number(salary.trim())) ? salary.trim() : Number(salary.trim())) : '',
               permissions,
               isAdmin,
-              photo: photo
+              photo: photo,
+              mustChangePassword: passwordChanged ? true : emp.mustChangePassword
             };
             // Sync current logged-in employee session if updated
             const activeEmpJson = localStorage.getItem('activeEmployee');
@@ -387,9 +464,11 @@ export const Employees = () => {
   const handleConfirmAdmin = async () => {
     if (!verifyAdminEmp || !activeCompany) return;
 
-    // Cross-verify password
-    if (verifyPasswordInput !== verifyAdminEmp.password) {
-      setVerifyError('Incorrect password. Please try again.');
+    // Cross-verify with the current admin password (either active admin employee or company owner)
+    const currentAdminPassword = activeEmployee ? activeEmployee.password : activeCompany.companyPassword;
+
+    if (verifyPasswordInput !== currentAdminPassword) {
+      setVerifyError('Incorrect admin password. Please try again.');
       return;
     }
 
@@ -785,17 +864,44 @@ export const Employees = () => {
                         <label className="block text-xs font-bold text-slate-800 mb-1.5">Designation / Role</label>
                         <div className="relative">
                           <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <input
-                            type="text"
-                            value={designation}
-                            onChange={(e) => setDesignation(e.target.value)}
-                            placeholder="e.g. Accountant"
-                            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-sm transition-all"
-                            autoComplete="new-designation"
-                            name="employee-designation"
-                          />
+                          <select
+                            value={designationType}
+                            onChange={(e) => handleDesignationTypeChange(e.target.value)}
+                            className={`w-full pl-9 pr-8 py-2 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-sm transition-all appearance-none bg-white font-medium ${
+                              !designationType ? 'text-slate-400' : 'text-slate-800'
+                            }`}
+                            required
+                          >
+                            <option value="" disabled>Select a Role</option>
+                            <option value="Accountant">Accountant</option>
+                            <option value="Auditor">Auditor</option>
+                            <option value="Custom">Custom...</option>
+                          </select>
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                            <ChevronDown className="w-4 h-4" />
+                          </div>
                         </div>
                       </div>
+
+                      {/* Custom Designation Name */}
+                      {designationType === 'Custom' && (
+                        <div>
+                          <label className="block text-xs font-bold text-slate-800 mb-1.5">Custom Designation Name</label>
+                          <div className="relative">
+                            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                              type="text"
+                              value={designation}
+                              onChange={(e) => setDesignation(e.target.value)}
+                              placeholder="e.g. Sales Manager"
+                              className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-sm transition-all font-medium"
+                              autoComplete="new-designation"
+                              name="employee-designation"
+                              required
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {/* Phone */}
                       <div>
@@ -1107,7 +1213,7 @@ export const Employees = () => {
                 <div className="space-y-1.5">
                   <h3 className="text-base font-extrabold text-slate-900">Make Employee Admin</h3>
                   <p className="text-xs text-slate-500 font-semibold max-w-[280px] mx-auto leading-relaxed">
-                    To make <span className="text-indigo-600 font-bold">{verifyAdminEmp.name}</span> an Admin, please enter their employee password for verification.
+                    To make <span className="text-indigo-600 font-bold">{verifyAdminEmp.name}</span> an Admin, please enter your admin password for verification.
                   </p>
                 </div>
 
@@ -1126,7 +1232,7 @@ export const Employees = () => {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleConfirmAdmin();
                       }}
-                      placeholder="Enter employee password..."
+                      placeholder="Enter admin password..."
                       className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white transition-all text-slate-800"
                       autoComplete="new-password"
                       autoFocus

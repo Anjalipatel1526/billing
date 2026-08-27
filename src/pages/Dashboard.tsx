@@ -26,10 +26,10 @@ import {
   LayoutDashboard,
   BookOpen,
   Wallet,
-  Bell,
   Trash2,
   Settings,
-  Banknote
+  Banknote,
+  LogOut
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import GradientWaves from '../components/ui/GradientWaves';
@@ -163,10 +163,21 @@ const CircularProgress = ({
 };
 
 export const Dashboard = () => {
-  const { activeCompany } = useCompany();
+  const { activeCompany, switchCompany, setAuthenticatedState } = useCompany();
   const { documents } = useDocument();
   const navigate = useNavigate();
   const { showToast } = useToast();
+
+  const handleSignOut = async () => {
+    try {
+      localStorage.removeItem('activeEmployee');
+      setAuthenticatedState(false);
+      await switchCompany(null);
+      navigate('/');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
 
   const employeeJson = localStorage.getItem('activeEmployee');
   const activeEmployee = employeeJson ? (() => {
@@ -314,7 +325,7 @@ export const Dashboard = () => {
           show: canRecurring,
           onClick: () => navigate('/recurring'),
           bgClass: 'bg-purple-50 text-purple-600 border border-purple-100/30',
-          icon: <Bell className="w-5 h-5 stroke-[2.2]" />,
+          icon: <Clock className="w-5 h-5 stroke-[2.2]" />,
           label: 'Recurring'
         },
         {
@@ -436,9 +447,9 @@ export const Dashboard = () => {
               className="flex items-center gap-3.5 p-3 bg-[#fafafa] hover:bg-slate-50 border border-[#f1f3f9] rounded-2xl transition-all cursor-pointer text-left active:scale-[0.98]"
             >
               <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-4 h-4" />
+                <BookOpen className="w-4 h-4" />
               </div>
-              <span className="text-xs font-bold text-slate-700">System Reports</span>
+              <span className="text-xs font-bold text-slate-700">Ledger</span>
             </button>
           )}
 
@@ -654,6 +665,8 @@ export const Dashboard = () => {
 
       <div className="space-y-6 font-sans relative z-10">
         
+
+        
         {/* Welcome Section & Create Dropdown */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-5">
           <div 
@@ -712,6 +725,7 @@ export const Dashboard = () => {
               />
             </svg>
 
+
             {/* Welcome Card Content */}
             <div className="relative z-10 flex items-center justify-between">
               <div>
@@ -757,38 +771,12 @@ export const Dashboard = () => {
         </div>
             {/* Stat Cards (6 Cards Grid) */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
-              {/* Card 1: Recurring Income (Yearly) */}
-              <div 
-                onMouseEnter={() => setRecurringIncomeYearlyTrigger(prev => prev + 1)}
-                onTouchStart={() => setRecurringIncomeYearlyTrigger(prev => prev + 1)}
-                onClick={() => navigate('/recurring')}
-                className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-2 sm:col-span-1"
-              >
-                <CircularProgress 
-                  percent={stats.recurringIncomeYearlyPercent}
-                  gradientId="blueProgress"
-                  gradientStart="#0ea5e9"
-                  gradientEnd="#2563eb"
-                  trackColor="#f0f9ff"
-                  triggerKey={recurringIncomeYearlyTrigger}
-                />
-                <div className="flex flex-col justify-center min-w-0">
-                  <span className="text-[10px] xl:text-[11px] font-bold text-slate-500 truncate">Recurring Income (Yearly)</span>
-                  <p className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight mt-0.5 whitespace-nowrap">
-                    <AnimatedCardValue targetValue={stats.recurringIncomeYearlyVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={recurringIncomeYearlyTrigger} />
-                  </p>
-                  <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                    <span className="font-semibold">Projected annual income</span>
-                  </p>
-                </div>
-              </div>
-              
-              {/* Card 2: Total Invoiced */}
+              {/* Card 1: Total Invoiced */}
               <div 
                 onMouseEnter={() => setInvoicedTrigger(prev => prev + 1)}
                 onTouchStart={() => setInvoicedTrigger(prev => prev + 1)}
                 onClick={() => navigate('/documents?type=invoice')}
-                className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-1 sm:col-span-1"
+                className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-2 sm:col-span-1"
               >
                 <CircularProgress 
                   percent={stats.totalInvoicedPercent}
@@ -805,6 +793,42 @@ export const Dashboard = () => {
                   </p>
                   <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
                     <span className="font-semibold">Cumulative invoices generated</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 2: Expenses */}
+              <div 
+                onMouseEnter={() => setExpensesTrigger(prev => prev + 1)}
+                onTouchStart={() => setExpensesTrigger(prev => prev + 1)}
+                onClick={() => navigate('/expenses')}
+                className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-1 sm:col-span-1"
+              >
+                <CircularProgress 
+                  percent={stats.expensesPercent}
+                  gradientId="roseProgress"
+                  gradientStart="#fb7185"
+                  gradientEnd="#e11d48"
+                  trackColor="#fff1f2"
+                  triggerKey={expensesTrigger}
+                />
+                <div className="flex flex-col justify-center min-w-0">
+                  <span className="text-[10px] xl:text-[11px] font-bold text-slate-500 truncate">Expenses (This Month)</span>
+                  <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
+                    <span className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight">
+                      <AnimatedCardValue targetValue={stats.expensesVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={expensesTrigger} />
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold truncate">
+                      / {formatCurrency(stats.expensesLimit, currencySymbol)}
+                    </span>
+                  </div>
+                  <p className={`text-[9px] xl:text-[10px] font-bold mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap ${
+                    stats.expensesVal > stats.expensesLimit ? 'text-rose-600' : 'text-emerald-600'
+                  }`}>
+                    <span>{stats.expensesVal > stats.expensesLimit ? '⚠' : '✓'}</span>
+                    <span className="font-semibold">
+                      {stats.expensesVal > stats.expensesLimit ? 'Over monthly budget!' : 'Within monthly budget'}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -887,38 +911,28 @@ export const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Card 6: Expenses */}
+              {/* Card 6: Recurring Income (Yearly) */}
               <div 
-                onMouseEnter={() => setExpensesTrigger(prev => prev + 1)}
-                onTouchStart={() => setExpensesTrigger(prev => prev + 1)}
-                onClick={() => navigate('/expenses')}
+                onMouseEnter={() => setRecurringIncomeYearlyTrigger(prev => prev + 1)}
+                onTouchStart={() => setRecurringIncomeYearlyTrigger(prev => prev + 1)}
+                onClick={() => navigate('/recurring')}
                 className="bg-white border border-[#f1f3f9] p-4 rounded-3xl shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer col-span-2 sm:col-span-1"
               >
                 <CircularProgress 
-                  percent={stats.expensesPercent}
-                  gradientId="roseProgress"
-                  gradientStart="#fb7185"
-                  gradientEnd="#e11d48"
-                  trackColor="#fff1f2"
-                  triggerKey={expensesTrigger}
+                  percent={stats.recurringIncomeYearlyPercent}
+                  gradientId="blueProgress"
+                  gradientStart="#0ea5e9"
+                  gradientEnd="#2563eb"
+                  trackColor="#f0f9ff"
+                  triggerKey={recurringIncomeYearlyTrigger}
                 />
                 <div className="flex flex-col justify-center min-w-0">
-                  <span className="text-[10px] xl:text-[11px] font-bold text-slate-500 truncate">Expenses (This Month)</span>
-                  <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
-                    <span className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight">
-                      <AnimatedCardValue targetValue={stats.expensesVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={expensesTrigger} />
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-semibold truncate">
-                      / {formatCurrency(stats.expensesLimit, currencySymbol)}
-                    </span>
-                  </div>
-                  <p className={`text-[9px] xl:text-[10px] font-bold mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap ${
-                    stats.expensesVal > stats.expensesLimit ? 'text-rose-600' : 'text-emerald-600'
-                  }`}>
-                    <span>{stats.expensesVal > stats.expensesLimit ? '⚠' : '✓'}</span>
-                    <span className="font-semibold">
-                      {stats.expensesVal > stats.expensesLimit ? 'Over monthly budget!' : 'Within monthly budget'}
-                    </span>
+                  <span className="text-[10px] xl:text-[11px] font-bold text-slate-500 truncate">Recurring Income (Yearly)</span>
+                  <p className="text-sm xl:text-base font-extrabold text-slate-900 tracking-tight mt-0.5 whitespace-nowrap">
+                    <AnimatedCardValue targetValue={stats.recurringIncomeYearlyVal} isCurrency={true} currencySymbol={currencySymbol} triggerKey={recurringIncomeYearlyTrigger} />
+                  </p>
+                  <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                    <span className="font-semibold">Projected annual income</span>
                   </p>
                 </div>
               </div>

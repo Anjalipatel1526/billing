@@ -529,7 +529,7 @@ export const Payroll = () => {
             {[1, 2, 3].map(n => (
               <div key={n} className="flex items-center justify-between py-2 border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-slate-100 rounded-full" />
+                  <div className="w-10 h-10 bg-slate-100 rounded-2xl" />
                   <div className="space-y-1">
                     <div className="h-3.5 bg-slate-100 rounded w-24" />
                     <div className="h-2.5 bg-slate-100 rounded w-16" />
@@ -550,156 +550,280 @@ export const Payroll = () => {
             </p>
           </div>
         ) : (
-          <div className="bg-white border border-slate-200/60 rounded-3xl overflow-hidden shadow-xs border-collapse">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                    <th className="py-4.5 px-6">Employee Info</th>
-                    <th className="py-4.5 px-6">Designation</th>
-                    <th className="py-4.5 px-6">Salary</th>
-                    <th className="py-4.5 px-6">Status</th>
-                    <th className="py-4.5 px-6">Payment Details</th>
-                    <th className="py-4.5 px-6 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredPayroll.map(({ employee, status, salary, paymentDate, paymentMethod, notes }) => {
-                    const hasSalary = employee.salary !== undefined && employee.salary !== '' && Number(employee.salary) > 0;
+          <>
+            {/* Desktop View (Table Layout) */}
+            <div className="hidden md:block bg-white border border-slate-200/60 rounded-3xl overflow-hidden shadow-xs border-collapse">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      <th className="py-4.5 px-6">Employee Info</th>
+                      <th className="py-4.5 px-6">Designation</th>
+                      <th className="py-4.5 px-6">Salary</th>
+                      <th className="py-4.5 px-6">Status</th>
+                      <th className="py-4.5 px-6">Payment Details</th>
+                      <th className="py-4.5 px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredPayroll.map(({ employee, status, salary, paymentDate, paymentMethod, notes }) => {
+                      const hasSalary = employee.salary !== undefined && employee.salary !== '' && Number(employee.salary) > 0;
 
-                    return (
-                      <tr key={employee.id} className="hover:bg-slate-50/50 transition-colors group">
-                        {/* Employee Info */}
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-3">
-                            {employee.photo ? (
-                              <img 
-                                src={employee.photo} 
-                                alt={employee.name} 
-                                className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-200" 
-                              />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0 font-bold text-xs text-indigo-600 uppercase">
-                                {employee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                      return (
+                        <tr key={employee.id} className="hover:bg-slate-50/50 transition-colors group">
+                          {/* Employee Info */}
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-3">
+                              {employee.photo ? (
+                                <img 
+                                  src={employee.photo} 
+                                  alt={employee.name} 
+                                  className="w-10 h-10 rounded-2xl object-cover shrink-0 border border-slate-200 transition-transform group-hover:scale-105" 
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0 font-extrabold text-xs text-indigo-650 uppercase transition-transform group-hover:scale-105">
+                                  {employee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                                </div>
+                              )}
+                              <div>
+                                <h4 className="font-extrabold text-slate-900 text-sm leading-tight transition-colors group-hover:text-indigo-650">{employee.name}</h4>
+                                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">ID: {employee.loginId}</p>
                               </div>
-                            )}
-                            <div>
-                              <h4 className="font-bold text-slate-900 text-sm leading-tight">{employee.name}</h4>
-                              <p className="text-[10px] text-slate-400 font-semibold mt-0.5">ID: {employee.loginId}</p>
                             </div>
+                          </td>
+
+                          {/* Designation */}
+                          <td className="py-4 px-6 text-xs text-slate-600 font-medium">
+                            {employee.designation || <span className="text-slate-400 italic">Not Specified</span>}
+                          </td>
+
+                          {/* Base Salary */}
+                          <td className="py-4 px-6 text-xs font-bold text-slate-800">
+                            {hasSalary ? (
+                              formatCurrency(Number(employee.salary), currencySymbol)
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-rose-500 font-semibold">
+                                <AlertCircle className="w-3.5 h-3.5" />
+                                Salary Not Set
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Payment Status Badges */}
+                          <td className="py-4 px-6">
+                            {status === 'Paid' ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-bold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Paid
+                              </span>
+                            ) : status === 'Hold' ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                Hold
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 text-slate-500 text-[10px] font-bold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                Pending
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Payment Details */}
+                          <td className="py-4 px-6">
+                            {status === 'Paid' ? (
+                              <span className="text-[11px] font-extrabold text-slate-700 whitespace-nowrap">
+                                Settled: {formatCurrency(salary, currencySymbol)}
+                              </span>
+                            ) : status === 'Hold' ? (
+                              <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">Withheld</span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-medium italic">Pending release</span>
+                            )}
+                          </td>
+
+                          {/* Actions (Paid & Hold options toggle) */}
+                          <td className="py-4 px-6 text-right">
+                            <div className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/50 p-1 rounded-2xl w-fit">
+                              {/* Download Slip Option */}
+                              {status === 'Paid' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const rec = payrollRecords.find(r => r.employeeId === employee.id && r.month === selectedMonth);
+                                    if (rec) setPreviewSlip({ employee, record: rec });
+                                  }}
+                                  className="px-3.5 py-2 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 bg-white hover:bg-indigo-50/55 text-indigo-650 border border-slate-200/40 hover:border-indigo-150 shadow-2xs"
+                                  title={`Preview Payslip for ${employee.name}`}
+                                  id={`btn-payslip-${employee.id}`}
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  Slip
+                                </button>
+                              )}
+
+                              {/* Paid Option */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPaymentModal(employee)}
+                                className={`px-3.5 py-2 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                                  status === 'Paid'
+                                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100'
+                                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
+                                }`}
+                                title={`Record Payment for ${employee.name}`}
+                                id={`btn-paid-${employee.id}`}
+                              >
+                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                Paid
+                              </button>
+
+                              {/* Hold Option */}
+                              <button
+                                type="button"
+                                onClick={() => handleMarkAsHold(employee)}
+                                className={`px-3.5 py-2 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                                  status === 'Hold'
+                                    ? 'bg-amber-500 text-white shadow-md shadow-amber-100'
+                                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
+                                }`}
+                                title={`Hold Payment for ${employee.name}`}
+                                id={`btn-hold-${employee.id}`}
+                              >
+                                <Pause className="w-3.5 h-3.5 stroke-[2.5]" />
+                                Hold
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile/Tablet View (Recent Documents Card Inspo) */}
+            <div className="md:hidden space-y-4">
+              {filteredPayroll.map(({ employee, status, salary, paymentDate, paymentMethod, notes }) => {
+                const hasSalary = employee.salary !== undefined && employee.salary !== '' && Number(employee.salary) > 0;
+                
+                return (
+                  <div 
+                    key={employee.id}
+                    className="p-5 bg-white border border-[#f1f3f9] rounded-3xl flex flex-col gap-4 shadow-xs hover:shadow-md transition-all duration-300 group"
+                  >
+                    {/* Top Row: Info and Salary (mimicking Recent Documents layout) */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        {employee.photo ? (
+                          <div className="w-10 h-10 rounded-2xl overflow-hidden shrink-0 border border-slate-200 transition-transform group-hover:scale-105">
+                            <img 
+                              src={employee.photo} 
+                              alt={employee.name} 
+                              className="w-full h-full object-cover" 
+                            />
                           </div>
-                        </td>
+                        ) : (
+                          <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0 font-extrabold text-xs text-indigo-650 uppercase transition-transform group-hover:scale-105">
+                            {employee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-extrabold text-[13px] text-slate-900 truncate transition-colors group-hover:text-indigo-650">
+                            {employee.name}
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-semibold truncate mt-0.5">
+                            {employee.designation || 'Staff'} • ID: {employee.loginId}
+                          </p>
+                        </div>
+                      </div>
 
-                        {/* Designation */}
-                        <td className="py-4 px-6 text-xs text-slate-600 font-medium">
-                          {employee.designation || <span className="text-slate-400 italic">Not Specified</span>}
-                        </td>
-
-                        {/* Base Salary */}
-                        <td className="py-4 px-6 text-xs font-bold text-slate-800">
+                      <div className="text-right shrink-0">
+                        <p className={`font-extrabold text-xs transition-colors ${
+                          status === 'Paid' ? 'text-emerald-600' : 'text-slate-900'
+                        }`}>
                           {hasSalary ? (
                             formatCurrency(Number(employee.salary), currencySymbol)
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-rose-500 font-semibold">
-                              <AlertCircle className="w-3.5 h-3.5" />
-                              Salary Not Set
-                            </span>
+                            <span className="text-rose-500 font-bold">Not Set</span>
                           )}
-                        </td>
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                          {status === 'Paid' ? `Paid (${paymentMethod})` : status === 'Hold' ? 'Hold' : 'Pending'}
+                        </p>
+                      </div>
+                    </div>
 
-                        {/* Payment Status Badges */}
-                        <td className="py-4 px-6">
-                          {status === 'Paid' ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-bold">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              Paid
-                            </span>
-                          ) : status === 'Hold' ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                              Hold
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 text-slate-500 text-[10px] font-bold">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                              Pending
-                            </span>
-                          )}
-                        </td>
+                    {/* Bottom Row: Status Badge and Action Buttons */}
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100/80">
+                      <div>
+                        {status === 'Paid' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Paid
+                          </span>
+                        ) : status === 'Hold' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            Hold
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 text-slate-500 text-[10px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                            Pending
+                          </span>
+                        )}
+                      </div>
 
-                        {/* Payment Details */}
-                        <td className="py-4 px-6">
-                          {status === 'Paid' ? (
-                            <span className="text-[11px] font-extrabold text-slate-700 whitespace-nowrap">
-                              Settled: {formatCurrency(salary, currencySymbol)}
-                            </span>
-                          ) : status === 'Hold' ? (
-                            <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">Withheld</span>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 font-medium italic">Pending release</span>
-                          )}
-                        </td>
+                      <div className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/50 p-1 rounded-2xl">
+                        {status === 'Paid' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const rec = payrollRecords.find(r => r.employeeId === employee.id && r.month === selectedMonth);
+                              if (rec) setPreviewSlip({ employee, record: rec });
+                            }}
+                            className="px-3 py-2 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 active:scale-95 bg-white hover:bg-indigo-50/55 text-indigo-650 border border-slate-200/40 hover:border-indigo-150 shadow-2xs cursor-pointer"
+                            title={`Preview Payslip for ${employee.name}`}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Slip
+                          </button>
+                        )}
 
-                        {/* Actions (Paid & Hold options toggle) */}
-                        <td className="py-4 px-6 text-right">
-                          <div className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/50 p-1 rounded-2xl w-fit">
-                            {/* Download Slip Option */}
-                            {status === 'Paid' && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const rec = payrollRecords.find(r => r.employeeId === employee.id && r.month === selectedMonth);
-                                  if (rec) setPreviewSlip({ employee, record: rec });
-                                }}
-                                className="px-3.5 py-2 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 bg-white hover:bg-indigo-50/55 text-indigo-650 border border-slate-200/40 hover:border-indigo-150 shadow-2xs"
-                                title={`Preview Payslip for ${employee.name}`}
-                                id={`btn-payslip-${employee.id}`}
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                                Slip
-                              </button>
-                            )}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPaymentModal(employee)}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
+                            status === 'Paid'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
+                          }`}
+                        >
+                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                          Paid
+                        </button>
 
-                            {/* Paid Option */}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenPaymentModal(employee)}
-                              className={`px-3.5 py-2 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-                                status === 'Paid'
-                                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100'
-                                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
-                              }`}
-                              title={`Record Payment for ${employee.name}`}
-                              id={`btn-paid-${employee.id}`}
-                            >
-                              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                              Paid
-                            </button>
-
-                            {/* Hold Option */}
-                            <button
-                              type="button"
-                              onClick={() => handleMarkAsHold(employee)}
-                              className={`px-3.5 py-2 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-                                status === 'Hold'
-                                  ? 'bg-amber-500 text-white shadow-md shadow-amber-100'
-                                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
-                              }`}
-                              title={`Hold Payment for ${employee.name}`}
-                              id={`btn-hold-${employee.id}`}
-                            >
-                              <Pause className="w-3.5 h-3.5 stroke-[2.5]" />
-                              Hold
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        <button
+                          type="button"
+                          onClick={() => handleMarkAsHold(employee)}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
+                            status === 'Hold'
+                              ? 'bg-amber-500 text-white shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
+                          }`}
+                        >
+                          <Pause className="w-3.5 h-3.5 stroke-[2.5]" />
+                          Hold
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          </>
         )}
       </div>
 
@@ -797,9 +921,9 @@ export const Payroll = () => {
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Employee</label>
                 <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-2xl">
                   {selectedEmployee.photo ? (
-                    <img src={selectedEmployee.photo} alt={selectedEmployee.name} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                    <img src={selectedEmployee.photo} alt={selectedEmployee.name} className="w-10 h-10 rounded-2xl object-cover border border-slate-200" />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0 font-bold text-xs text-indigo-600 uppercase">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0 font-extrabold text-xs text-indigo-650 uppercase">
                       {selectedEmployee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                     </div>
                   )}
@@ -864,44 +988,44 @@ export const Payroll = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-between pt-3 border-t border-slate-150">
-                <div>
-                  {selectedEmployee && payrollRecords.some(r => r.employeeId === selectedEmployee.id && r.month === selectedMonth && r.status === 'Paid') && (
-                    <Button
-                      variant="danger"
-                      onClick={async () => {
-                        if (!activeCompany?.id || !selectedEmployee) return;
-                        try {
-                          const updatedRecords = payrollRecords.filter(
-                            r => !(r.employeeId === selectedEmployee.id && r.month === selectedMonth)
-                          );
-                          await saveCompanyPayroll(activeCompany.id, updatedRecords);
-                          setPayrollRecords(updatedRecords);
-                          setPaymentModalOpen(false);
-                          setSelectedEmployee(null);
-                          showToast(`Salary payment for "${selectedEmployee.name}" reset to Pending.`, 'info');
-                        } catch (err) {
-                          console.error(err);
-                          showToast('Failed to reset payment.', 'error');
-                        }
-                      }}
-                      className="rounded-2xl px-4 py-2.5 text-xs font-bold cursor-pointer"
-                    >
-                      Reset to Pending
-                    </Button>
-                  )}
-                </div>
-                <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-between gap-1.5 pt-3 border-t border-slate-150">
+                {selectedEmployee && payrollRecords.some(r => r.employeeId === selectedEmployee.id && r.month === selectedMonth && r.status === 'Paid') ? (
+                  <Button
+                    variant="danger"
+                    onClick={async () => {
+                      if (!activeCompany?.id || !selectedEmployee) return;
+                      try {
+                        const updatedRecords = payrollRecords.filter(
+                          r => !(r.employeeId === selectedEmployee.id && r.month === selectedMonth)
+                        );
+                        await saveCompanyPayroll(activeCompany.id, updatedRecords);
+                        setPayrollRecords(updatedRecords);
+                        setPaymentModalOpen(false);
+                        setSelectedEmployee(null);
+                        showToast(`Salary payment for "${selectedEmployee.name}" reset to Pending.`, 'info');
+                      } catch (err) {
+                        console.error(err);
+                        showToast('Failed to reset payment.', 'error');
+                      }
+                    }}
+                    className="rounded-2xl px-2.5 py-2 text-[10px] sm:text-xs font-bold cursor-pointer whitespace-nowrap text-center shrink min-w-0"
+                  >
+                    Reset to Pending
+                  </Button>
+                ) : (
+                  <div className="shrink" />
+                )}
+                <div className="flex items-center gap-1.5 shrink-0">
                   <Button
                     variant="outline"
                     onClick={() => setPaymentModalOpen(false)}
-                    className="border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl px-4 py-2.5 text-xs font-bold cursor-pointer"
+                    className="border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl px-2.5 py-2 text-[10px] sm:text-xs font-bold cursor-pointer whitespace-nowrap text-center"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-5 py-2.5 text-xs font-bold shadow-md shadow-emerald-100 cursor-pointer"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-3 py-2 text-[10px] sm:text-xs font-bold shadow-md shadow-emerald-100 cursor-pointer whitespace-nowrap text-center"
                     id="btn-confirm-payment"
                   >
                     Confirm Payment

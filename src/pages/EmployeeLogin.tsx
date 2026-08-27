@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useCompany } from '../contexts/CompanyContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
-import { loginAsEmployee } from '../services/db';
+import { loginAsEmployee, getCompanyEmployees, saveCompanyEmployees } from '../services/db';
 import { 
   ArrowLeft, ArrowRight, Shield, Lock, Hash, KeyRound,
   FileText, Receipt, CreditCard, BookOpen, Eye, EyeOff, AlertCircle
@@ -20,6 +20,14 @@ export const EmployeeLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Password reset states
+  const [mustChangeScreen, setMustChangeScreen] = useState(false);
+  const [tempEmployee, setTempEmployee] = useState<any>(null);
+  const [tempCompany, setTempCompany] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +54,16 @@ export const EmployeeLogin = () => {
         employeePassword.trim()
       );
       
+      if (employee.mustChangePassword) {
+        setTempCompany(company);
+        setTempEmployee(employee);
+        setMustChangeScreen(true);
+        setNewPassword('');
+        setConfirmPassword('');
+        showToast('Temporary password detected. Please set a new password.', 'info');
+        return;
+      }
+      
       // Save company profile in context
       await saveCompanyProfile(company);
       // Set active employee session
@@ -57,6 +75,57 @@ export const EmployeeLogin = () => {
       setErrorMsg(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+
+    if (!newPassword.trim()) {
+      setErrorMsg('New password is required.');
+      return;
+    }
+    if (newPassword.trim().length < 4) {
+      setErrorMsg('Password must be at least 4 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('Passwords do not match.');
+      return;
+    }
+
+    setChangePasswordLoading(true);
+    try {
+      // 1. Fetch current employees list for the company
+      const employees = await getCompanyEmployees(tempCompany.id);
+      
+      // 2. Update the password and flag for this employee
+      const updatedEmployees = employees.map((emp: any) => {
+        if (emp.id === tempEmployee.id) {
+          return {
+            ...emp,
+            password: newPassword,
+            mustChangePassword: false
+          };
+        }
+        return emp;
+      });
+
+      // 3. Save back to database
+      await saveCompanyEmployees(tempCompany.id, updatedEmployees);
+
+      showToast('Password updated successfully. Please log in with your new password.', 'success');
+      
+      // Reset state back to login screen
+      setMustChangeScreen(false);
+      setTempEmployee(null);
+      setTempCompany(null);
+      setEmployeePassword(''); // Clear temporary password
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to update password.');
+    } finally {
+      setChangePasswordLoading(false);
     }
   };
 
@@ -171,106 +240,202 @@ export const EmployeeLogin = () => {
           {/* Card Wrapper with Mockup Shadow styling */}
           <div className="w-full bg-white border border-slate-200/80 rounded-2xl shadow-lg p-6 md:p-8 relative overflow-hidden transition-all duration-300">
             
-            <form onSubmit={handleLogin} className="space-y-6" autoComplete="off">
-              <div className="text-center space-y-2">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 mb-2">
-                  <KeyRound className="w-6 h-6 text-indigo-600" />
-                </div>
-                <h3 className="font-bold text-slate-900 text-lg">Employee Login</h3>
-                <p className="text-xs text-slate-500 font-medium">Enter your assigned workspace details to log in.</p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Company ID */}
-                <div>
-                  <label htmlFor="companyCode" className="block text-xs font-semibold text-slate-800 mb-1.5">Company ID</label>
-                  <div className="relative">
-                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      id="companyCode"
-                      name="companyCode"
-                      type="text"
-                      value={companyCode}
-                      onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
-                      placeholder="e.g. AB3K9X"
-                      className="w-full pl-9 pr-3 py-2.5 text-sm font-mono tracking-widest border border-slate-350 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none uppercase"
-                      maxLength={10}
-                      required
-                    />
+            {mustChangeScreen ? (
+              <form onSubmit={handleChangePasswordSubmit} className="space-y-6" autoComplete="off">
+                <div className="text-center space-y-2 animate-fadeIn">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 border border-amber-100 mb-2">
+                    <Lock className="w-6 h-6 text-amber-600" />
                   </div>
+                  <h3 className="font-bold text-slate-900 text-lg">Reset Password</h3>
+                  <p className="text-xs text-slate-500 font-medium">Please choose a new password for your account.</p>
                 </div>
 
-                {/* Employee ID */}
-                <div>
-                  <label htmlFor="employeeLoginId" className="block text-xs font-semibold text-slate-800 mb-1.5">Employee ID</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      id="employeeLoginId"
-                      name="employeeLoginId"
-                      type="text"
-                      value={employeeLoginId}
-                      onChange={(e) => setEmployeeLoginId(e.target.value)}
-                      placeholder="e.g. john.doe"
-                      className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-350 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none"
-                      required
-                    />
+                <div className="space-y-4">
+                  {/* Readonly Username Info */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-500">Employee ID</span>
+                    <span className="text-xs font-mono font-bold text-indigo-650">{tempEmployee?.loginId}</span>
                   </div>
-                </div>
 
-                {/* Password */}
-                <div>
-                  <label htmlFor="employeePassword" className="block text-xs font-semibold text-slate-800 mb-1.5">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      id="employeePassword"
-                      name="employeePassword"
-                      type={showPassword ? "text" : "password"}
-                      value={employeePassword}
-                      onChange={(e) => setEmployeePassword(e.target.value)}
-                      placeholder="Enter password"
-                      className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-350 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none"
-                      autoComplete="new-password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  {/* New Password */}
+                  <div>
+                    <label htmlFor="newPassword" className="block text-xs font-semibold text-slate-800 mb-1.5">New Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        id="newPassword"
+                        name="newPassword"
+                        type={showPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Min 4 characters"
+                        className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-350 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div>
+                    <label htmlFor="confirmPassword" className="block text-xs font-semibold text-slate-800 mb-1.5">Confirm Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type={showPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-350 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {errorMsg && (
+                    <div className="bg-rose-50 border border-rose-250 text-rose-700 text-xs px-3.5 py-2.5 rounded-xl font-semibold flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="pt-2 flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      className="w-1/3"
+                      icon={ArrowLeft}
+                      onClick={() => {
+                        setMustChangeScreen(false);
+                        setTempEmployee(null);
+                        setTempCompany(null);
+                        setErrorMsg('');
+                      }}
+                      disabled={changePasswordLoading}
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1 bg-indigo-650 hover:bg-indigo-700 text-white"
+                      icon={ArrowRight}
+                      disabled={changePasswordLoading}
+                    >
+                      {changePasswordLoading ? 'Saving...' : 'Set Password'}
+                    </Button>
                   </div>
                 </div>
-
-                {errorMsg && (
-                  <div className="bg-rose-50 border border-rose-250 text-rose-700 text-xs px-3.5 py-2.5 rounded-xl font-semibold flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                    <span>{errorMsg}</span>
+              </form>
+            ) : (
+              <form onSubmit={handleLogin} className="space-y-6" autoComplete="off">
+                <div className="text-center space-y-2">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 mb-2">
+                    <KeyRound className="w-6 h-6 text-indigo-600" />
                   </div>
-                )}
-
-                <div className="pt-2 flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    className="w-1/3"
-                    icon={ArrowLeft}
-                    onClick={() => navigate('/')}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                    icon={ArrowRight}
-                    disabled={loading}
-                  >
-                    {loading ? 'Logging in...' : 'Login'}
-                  </Button>
+                  <h3 className="font-bold text-slate-900 text-lg">Employee Login</h3>
+                  <p className="text-xs text-slate-500 font-medium">Enter your assigned workspace details to log in.</p>
                 </div>
-              </div>
-            </form>
+
+                <div className="space-y-4">
+                  {/* Company ID */}
+                  <div>
+                    <label htmlFor="companyCode" className="block text-xs font-semibold text-slate-800 mb-1.5">Company ID</label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        id="companyCode"
+                        name="companyCode"
+                        type="text"
+                        value={companyCode}
+                        onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
+                        placeholder="e.g. AB3K9X"
+                        className="w-full pl-9 pr-3 py-2.5 text-sm font-mono tracking-widest border border-slate-350 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none uppercase"
+                        maxLength={10}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Employee ID */}
+                  <div>
+                    <label htmlFor="employeeLoginId" className="block text-xs font-semibold text-slate-800 mb-1.5">Employee ID</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        id="employeeLoginId"
+                        name="employeeLoginId"
+                        type="text"
+                        value={employeeLoginId}
+                        onChange={(e) => setEmployeeLoginId(e.target.value)}
+                        placeholder="e.g. john.doe"
+                        className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-350 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label htmlFor="employeePassword" className="block text-xs font-semibold text-slate-800 mb-1.5">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        id="employeePassword"
+                        name="employeePassword"
+                        type={showPassword ? "text" : "password"}
+                        value={employeePassword}
+                        onChange={(e) => setEmployeePassword(e.target.value)}
+                        placeholder="Enter password"
+                        className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-350 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                        autoComplete="new-password"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {errorMsg && (
+                    <div className="bg-rose-50 border border-rose-250 text-rose-700 text-xs px-3.5 py-2.5 rounded-xl font-semibold flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="pt-2 flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      className="w-1/3"
+                      icon={ArrowLeft}
+                      onClick={() => navigate('/')}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                      icon={ArrowRight}
+                      disabled={loading}
+                    >
+                      {loading ? 'Logging in...' : 'Login'}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            )}
 
           </div>
         </div>

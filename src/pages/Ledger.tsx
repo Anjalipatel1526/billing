@@ -1099,39 +1099,140 @@ export const Ledger = () => {
               <p className="text-xs text-slate-500 max-w-sm mx-auto">Try adjusting the filter date ranges or party name.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4">Particulars</th>
-                    <th className="py-3 px-4">Doc Type / No.</th>
-                    <th className="py-3 px-4 text-right">Debit (+)</th>
-                    <th className="py-3 px-4 text-right">Credit (-)</th>
-                    <th className="py-3 px-4 text-right">Balance</th>
-                    <th className="py-3 px-4 text-center">Bill Preview</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {ledgerData.entries.map((row: any, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{formatDate(row.date)}</td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="text-slate-800 font-semibold flex items-center gap-1.5">
-                          <span className="truncate max-w-[250px]" title={row.particulars}>
-                            {row.particulars}
-                          </span>
-                          {row.createdBy && (
-                            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                              (by {row.createdBy})
+            <>
+              {/* Desktop View (Table Layout) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
+                      <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4">Particulars</th>
+                      <th className="py-3 px-4">Doc Type / No.</th>
+                      <th className="py-3 px-4 text-right">Debit (+)</th>
+                      <th className="py-3 px-4 text-right">Credit (-)</th>
+                      <th className="py-3 px-4 text-right">Balance</th>
+                      <th className="py-3 px-4 text-center">Bill Preview</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {ledgerData.entries.map((row: any, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{formatDate(row.date)}</td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="text-slate-800 font-semibold flex items-center gap-1.5">
+                            <span className="truncate max-w-[250px]" title={row.particulars}>
+                              {row.particulars}
                             </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                            {row.createdBy && (
+                              <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                                (by {row.createdBy})
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            {row.isExpense ? (
+                              <span className="font-mono font-semibold uppercase text-slate-600">{row.number}</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const doc = documents.find(d => d.id === row.id);
+                                  if (doc) {
+                                    setPreviewDoc(doc);
+                                  }
+                                }}
+                                className="hover:text-blue-600 font-mono font-semibold transition-colors cursor-pointer text-left"
+                                title="Preview Document"
+                              >
+                                <span className="uppercase">{row.number}</span>
+                              </button>
+                            )}
+                            <Badge variant={row.type === 'invoice' ? 'invoice' : row.type === 'voucher' ? 'voucher' : row.type === 'receipt' ? 'receipt' : 'expense'} className="py-0 px-1 text-[8px]">
+                              {row.type}
+                            </Badge>
+                          </div>
+                        </td>
+                        <td className={`py-3 px-4 text-right font-semibold whitespace-nowrap ${
+                          row.type === 'invoice' ? 'text-rose-600' : 'text-blue-600'
+                        }`}>
+                          {row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right font-semibold text-emerald-600 whitespace-nowrap">
+                          {row.credit > 0 ? formatCurrency(row.credit, currencySymbol) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right font-bold text-slate-900 whitespace-nowrap">
+                          {formatCurrency(row.balance, currencySymbol)}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const targetId = row.isExpense ? row.documentId : row.id;
+                              const doc = documents.find(d => d.id === targetId);
+                              if (doc) {
+                                setPreviewDoc(doc);
+                              } else if (row.isExpense) {
+                                // Fallback for expenses without documentId
+                                const fallbackDoc = {
+                                  id: row.id,
+                                  documentNumber: row.number,
+                                  documentType: 'voucher',
+                                  voucherType: 'Expense Bill',
+                                  documentDate: row.date,
+                                  status: 'Paid',
+                                  paidTo: row.partyOrProject || 'Office Expenses',
+                                  paymentMethod: 'N/A',
+                                  amount: row.debit || row.amount || 0,
+                                  totals: { grandTotal: row.debit || row.amount || 0 },
+                                  description: row.particulars,
+                                  items: [
+                                    {
+                                      id: 'item_1',
+                                      description: row.particulars,
+                                      quantity: 1,
+                                      rate: row.debit || row.amount || 0,
+                                      amount: row.debit || row.amount || 0
+                                    }
+                                  ],
+                                  template: activeCompany.selectedTemplate || 'UNAI Billing'
+                                };
+                                setPreviewDoc(fallbackDoc as any);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          >
+                            View Bill
+                            <Eye className="w-3 h-3" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile View (Recent Documents Card Inspo) */}
+              <div className="md:hidden space-y-4 p-4.5 bg-slate-50/50">
+                {ledgerData.entries.map((row: any, idx) => {
+                  const hasDebit = row.debit > 0;
+                  const flowText = hasDebit ? 'Debit (+)' : 'Credit (-)';
+                  const flowColor = hasDebit ? 'text-rose-600' : 'text-emerald-600';
+                  const amount = hasDebit ? row.debit : row.credit;
+
+                  return (
+                    <div
+                      key={idx}
+                      className="p-5 bg-white border border-[#f1f3f9] rounded-3xl flex flex-col gap-4 shadow-xs hover:shadow-md transition-all duration-300 group"
+                    >
+                      {/* Top Row: Ref & Type Badge + Date */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           {row.isExpense ? (
-                            <span className="font-mono font-semibold uppercase text-slate-600">{row.number}</span>
+                            <span className="font-mono font-extrabold text-[13px] text-slate-900 truncate">
+                              {row.number}
+                            </span>
                           ) : (
                             <button
                               type="button"
@@ -1141,7 +1242,7 @@ export const Ledger = () => {
                                   setPreviewDoc(doc);
                                 }
                               }}
-                              className="hover:text-blue-600 font-mono font-semibold transition-colors cursor-pointer text-left"
+                              className="hover:text-blue-600 font-mono font-extrabold text-[13px] text-slate-900 truncate text-left transition-colors cursor-pointer"
                               title="Preview Document"
                             >
                               <span className="uppercase">{row.number}</span>
@@ -1151,19 +1252,43 @@ export const Ledger = () => {
                             {row.type}
                           </Badge>
                         </div>
-                      </td>
-                      <td className={`py-3 px-4 text-right font-semibold whitespace-nowrap ${
-                        row.type === 'invoice' ? 'text-rose-600' : 'text-blue-600'
-                      }`}>
-                        {row.debit > 0 ? formatCurrency(row.debit, currencySymbol) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right font-semibold text-emerald-600 whitespace-nowrap">
-                        {row.credit > 0 ? formatCurrency(row.credit, currencySymbol) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right font-bold text-slate-900 whitespace-nowrap">
-                        {formatCurrency(row.balance, currencySymbol)}
-                      </td>
-                      <td className="py-3 px-4 text-center">
+                        <div className="text-right shrink-0">
+                          <p className="text-[10px] text-slate-400 font-semibold">
+                            {formatDate(row.date)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Middle: Particulars */}
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <div className="font-extrabold text-[13px] text-slate-800 break-words">
+                          {row.particulars}
+                        </div>
+                        {row.createdBy && (
+                          <div className="text-[10px] text-slate-400 font-semibold">
+                            Created by: {row.createdBy}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Transaction Flow and Running Balance */}
+                      <div className="grid grid-cols-2 gap-3 bg-slate-50/60 p-3 rounded-2xl border border-slate-100">
+                        <div>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{flowText}</p>
+                          <p className={`font-extrabold text-xs mt-0.5 ${flowColor}`}>
+                            {formatCurrency(amount, currencySymbol)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Running Balance</p>
+                          <p className="font-extrabold text-xs mt-0.5 text-slate-900">
+                            {formatCurrency(row.balance, currencySymbol)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: View Bill Action */}
+                      <div className="flex items-center justify-end pt-3 border-t border-slate-100/80">
                         <button
                           type="button"
                           onClick={() => {
@@ -1172,7 +1297,6 @@ export const Ledger = () => {
                             if (doc) {
                               setPreviewDoc(doc);
                             } else if (row.isExpense) {
-                              // Fallback for expenses without documentId
                               const fallbackDoc = {
                                 id: row.id,
                                 documentNumber: row.number,
@@ -1199,17 +1323,17 @@ export const Ledger = () => {
                               setPreviewDoc(fallbackDoc as any);
                             }
                           }}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-4.5 py-2 bg-indigo-50 border border-indigo-100/40 text-[11px] font-extrabold text-indigo-650 hover:bg-indigo-100/50 hover:text-indigo-700 active:scale-95 transition-all rounded-xl cursor-pointer"
                         >
-                          View Bill
-                          <Eye className="w-3 h-3" />
+                          <span>View Bill</span>
+                          <Eye className="w-3.5 h-3.5 stroke-[2.2]" />
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
 

@@ -63,6 +63,17 @@ export const CompanyProvider = ({ children }) => {
   const suppressRealtimeRef = useRef(false);
   const realtimeDebounceRef = useRef(null);
 
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('isSessionAuthenticated') === 'true');
+
+  const setAuthenticatedState = (val) => {
+    if (val) {
+      localStorage.setItem('isSessionAuthenticated', 'true');
+    } else {
+      localStorage.removeItem('isSessionAuthenticated');
+    }
+    setIsAuthenticated(val);
+  };
+
 
   const loadData = useCallback(async () => {
     console.log('[CompanyContext] loadData started, setting loading = true');
@@ -193,7 +204,9 @@ export const CompanyProvider = ({ children }) => {
     saveCompanyProfile,
     updateActiveCompany,
     removeCompany,
-    reloadCompanies: loadData
+    reloadCompanies: loadData,
+    isAuthenticated,
+    setAuthenticatedState
   };
 
   return (

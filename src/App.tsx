@@ -19,6 +19,7 @@ import { Employees } from './pages/Employees';
 import { Payroll } from './pages/Payroll';
 import { EmployeeLogin } from './pages/EmployeeLogin';
 import { Payslips } from './pages/Payslips';
+import { WorkspaceLogin } from './pages/WorkspaceLogin';
 import { getCompanyEmployees } from './services/db';
 
 import { 
@@ -27,7 +28,7 @@ import {
 
 // Route Guard to redirect first-time users to Onboarding
 const AppRoutes = () => {
-  const { activeCompany, loading } = useCompany();
+  const { activeCompany, loading, isAuthenticated } = useCompany();
   const isPreviewRoute = window.location.pathname.startsWith('/preview/');
 
   React.useEffect(() => {
@@ -79,6 +80,110 @@ const AppRoutes = () => {
   }, [activeCompany?.id]);
 
   if (loading && !isPreviewRoute) {
+    // If user is already authenticated, show a skeleton loader that
+    // mirrors the actual sidebar + dashboard layout for seamless UX
+    if (isAuthenticated) {
+      return (
+        <div className="h-screen w-full flex bg-[#f8fafc] font-sans overflow-hidden">
+          {/* Skeleton Sidebar */}
+          <div className="hidden md:flex w-[260px] bg-white border-r border-[#f1f3f9] flex-col shrink-0 pt-5">
+            {/* Brand */}
+            <div className="px-6 pb-6 flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-slate-200 animate-pulse shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 bg-slate-200 rounded-lg w-28 animate-pulse" />
+                <div className="h-2.5 bg-slate-100 rounded-lg w-20 animate-pulse" />
+              </div>
+            </div>
+            {/* Menu Label */}
+            <div className="px-7 pb-3">
+              <div className="h-2 bg-slate-100 rounded w-16 animate-pulse" />
+            </div>
+            {/* Nav Items */}
+            <div className="px-4 space-y-2">
+              {[1,2,3,4,5,6,7,8].map(i => (
+                <div key={i} className="flex items-center gap-3.5 px-4 py-3 rounded-2xl">
+                  <div className="w-5 h-5 rounded-md bg-slate-100 animate-pulse shrink-0" />
+                  <div className={`h-3 bg-slate-100 rounded-lg animate-pulse`} style={{ width: `${60 + (i * 7) % 40}px` }} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Skeleton Main Content */}
+          <div className="flex-1 overflow-hidden p-4 md:p-8">
+            {/* Welcome Card Skeleton */}
+            <div className="bg-white border border-[#f1f3f9] p-6 rounded-3xl mb-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-3">
+                  <div className="h-6 bg-slate-200 rounded-xl w-64 animate-pulse" />
+                  <div className="h-3 bg-slate-100 rounded-lg w-96 animate-pulse" />
+                </div>
+              </div>
+            </div>
+
+            {/* Stat Cards Skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {[1,2,3].map(i => (
+                <div key={i} className="bg-white border border-[#f1f3f9] rounded-2xl p-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 animate-pulse shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-2.5 bg-slate-100 rounded-lg w-24 animate-pulse" />
+                    <div className="h-5 bg-slate-200 rounded-lg w-32 animate-pulse" />
+                    <div className="h-2 bg-slate-50 rounded-lg w-36 animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Second Row Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {[1,2,3].map(i => (
+                <div key={i} className="bg-white border border-[#f1f3f9] rounded-2xl p-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 animate-pulse shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-2.5 bg-slate-100 rounded-lg w-28 animate-pulse" />
+                    <div className="h-5 bg-slate-200 rounded-lg w-24 animate-pulse" />
+                    <div className="h-2 bg-slate-50 rounded-lg w-40 animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Chart + Recent Docs Skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              <div className="lg:col-span-3 bg-white border border-[#f1f3f9] rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="h-4 bg-slate-200 rounded-lg w-36 animate-pulse" />
+                  <div className="h-8 bg-slate-100 rounded-lg w-32 animate-pulse" />
+                </div>
+                <div className="h-48 bg-slate-50 rounded-xl animate-pulse" />
+              </div>
+              <div className="lg:col-span-2 bg-white border border-[#f1f3f9] rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="h-4 bg-slate-200 rounded-lg w-32 animate-pulse" />
+                  <div className="h-3 bg-slate-100 rounded-lg w-14 animate-pulse" />
+                </div>
+                <div className="space-y-4">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 animate-pulse shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3 bg-slate-100 rounded-lg w-24 animate-pulse" />
+                        <div className="h-2 bg-slate-50 rounded-lg w-36 animate-pulse" />
+                      </div>
+                      <div className="h-3.5 bg-slate-100 rounded-lg w-16 animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // First-time / unauthenticated users see the branded loading screen
     return (
       <div className="h-screen max-h-screen flex flex-col md:flex-row bg-[#080d27] font-sans overflow-hidden">
         
@@ -193,23 +298,24 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/" element={hasCompany ? <Navigate to="/dashboard" replace /> : <Onboarding />} />
-      <Route path="/join" element={hasCompany ? <Navigate to="/dashboard" replace /> : <Onboarding />} />
-      <Route path="/onboarding" element={hasCompany ? <Navigate to="/dashboard" replace /> : <Onboarding />} />
-      <Route path="/employeelogin" element={localStorage.getItem('activeEmployee') ? <Navigate to="/dashboard" replace /> : <EmployeeLogin />} />
-      <Route path="/dashboard" element={hasCompany ? <Dashboard /> : <Navigate to="/" replace />} />
-      <Route path="/documents" element={hasCompany ? <Documents /> : <Navigate to="/" replace />} />
-      <Route path="/documents/new" element={hasCompany ? <CreateDocument /> : <Navigate to="/" replace />} />
-      <Route path="/documents/:id" element={hasCompany ? <CreateDocument /> : <Navigate to="/" replace />} />
-      <Route path="/companies/:id" element={hasCompany ? <CompanyEdit /> : <Navigate to="/" replace />} />
-      <Route path="/ledger" element={hasCompany ? <Ledger /> : <Navigate to="/" replace />} />
-      <Route path="/expenses" element={hasCompany ? <Expenses /> : <Navigate to="/" replace />} />
-      <Route path="/recurring" element={hasCompany ? <Recurring /> : <Navigate to="/" replace />} />
-      <Route path="/recycle-bin" element={hasCompany ? <RecycleBin /> : <Navigate to="/" replace />} />
-      <Route path="/employees" element={hasCompany ? <Employees /> : <Navigate to="/" replace />} />
-      <Route path="/payroll" element={hasCompany ? <Payroll /> : <Navigate to="/" replace />} />
-      <Route path="/payslips" element={hasCompany ? <Payslips /> : <Navigate to="/" replace />} />
-      <Route path="/settings" element={hasCompany ? <Settings /> : <Navigate to="/" replace />} />
+      <Route path="/" element={hasCompany ? (isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />) : <Onboarding />} />
+      <Route path="/join" element={<Onboarding />} />
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/login" element={hasCompany ? (isAuthenticated ? <Navigate to="/dashboard" replace /> : <WorkspaceLogin />) : <Navigate to="/" replace />} />
+      <Route path="/dashboard" element={hasCompany && isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />} />
+      <Route path="/documents" element={hasCompany && isAuthenticated ? <Documents /> : <Navigate to="/" replace />} />
+      <Route path="/documents/new" element={hasCompany && isAuthenticated ? <CreateDocument /> : <Navigate to="/" replace />} />
+      <Route path="/documents/:id" element={hasCompany && isAuthenticated ? <CreateDocument /> : <Navigate to="/" replace />} />
+      <Route path="/companies/:id" element={hasCompany && isAuthenticated ? <CompanyEdit /> : <Navigate to="/" replace />} />
+      <Route path="/ledger" element={hasCompany && isAuthenticated ? <Ledger /> : <Navigate to="/" replace />} />
+      <Route path="/expenses" element={hasCompany && isAuthenticated ? <Expenses /> : <Navigate to="/" replace />} />
+      <Route path="/recurring" element={hasCompany && isAuthenticated ? <Recurring /> : <Navigate to="/" replace />} />
+      <Route path="/recycle-bin" element={hasCompany && isAuthenticated ? <RecycleBin /> : <Navigate to="/" replace />} />
+      <Route path="/employees" element={hasCompany && isAuthenticated ? <Employees /> : <Navigate to="/" replace />} />
+      <Route path="/payroll" element={hasCompany && isAuthenticated ? <Payroll /> : <Navigate to="/" replace />} />
+      <Route path="/payslips" element={hasCompany && isAuthenticated ? <Payslips /> : <Navigate to="/" replace />} />
+      <Route path="/settings" element={hasCompany && isAuthenticated ? <Settings /> : <Navigate to="/" replace />} />
+      <Route path="/employeelogin" element={<Navigate to="/login" replace />} />
       <Route path="/preview/:id" element={<PublicPreview />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
