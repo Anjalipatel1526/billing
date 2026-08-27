@@ -28,7 +28,7 @@ export const Settings = () => {
   return (
     <MainLayout title="Settings">
       <div className="space-y-6 max-w-4xl mx-auto">
-        <div className="bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
+        <div className="hidden md:block bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
           <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Application Settings</h1>
           <p className="text-xs text-slate-500 mt-0.5 font-semibold">Manage and edit your company workspace details.</p>
         </div>

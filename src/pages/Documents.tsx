@@ -221,7 +221,7 @@ export const Documents = () => {
     <MainLayout title="Documents">
       <div className="space-y-6">
         {/* Header & New Document Button */}
-        <div className={`sticky top-16 md:top-4 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-[#f1f3f9] shadow-sm transition-all duration-300 ${
+        <div className={`sticky top-16 md:top-4 z-20 hidden md:flex flex-row md:items-center justify-between gap-4 bg-white/95 backdrop-blur-md p-5 rounded-3xl border border-[#f1f3f9] shadow-sm transition-all duration-300 ${
           scrollDirection === 'down' ? '-translate-y-40 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}>
           <div>

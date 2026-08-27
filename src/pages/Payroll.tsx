@@ -18,6 +18,7 @@ import {
   Printer, 
   Wallet, 
   X,
+  Plus,
   BadgeCheck,
   Pause,
   Coins
@@ -67,6 +68,7 @@ export const Payroll = () => {
     return `${d.getFullYear()}-${mm}`;
   });
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Paid' | 'Hold'>('All');
+  const [showMobileControls, setShowMobileControls] = useState(false);
 
   // PDF download state
   const [pdfRenderSlip, setPdfRenderSlip] = useState<{ employee: Employee; record: PayrollRecord } | null>(null);
@@ -382,8 +384,8 @@ export const Payroll = () => {
     <MainLayout title="Salary Payroll">
       <div className="space-y-6 font-sans no-print">
         
-        {/* Top Header & Month Selector */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+        {/* Desktop Header & Month Selector */}
+        <div className="hidden md:flex md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
           <div>
             <h2 className="text-lg font-extrabold text-slate-900 leading-tight">
               Payroll Processing
@@ -427,6 +429,8 @@ export const Payroll = () => {
             </Button>
           </div>
         </div>
+
+
 
         {/* Stats Grid (Bento Layout) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
@@ -1126,6 +1130,74 @@ export const Payroll = () => {
           </div>
         </div>
       )}
+
+      {/* Mobile Floating Action Button (FAB) with Speed Dial for Print, Export, and Month Search */}
+      <div className="md:hidden fixed bottom-20 right-6 z-40 flex flex-col items-end gap-3 no-print">
+        {/* Expanded Speed Dial Options */}
+        {showMobileControls && (
+          <div className="flex flex-col gap-2.5 items-end animate-in slide-in-from-bottom-5 duration-200">
+            
+            {/* Month Selector Option */}
+            <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-md pr-4">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Month:</span>
+              <div className="relative w-32">
+                <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="pl-7 pr-1 py-1 w-full bg-slate-50 border border-slate-200 rounded-lg outline-none text-[11px] font-bold text-slate-700 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Print Payroll Option */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrint();
+                setShowMobileControls(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-md hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+            >
+              <Printer className="w-4.5 h-4.5 text-slate-500" />
+              <span>Print Payroll</span>
+            </button>
+
+            {/* Export CSV Option */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleExportCSV();
+                setShowMobileControls(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-md hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+            >
+              <Download className="w-4.5 h-4.5 text-slate-500" />
+              <span>Export CSV</span>
+            </button>
+          </div>
+        )}
+
+        {/* Main FAB Trigger */}
+        <div className="relative">
+          {/* Glow pulsing ring behind the button */}
+          {!showMobileControls && (
+            <span className="absolute -inset-1 rounded-[20px] bg-indigo-400 opacity-25 animate-ping duration-1000 pointer-events-none"></span>
+          )}
+          <button
+            onClick={() => setShowMobileControls(!showMobileControls)}
+            className="relative w-14 h-14 bg-gradient-to-tr from-blue-600 via-indigo-650 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-[20px] flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/10 group"
+            title="Toggle Actions"
+          >
+            {showMobileControls ? (
+              <X className="w-6 h-6 stroke-[2.8]" />
+            ) : (
+              <Plus className="w-6 h-6 stroke-[2.8] transition-transform duration-300 group-hover:rotate-90" />
+            )}
+          </button>
+        </div>
+      </div>
     </MainLayout>
   );
 };

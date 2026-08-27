@@ -21,7 +21,9 @@ import {
   Scale, 
   ExternalLink,
   Eye,
-  Printer
+  Printer,
+  Plus,
+  X
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import { getAllExpenses } from '../services/db';
@@ -56,6 +58,7 @@ export const Ledger = () => {
   const [pdfRenderDoc, setPdfRenderDoc] = useState(null);
   const [showLedgerPreviewModal, setShowLedgerPreviewModal] = useState(false);
   const [ledgerReportType, setLedgerReportType] = useState<any>(null);
+  const [showMobileControls, setShowMobileControls] = useState(false);
 
   // Scroll direction state for hiding/showing sticky header
   const [scrollDirection, setScrollDirection] = useState('up');
@@ -942,7 +945,7 @@ export const Ledger = () => {
       <div className="space-y-6">
         
         {/* Page Header and Controls */}
-        <div className={`sticky top-16 md:top-4 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-[#f1f3f9] shadow-sm transition-all duration-300 ${
+        <div className={`sticky top-16 md:top-4 z-20 hidden md:flex flex-row md:items-center justify-between gap-4 bg-white/95 backdrop-blur-md p-5 rounded-3xl border border-[#f1f3f9] shadow-sm transition-all duration-300 ${
           scrollDirection === 'down' ? '-translate-y-40 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}>
           <div>
@@ -1519,6 +1522,88 @@ export const Ledger = () => {
           </div>
         )}
 
+      </div>
+
+      {/* Mobile Floating Action Button (FAB) with Speed Dial for Export Excel, Download PDF, and Advance Report */}
+      <div className="md:hidden fixed bottom-20 right-6 z-40 flex flex-col items-end gap-3 no-print">
+        {/* Expanded Speed Dial Options */}
+        {showMobileControls && (
+          <div className="flex flex-col gap-2.5 items-end animate-in slide-in-from-bottom-5 duration-200">
+            
+            {/* Export Excel Option */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (ledgerData.entries.length === 0) {
+                  showToast('No ledger data available to export.', 'warning');
+                  return;
+                }
+                setLedgerReportType('excel');
+                setShowLedgerPreviewModal(true);
+                setShowMobileControls(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-md hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+            >
+              <Download className="w-4 h-4 text-slate-500" />
+              <span>Export Excel</span>
+            </button>
+
+            {/* Download PDF Option */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (ledgerData.entries.length === 0) {
+                  showToast('No ledger data available to export.', 'warning');
+                  return;
+                }
+                setLedgerReportType('pdf');
+                setShowLedgerPreviewModal(true);
+                setShowMobileControls(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-md hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+            >
+              <Download className="w-4 h-4 text-slate-500" />
+              <span>Download PDF</span>
+            </button>
+
+            {/* Advance Report Option */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (ledgerData.entries.length === 0) {
+                  showToast('No ledger data available to export.', 'warning');
+                  return;
+                }
+                setLedgerReportType('advance');
+                setShowLedgerPreviewModal(true);
+                setShowMobileControls(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-md hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+            >
+              <BookOpen className="w-4 h-4 text-slate-500" />
+              <span>Advance Report</span>
+            </button>
+          </div>
+        )}
+
+        {/* Main FAB Trigger */}
+        <div className="relative">
+          {/* Glow pulsing ring behind the button */}
+          {!showMobileControls && (
+            <span className="absolute -inset-1 rounded-[20px] bg-indigo-400 opacity-25 animate-ping duration-1000 pointer-events-none"></span>
+          )}
+          <button
+            onClick={() => setShowMobileControls(!showMobileControls)}
+            className="relative w-14 h-14 bg-gradient-to-tr from-blue-600 via-indigo-650 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-[20px] flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/10 group"
+            title="Toggle Actions"
+          >
+            {showMobileControls ? (
+              <X className="w-6 h-6 stroke-[2.8]" />
+            ) : (
+              <Plus className="w-6 h-6 stroke-[2.8] transition-transform duration-300 group-hover:rotate-90" />
+            )}
+          </button>
+        </div>
       </div>
     </MainLayout>
   );

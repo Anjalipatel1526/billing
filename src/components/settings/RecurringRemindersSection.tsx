@@ -507,7 +507,7 @@ export const RecurringRemindersSection = () => {
     <div className="space-y-6 font-sans">
       
       {/* Header Block */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
+      <div className="hidden md:flex flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
         <div>
           <h1 className="font-extrabold text-slate-900 text-lg tracking-tight flex items-center gap-2">
             <Repeat className="w-5 h-5 text-blue-600 animate-spin-slow" />

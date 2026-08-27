@@ -66,6 +66,7 @@ export const Expenses = () => {
   const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
   const [showExpensePreviewModal, setShowExpensePreviewModal] = useState(false);
   const [expenseReportType, setExpenseReportType] = useState<'pdf' | 'excel' | null>(null);
+  const [showMobileControls, setShowMobileControls] = useState(false);
 
   // Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -610,7 +611,7 @@ export const Expenses = () => {
       <div className="space-y-6">
         
         {/* Page Header and Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
+        <div className="hidden md:flex flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#f1f3f9] shadow-xs">
           <div>
             <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">Company Expenses</h1>
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Track, categorize, and assign expenses to projects or events.</p>
@@ -629,7 +630,7 @@ export const Expenses = () => {
               title="Export Current Expenses to Excel CSV"
             >
               <Download className="w-4 h-4 text-slate-500" />
-              <span><span className="hidden sm:inline">Export </span>Excel</span>
+              <span>Export Excel</span>
             </button>
             <button
               onClick={() => {
@@ -644,7 +645,7 @@ export const Expenses = () => {
               title="Download Current Expenses PDF Statement"
             >
               <FileText className="w-4 h-4 text-slate-500" />
-              <span><span className="hidden sm:inline">Download </span>PDF</span>
+              <span>Download PDF</span>
             </button>
           </div>
         </div>
@@ -1531,19 +1532,82 @@ export const Expenses = () => {
           </div>
         )}
 
-        {/* Floating Add Expense Action Button (FAB) - Unique design */}
+        {/* Floating Add Expense Action Button (FAB) - Unique design with Speed Dial */}
         {canAddExpense && (
-          <div className="fixed bottom-20 right-6 z-40 flex items-center justify-center">
-            {/* Glow pulsing ring behind the button */}
-            <span className="absolute inline-flex h-14 w-14 rounded-[20px] bg-indigo-400 opacity-25 animate-ping duration-1000 pointer-events-none"></span>
-            <button
-              onClick={handleOpenModal}
-              className="relative w-14 h-14 bg-gradient-to-tr from-blue-600 via-indigo-650 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-[20px] flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/10 group"
-              title="Add New Expense"
-            >
-              {/* Plus icon inside with hover rotation */}
-              <Plus className="w-6 h-6 stroke-[2.8] transition-transform duration-300 group-hover:rotate-90" />
-            </button>
+          <div className="fixed bottom-20 right-6 z-40 flex flex-col items-end gap-3 no-print">
+            {/* Expanded Speed Dial Options */}
+            {showMobileControls && (
+              <div className="flex flex-col gap-2.5 items-end animate-in slide-in-from-bottom-5 duration-200">
+                
+                {/* Export Excel Option */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (filteredExpenses.length === 0) {
+                      showToast('No expenses found for the current filters to export.', 'warning');
+                      return;
+                    }
+                    setExpenseReportType('excel');
+                    setShowExpensePreviewModal(true);
+                    setShowMobileControls(false);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-md hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+                >
+                  <Download className="w-4 h-4 text-slate-500" />
+                  <span>Export Excel</span>
+                </button>
+
+                {/* Download PDF Option */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (filteredExpenses.length === 0) {
+                      showToast('No expenses found for the current filters to export.', 'warning');
+                      return;
+                    }
+                    setExpenseReportType('pdf');
+                    setShowExpensePreviewModal(true);
+                    setShowMobileControls(false);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-md hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+                >
+                  <FileText className="w-4 h-4 text-slate-500" />
+                  <span>Download PDF</span>
+                </button>
+
+                {/* Add Expense Option */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal();
+                    setShowMobileControls(false);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer pr-5 shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Expense</span>
+                </button>
+              </div>
+            )}
+
+            {/* Main FAB Trigger */}
+            <div className="relative">
+              {/* Glow pulsing ring behind the button */}
+              {!showMobileControls && (
+                <span className="absolute -inset-1 rounded-[20px] bg-indigo-400 opacity-25 animate-ping duration-1000 pointer-events-none"></span>
+              )}
+              <button
+                onClick={() => setShowMobileControls(!showMobileControls)}
+                className="relative w-14 h-14 bg-gradient-to-tr from-blue-600 via-indigo-650 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-[20px] flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/10 group"
+                title="Toggle Actions"
+              >
+                {showMobileControls ? (
+                  <X className="w-6 h-6 stroke-[2.8]" />
+                ) : (
+                  <Plus className="w-6 h-6 stroke-[2.8] transition-transform duration-300 group-hover:rotate-90" />
+                )}
+              </button>
+            </div>
           </div>
         )}
 
