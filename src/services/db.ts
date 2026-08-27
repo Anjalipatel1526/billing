@@ -1036,16 +1036,18 @@ export async function getAllRecurringReminders(companyId: string | null = null) 
     }
   }
 
-  const db = await getDB();
-  if (db) {
-    try {
-      if (companyId) {
-        list = await db.getAllFromIndex('recurring_reminders', 'companyId', companyId);
-      } else {
-        list = await db.getAll('recurring_reminders');
+  if (!list || list.length === 0) {
+    const db = await getDB();
+    if (db) {
+      try {
+        if (companyId) {
+          list = await db.getAllFromIndex('recurring_reminders', 'companyId', companyId);
+        } else {
+          list = await db.getAll('recurring_reminders');
+        }
+      } catch (e) {
+        console.error('IDB getAllRecurringReminders error', e);
       }
-    } catch (e) {
-      console.error('IDB getAllRecurringReminders error', e);
     }
   }
 
