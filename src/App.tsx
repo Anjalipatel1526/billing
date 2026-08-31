@@ -292,23 +292,23 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/" element={hasCompany ? (isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />) : <Onboarding />} />
+      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <WorkspaceLogin />} />
       <Route path="/join" element={<Onboarding />} />
       <Route path="/onboarding" element={<Onboarding />} />
-      <Route path="/login" element={hasCompany ? (isAuthenticated ? <Navigate to="/dashboard" replace /> : <WorkspaceLogin />) : <Navigate to="/" replace />} />
-      <Route path="/dashboard" element={hasCompany && isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />} />
-      <Route path="/documents" element={hasCompany && isAuthenticated ? <Documents /> : <Navigate to="/" replace />} />
-      <Route path="/documents/new" element={hasCompany && isAuthenticated ? <CreateDocument /> : <Navigate to="/" replace />} />
-      <Route path="/documents/:id" element={hasCompany && isAuthenticated ? <CreateDocument /> : <Navigate to="/" replace />} />
-      <Route path="/companies/:id" element={hasCompany && isAuthenticated ? <CompanyEdit /> : <Navigate to="/" replace />} />
-      <Route path="/ledger" element={hasCompany && isAuthenticated ? <Ledger /> : <Navigate to="/" replace />} />
-      <Route path="/expenses" element={hasCompany && isAuthenticated ? <Expenses /> : <Navigate to="/" replace />} />
-      <Route path="/recurring" element={hasCompany && isAuthenticated ? <Recurring /> : <Navigate to="/" replace />} />
-      <Route path="/recycle-bin" element={hasCompany && isAuthenticated ? <RecycleBin /> : <Navigate to="/" replace />} />
-      <Route path="/employees" element={hasCompany && isAuthenticated ? <Employees /> : <Navigate to="/" replace />} />
-      <Route path="/payroll" element={hasCompany && isAuthenticated ? <Payroll /> : <Navigate to="/" replace />} />
-      <Route path="/payslips" element={hasCompany && isAuthenticated ? <Payslips /> : <Navigate to="/" replace />} />
-      <Route path="/settings" element={hasCompany && isAuthenticated ? <Settings /> : <Navigate to="/" replace />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <WorkspaceLogin />} />
+      <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />} />
+      <Route path="/documents" element={isAuthenticated ? <Documents /> : <Navigate to="/" replace />} />
+      <Route path="/documents/new" element={isAuthenticated ? <CreateDocument /> : <Navigate to="/" replace />} />
+      <Route path="/documents/:id" element={isAuthenticated ? <CreateDocument /> : <Navigate to="/" replace />} />
+      <Route path="/companies/:id" element={isAuthenticated ? <CompanyEdit /> : <Navigate to="/" replace />} />
+      <Route path="/ledger" element={isAuthenticated ? <Ledger /> : <Navigate to="/" replace />} />
+      <Route path="/expenses" element={isAuthenticated ? <Expenses /> : <Navigate to="/" replace />} />
+      <Route path="/recurring" element={isAuthenticated ? <Recurring /> : <Navigate to="/" replace />} />
+      <Route path="/recycle-bin" element={isAuthenticated ? <RecycleBin /> : <Navigate to="/" replace />} />
+      <Route path="/employees" element={isAuthenticated ? <Employees /> : <Navigate to="/" replace />} />
+      <Route path="/payroll" element={isAuthenticated ? <Payroll /> : <Navigate to="/" replace />} />
+      <Route path="/payslips" element={isAuthenticated ? <Payslips /> : <Navigate to="/" replace />} />
+      <Route path="/settings" element={isAuthenticated ? <Settings /> : <Navigate to="/" replace />} />
       <Route path="/employeelogin" element={<Navigate to="/login" replace />} />
       <Route path="/preview/:id" element={<PublicPreview />} />
       <Route path="*" element={<Navigate to="/" replace />} />

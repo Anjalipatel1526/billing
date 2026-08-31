@@ -143,43 +143,19 @@ export const EmployeeLogin = () => {
           </svg>
         </div>
 
-        {/* Brand Header (Left) & Top-Right Edge Corner Icons (Right) */}
-        <div className="flex items-center justify-between relative z-20 w-full mb-3 md:mb-0">
+        {/* Header: Back button on LEFT, Logo block on RIGHT */}
+        <div className="flex items-center justify-between relative z-20 w-full mb-3 pt-1">
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer border border-slate-200 active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
+            <span>Back</span>
+          </button>
+
           <div className="flex items-center">
-            <img src="/logo.png" alt="UNAI Logo" className="h-10 sm:h-11 w-auto object-contain" />
-          </div>
-
-          {/* Top Right Edge Corner Action Icons for Mobile (3 icons) */}
-          <div className="flex items-center gap-1.5 md:hidden z-50">
-            <button
-              type="button"
-              onClick={() => navigate('/onboarding')}
-              title="New Company"
-              className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 transition-all cursor-pointer border border-indigo-400/30 backdrop-blur-md active:scale-95"
-            >
-              <Building2 className="w-4 h-4 text-indigo-300" />
-            </button>
-            
-            <button
-              type="button"
-              onClick={() => navigate('/join')}
-              title="Join Company"
-              className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 transition-all cursor-pointer border border-emerald-400/30 backdrop-blur-md active:scale-95"
-            >
-              <UserPlus className="w-4 h-4 text-emerald-300" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById('employee-portal-card');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              title="Employee Login"
-              className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 transition-all cursor-pointer border border-blue-400/30 backdrop-blur-md active:scale-95"
-            >
-              <User className="w-4 h-4 text-blue-300" />
-            </button>
+            <img src="/logo.png" alt="UNAI Logo" className="h-9 w-auto object-contain" />
           </div>
         </div>
 

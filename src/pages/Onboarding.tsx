@@ -155,11 +155,11 @@ export const Onboarding = () => {
     setJoinLoading(true);
     try {
       const company = await joinCompanyByCode(joinCode, joinPassword);
-      await saveCompanyProfile(company);
       localStorage.removeItem('activeEmployee');
+      await saveCompanyProfile(company);
       setAuthenticatedState(true);
       showToast(`Joined "${company.companyName}" successfully!`, 'success');
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
       setJoinError(err.message || 'Failed to join company.');
     } finally {
