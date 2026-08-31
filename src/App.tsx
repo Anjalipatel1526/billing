@@ -195,14 +195,8 @@ const AppRoutes = () => {
             </svg>
           </div>
 
-          <div className="flex items-center gap-2 relative z-20">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/20 overflow-hidden">
-              <img src="/favicon.png" alt="UNAI Logo" className="w-6 h-6 object-contain" />
-            </div>
-            <div>
-              <h1 className="font-bold text-white text-sm tracking-tight leading-none">UNAI Billing</h1>
-              <p className="text-[9px] text-blue-400/80 font-medium mt-0.5">Enterprise Billing Suite</p>
-            </div>
+          <div className="flex items-center relative z-20">
+            <img src="/logo.png" alt="UNAI Logo" className="h-10 sm:h-11 w-auto object-contain" />
           </div>
 
           <div className="my-auto py-2 relative z-20 flex flex-col items-center">
@@ -277,7 +271,7 @@ const AppRoutes = () => {
               <div className="relative flex items-center justify-center">
                 <div className="absolute w-20 h-20 bg-indigo-100/50 rounded-full animate-ping" />
                 <div className="relative w-16 h-16 rounded-full bg-white border border-slate-100 shadow-md flex items-center justify-center">
-                  <img src="/favicon.png" alt="Loading" className="w-8 h-8 object-contain animate-spin" style={{ animationDuration: '3s' }} />
+                  <img src="/logo.png" alt="Loading" className="w-8 h-8 object-contain animate-spin" style={{ animationDuration: '3s' }} />
                 </div>
               </div>
               <div className="text-center space-y-1">
